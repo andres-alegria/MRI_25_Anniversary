@@ -151,7 +151,14 @@ document.addEventListener('DOMContentLoaded', async function() {
     const headOpen = template.match(/<head[^>]*>/i);
     if (headOpen) {
       const i = headOpen.index + headOpen[0].length;
-      template = template.slice(0, i) + resourceScript + template.slice(i);
+      // The document is fully replaced below, so a meta tag in the outer <head>
+      // would not survive. Inject it into the template instead, alongside the
+      // resource script, so it lands in the final rendered DOM.
+      // Keeps the raw github.io URL out of search results while the canonical
+      // address is the embedded page on the main site. Remove this line to
+      // allow indexing of the direct URL.
+      const noIndexMeta = '<meta name="robots" content="noindex, nofollow">';
+      template = template.slice(0, i) + noIndexMeta + resourceScript + template.slice(i);
     }
 
     // Parse the template and swap the root element. Scripts inserted via
