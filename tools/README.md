@@ -1,20 +1,21 @@
 # Deploy tooling
 
-`main` holds the plain Claude Design export. `gh-pages` is what GitHub Pages
-serves, and it is the same bundle with a soft access gate injected.
+GitHub Pages serves `main`. The published `index.html` is the Claude Design
+export with a soft access gate injected into it.
 
 ## Publish an updated bundle
 
-Export to `index.html` on `main` and commit it, then:
+Drop the fresh export over `index.html`, then:
 
 ```bash
-git checkout gh-pages
 ./tools/deploy.sh
-git checkout main
 ```
 
-`deploy.sh` takes `index.html` from `main` verbatim and re-injects the gate, so
-a fresh export never needs hand-editing.
+The export overwrites the gate, so `deploy.sh` re-injects it before pushing.
+Running it twice is harmless — the injector strips any previous gate first.
+
+**Do not commit a fresh export without running this**, or the published page
+goes out ungated.
 
 ## Change the passphrase
 
