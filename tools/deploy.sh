@@ -8,11 +8,12 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 BRANCH="$(git branch --show-current)"
-if [ "$BRANCH" != "main" ]; then
-  echo "Expected to be on main, but currently on '$BRANCH'." >&2
+if [ "$BRANCH" != "main" ] && [ "$BRANCH" != "real-stories" ]; then
+  echo "Expected to be on main or real-stories, but currently on '$BRANCH'." >&2
   exit 1
 fi
 
+python3 tools/apply-content.py
 python3 tools/apply-gate.py
 
 if git diff --quiet -- index.html; then
@@ -21,6 +22,6 @@ if git diff --quiet -- index.html; then
 fi
 
 git add index.html
-git commit -q -m "Deploy: refresh bundle and re-apply access gate"
-git push -q origin main
-echo "Deployed → https://andres-alegria.github.io/MRI_25_Anniversary/"
+git commit -q -m "Deploy: refresh bundle, re-wire story content, re-apply access gate"
+git push -q origin "$BRANCH"
+echo "Deployed $BRANCH → https://andres-alegria.github.io/MRI_25_Anniversary/"
