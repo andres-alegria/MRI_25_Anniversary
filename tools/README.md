@@ -11,11 +11,22 @@ Drop the fresh export over `index.html`, then:
 ./tools/deploy.sh
 ```
 
-The export overwrites the gate, so `deploy.sh` re-injects it before pushing.
-Running it twice is harmless — the injector strips any previous gate first.
+The export overwrites both the gate and the story wiring, so `deploy.sh`
+re-applies them before pushing. Running it twice is harmless — both injectors
+detect their own previous work and skip or strip it first.
 
 **Do not commit a fresh export without running this**, or the published page
-goes out ungated.
+goes out ungated and back to placeholder stories.
+
+## Editing story content
+
+All editorial text lives in `stories-data.js` at the repo root — never inside
+`index.html`. That is what keeps the writing safe from a re-export. Edit that
+file, then run `./tools/deploy.sh`.
+
+Each story has a `status`: `'draft'` renders the real text, `'pending'` renders
+a short "in development" line instead. `tools/apply-content.py` is what teaches
+the bundled page to read that file.
 
 ## Change the passphrase
 
