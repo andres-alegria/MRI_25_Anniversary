@@ -25,8 +25,10 @@ const FIGURES = [
     id: 'policy',
     title: 'Policy Process',
     subtitle: 'Mountains and climate change in the IPCC and the UNFCCC',
-    src: 'figures/policy-process.jpg',
-    alt: 'Placeholder image for the policy process figure.',
+    // Draft, generated from figures/src/fig1_policy_process.py. SVG while it is
+    // still being edited; swap to a 16:9 JPG once finalised in Illustrator.
+    src: 'figures/policy-process.svg',
+    alt: 'Timeline showing that global environmental law named mountains only between 1992 and 1994, with recognition since coming through IPCC assessments, UN years and regional agreements.',
     caption: 'How mountain science has travelled into international climate policy — through IPCC assessment cycles and the UNFCCC, alongside the UN years and decades that opened space for it.'
   },
   {
