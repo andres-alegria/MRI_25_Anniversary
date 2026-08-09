@@ -44,6 +44,7 @@ MERGE_CODE = """
       s.status = d.status || 'pending';
       s.lead = d.lead || '';
       s.body = d.body || [];
+      s.image = d.image || null;
     });
     if (_c.TAG_VOCABULARY) this.allTags = ['All'].concat(_c.TAG_VOCABULARY);
     if (_c.TAG_COLORS) this.themeColors = _c.TAG_COLORS;
@@ -162,6 +163,31 @@ REPLACEMENTS = [
         '<a href="#journey" style="color:#2b2721">The Journey</a>\n'
         '    <a href="#figures" style="color:#2b2721">Summary Figures</a>\n'
         '    <a href="#about" style="color:#2b2721">About the Publication</a>',
+    ),
+    # story photo: use the story's own image when it has one, otherwise fall
+    # back to the generic photos bundled with the export. objectFit is
+    # 'contain' for real images so figures and maps are never cropped.
+    (
+        "openImg: openStory ? React.createElement('img', {\n"
+        "        src: this.placeholderImgs[(openStory.num - 1) % 4],\n"
+        "        alt: 'Placeholder story photo',\n"
+        "        style: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' }\n"
+        "      }) : null,",
+        "openImg: openStory ? React.createElement('img', {\n"
+        "        src: (openStory.image && openStory.image.src) || this.placeholderImgs[(openStory.num - 1) % 4],\n"
+        "        alt: (openStory.image && openStory.image.alt) || 'Placeholder story photo',\n"
+        "        style: { width: '100%', height: '100%',\n"
+        "                 objectFit: openStory.image ? 'contain' : 'cover', display: 'block' }\n"
+        "      }) : null,\n"
+        "      photoCaption: (openStory && openStory.image && openStory.image.caption) || '',",
+    ),
+    # caption under the photo
+    (
+        '<div style="font:italic 400 13px \'Source Serif 4\',Georgia,serif;'
+        'color:#7d7666;margin-bottom:26px">Caption placeholder — captions '
+        'should tell mini-stories of their own.</div>',
+        '<div style="font:italic 400 13px \'Source Serif 4\',Georgia,serif;'
+        'color:#7d7666;margin-bottom:26px">{{ photoCaption }}</div>',
     ),
     # map frame: 2:1 -> 16:9
     ("aspect-ratio:2/1", "aspect-ratio:16/9"),
