@@ -111,6 +111,79 @@ REPLACEMENTS = [
 ]
 
 
+# --- 3. scenery: a river and a town painted into the mountain -------------
+# The bundled SVG passes camelCase attributes through as sc-camel-* , so any
+# new SVG has to follow that convention (gradientUnits -> sc-camel-gradient-units).
+# The icons are drawn in a 160x140 space and placed with translate()/scale(),
+# so the filters below use a displacement tuned for that size rather than the
+# scene-sized one used by the mountain itself.
+SCENERY_DEFS = """
+            <filter id="mjIco" x="-12%" y="-12%" width="124%" height="124%">
+              <feTurbulence type="fractalNoise" sc-camel-base-frequency="0.055" sc-camel-num-octaves="4" seed="7" result="ni"></feTurbulence>
+              <feColorMatrix in="ni" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.9 0.45" result="ai"></feColorMatrix>
+              <feComposite in="SourceGraphic" in2="ai" operator="in" result="ti"></feComposite>
+              <feDisplacementMap in="ti" in2="ni" scale="3.4"></feDisplacementMap>
+            </filter>
+            <filter id="mjIcoSoft" x="-16%" y="-16%" width="132%" height="132%">
+              <feTurbulence type="fractalNoise" sc-camel-base-frequency="0.04" sc-camel-num-octaves="3" seed="12" result="ni2"></feTurbulence>
+              <feColorMatrix in="ni2" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.9 0.35" result="ai2"></feColorMatrix>
+              <feComposite in="SourceGraphic" in2="ai2" operator="in" result="ti2"></feComposite>
+              <feDisplacementMap in="ti2" in2="ni2" scale="2.2"></feDisplacementMap>
+            </filter>
+            <linearGradient id="mjIcoTown" sc-camel-gradient-units="userSpaceOnUse" x1="0" y1="52" x2="0" y2="128">
+              <stop offset="0" stop-color="#b08a3e" stop-opacity="0"></stop>
+              <stop offset="1" stop-color="#b08a3e" stop-opacity="0.30"></stop>
+            </linearGradient>
+            <linearGradient id="mjIcoRiver" sc-camel-gradient-units="userSpaceOnUse" x1="0" y1="16" x2="0" y2="140">
+              <stop offset="0" stop-color="#9fc0d2" stop-opacity="0.55"></stop>
+              <stop offset="1" stop-color="#33698f" stop-opacity="0.78"></stop>
+            </linearGradient>
+"""
+
+# translate() sets where each icon sits in the 1200x600 scene; scale() sets how
+# big it reads. Both are safe to nudge — the story markers are HTML drawn on
+# top, so moving these cannot disturb them.
+SCENERY = """
+          <!-- town on the lower slopes -->
+          <g transform="translate(468,490) scale(0.58)">
+            <ellipse cx="80" cy="122" rx="66" ry="9" fill="#eef2ea" opacity="0.85" filter="url(#mjIcoSoft)"></ellipse>
+            <g filter="url(#mjIcoSoft)">
+              <polygon points="18,120 18,78 34,68 50,78 50,120" fill="#ede6d5"></polygon>
+              <polygon points="104,120 104,62 120,52 136,62 136,120" fill="#ede6d5"></polygon>
+              <rect x="62" y="58" width="16" height="62" fill="#ede6d5"></rect>
+            </g>
+            <g filter="url(#mjIco)" stroke="#3a3630" stroke-width="1.5" stroke-linejoin="round">
+              <rect x="30" y="86" width="26" height="34" fill="#e7e0cd"></rect>
+              <polygon points="52,86 52,54 68,44 84,54 84,86" fill="#fbf9f2"></polygon>
+              <rect x="84" y="72" width="24" height="48" fill="#e7e0cd"></rect>
+              <polygon points="106,72 106,58 118,50 130,58 130,120 106,120" fill="#fbf9f2"></polygon>
+            </g>
+            <g fill="#c9d3d6" opacity="0.9" filter="url(#mjIcoSoft)">
+              <rect x="36" y="94" width="5" height="7"></rect><rect x="46" y="94" width="5" height="7"></rect>
+              <rect x="36" y="106" width="5" height="7"></rect>
+              <rect x="60" y="64" width="5" height="7"></rect><rect x="71" y="64" width="5" height="7"></rect>
+              <rect x="60" y="76" width="5" height="7"></rect><rect x="71" y="76" width="5" height="7"></rect>
+              <rect x="90" y="82" width="5" height="7"></rect><rect x="100" y="82" width="5" height="7"></rect>
+              <rect x="90" y="98" width="5" height="7"></rect>
+              <rect x="113" y="70" width="5" height="7"></rect><rect x="113" y="86" width="5" height="7"></rect>
+            </g>
+            <rect x="14" y="52" width="132" height="70" fill="url(#mjIcoTown)" filter="url(#mjIco)"></rect>
+            <path d="M12 120 H148" stroke="#3a3630" stroke-width="1.5" fill="none" stroke-linecap="round" filter="url(#mjIcoSoft)"></path>
+          </g>
+
+          <!-- river on the valley floor -->
+          <g transform="translate(706,502) scale(0.62)">
+            <ellipse cx="80" cy="82" rx="62" ry="46" fill="#eef2ea" opacity="0.28" filter="url(#mjIcoSoft)"></ellipse>
+            <path d="M66 8 C 60 30, 84 38, 80 56 C 76 76, 44 80, 46 100 C 48 120, 84 122, 92 136 L 116 136 C 106 116, 70 112, 68 100 C 66 88, 100 82, 104 56 C 108 32, 84 26, 80 8 Z" fill="url(#mjIcoRiver)" stroke="#3a3630" stroke-width="1.5" stroke-linejoin="round" filter="url(#mjIco)"></path>
+            <path d="M74 16 C 70 34, 92 42, 88 58 C 84 78, 54 82, 56 100" fill="none" stroke="#fbf9f2" stroke-width="2" opacity="0.5" stroke-linecap="round" filter="url(#mjIcoSoft)"></path>
+            <g fill="#ede6d5" opacity="0.95" filter="url(#mjIcoSoft)">
+              <ellipse cx="97" cy="46" rx="8" ry="4.5" transform="rotate(-24 97 46)"></ellipse>
+              <ellipse cx="60" cy="94" rx="9" ry="5" transform="rotate(16 60 94)"></ellipse>
+            </g>
+          </g>
+"""
+
+
 def patch_template(doc: str) -> str:
     if MARKER in doc:
         print("Already wired — nothing to do.")
@@ -138,6 +211,16 @@ def patch_template(doc: str) -> str:
     doc, n = quote_re.subn(r'\1{{ quote }}\3', doc, count=1)
     if n != 1:
         sys.exit("Could not find the pull-quote block.")
+
+    # scenery: filters/gradients into the mountain's <defs>, artwork before </svg>
+    if doc.count("</defs>") != 1:
+        sys.exit(f"Expected one </defs>, found {doc.count('</defs>')}")
+    doc = doc.replace("</defs>", SCENERY_DEFS + "          </defs>", 1)
+
+    svg_end = "          </g>\n\n        </svg>"
+    if doc.count(svg_end) != 1:
+        sys.exit(f"Expected one mountain <svg> tail, found {doc.count(svg_end)}")
+    doc = doc.replace(svg_end, "          </g>\n" + SCENERY + "\n        </svg>", 1)
 
     # load the content file before the component runs
     head = re.search(r"<head[^>]*>", doc)
