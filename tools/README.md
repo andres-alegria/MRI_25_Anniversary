@@ -28,6 +28,22 @@ Each story has a `status`: `'draft'` renders the real text, `'pending'` renders
 a short "in development" line instead. `tools/apply-content.py` is what teaches
 the bundled page to read that file.
 
+## The cross-cutting figures
+
+The four infographics live in `figures/` as 16:9 JPGs, with their titles and
+captions in `figures-data.js`. They are deliberately not numbered on the
+mountain — in the report they are chapter-level figures, not stories.
+
+The section takes any number of entries, so adding a fifth is a data edit.
+
+To regenerate the stand-in images:
+
+```bash
+python3 tools/make-figure-placeholders.py
+```
+
+Delete that script once the real figures land.
+
 ## Change the passphrase
 
 ```bash

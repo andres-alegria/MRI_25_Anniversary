@@ -81,15 +81,74 @@ RENDER_CODE = """
         _lead = this.pendingText;
       }
     }
+
+    // Cross-cutting figures, from figures-data.js. Independent of the stories.
+    const _fg = window.MRI_FIGURES || {};
+    const _figs = _fg.FIGURES || [];
+    const _fi = Math.min(this.state.figIdx || 0, Math.max(0, _figs.length - 1));
+    const _fcur = _figs[_fi] || null;
+    const _figChips = _figs.map((f, i) => ({
+      name: f.title,
+      fw: i === _fi ? '600' : '500',
+      bg: i === _fi ? '#3a3630' : 'transparent',
+      color: i === _fi ? '#ffffff' : '#55503f',
+      bc: i === _fi ? '#3a3630' : 'rgba(58,54,48,.35)',
+      onPick: () => this.setState({ figIdx: i })
+    }));
+"""
+
+# --- 4. the cross-cutting figures section ---------------------------------
+# One figure on stage at a time, switched by a rail of labels reusing the tag
+# chip styling. Sits after the hero and before "About the Publication".
+FIGURES_SECTION = """
+<!-- ============ FIGURES ============ -->
+<section id="figures" data-screen-label="Figures" style="background:#f5f1e6;padding:clamp(48px,7vw,84px) clamp(20px,4vw,48px);border-top:1px solid rgba(58,54,48,.25)">
+  <div style="max-width:1000px;margin:0 auto">
+    <div style="font:500 11px Jost,sans-serif;letter-spacing:.22em;color:#7d7666;margin-bottom:10px">{{ figEyebrow }}</div>
+    <h2 style="margin:0 0 10px;font:700 clamp(26px,4vw,34px)/1.15 'Source Serif 4',Georgia,serif;color:#2b2721">{{ figHeading }}</h2>
+    <p style="margin:0 0 26px;max-width:62ch;font:400 16px/1.62 'Source Serif 4',Georgia,serif;color:#55503f;text-wrap:pretty">{{ figStandfirst }}</p>
+
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px">
+      <sc-for list="{{ figChips }}" as="f" hint-placeholder-count="4">
+        <button sc-camel-on-click="{{ f.onPick }}" style="cursor:pointer;white-space:nowrap;font:{{ f.fw }} 13.5px Jost,sans-serif;letter-spacing:.02em;padding:7px 16px;border-radius:999px;border:1px solid {{ f.bc }};background:{{ f.bg }};color:{{ f.color }}" style-hover="border-color:#3a3630">{{ f.name }}</button>
+      </sc-for>
+    </div>
+
+    <div style="border:1.5px solid #3a3630;border-radius:6px;background:#e7e0cd;overflow:hidden">
+      <div style="position:relative;width:100%;aspect-ratio:16/9">
+        {{ figImg }}
+      </div>
+    </div>
+    <div style="font:500 13px Jost,sans-serif;letter-spacing:.02em;color:#55503f;margin-top:14px">{{ figSubtitle }}</div>
+    <div style="font:italic 400 14px/1.6 'Source Serif 4',Georgia,serif;color:#7d7666;margin-top:5px;max-width:66ch;text-wrap:pretty">{{ figCaption }}</div>
+  </div>
+</section>
+
 """
 
 REPLACEMENTS = [
+    # a slot in component state for which figure is on stage
+    (
+        "this.state = { activeTag: null, openId: null, hoverId: null };",
+        "this.state = { activeTag: null, openId: null, hoverId: null, figIdx: 0 };",
+    ),
     # per-story text instead of the single shared block
     (
         "      lead: this.lead,\n      parasA: this.parasA,\n      parasB: this.parasB,",
         "      lead: _lead,\n      parasA: _pA,\n      parasB: _pB,\n"
         "      authorLine: _authors,\n      quote: _quote,\n"
-        "      hasQuote: !!_quote,\n      storyTopic: openStory ? (openStory.topic || '') : '',",
+        "      hasQuote: !!_quote,\n      storyTopic: openStory ? (openStory.topic || '') : '',\n"
+        "      figChips: _figChips,\n"
+        "      figImg: _fcur ? React.createElement('img', {\n"
+        "        src: _fcur.src, alt: _fcur.alt,\n"
+        "        style: { position: 'absolute', inset: 0, width: '100%', height: '100%',\n"
+        "                 objectFit: 'contain', display: 'block' }\n"
+        "      }) : null,\n"
+        "      figSubtitle: _fcur ? _fcur.subtitle : '',\n"
+        "      figCaption: _fcur ? _fcur.caption : '',\n"
+        "      figEyebrow: _fg.FIGURES_EYEBROW || '',\n"
+        "      figHeading: _fg.FIGURES_HEADING || '',\n"
+        "      figStandfirst: _fg.FIGURES_STANDFIRST || '',",
     ),
     # author byline: "Name, Institution", standard across all stories
     (
@@ -259,12 +318,21 @@ def patch_template(doc: str) -> str:
         sys.exit(f"Expected one mountain <svg> tail, found {doc.count(svg_end)}")
     doc = doc.replace(svg_end, "          </g>\n" + SCENERY + "\n        </svg>", 1)
 
-    # load the content file before the component runs
+    # the figures section, ahead of "About the Publication"
+    about = "<!-- ============ ABOUT"
+    if doc.count(about) != 1:
+        sys.exit(f"Expected one ABOUT section marker, found {doc.count(about)}")
+    doc = doc.replace(about, FIGURES_SECTION + about, 1)
+
+    # load the content files before the component runs
     head = re.search(r"<head[^>]*>", doc)
     if not head:
         sys.exit("No <head> in template.")
     i = head.end()
-    doc = doc[:i] + '<script src="stories-data.js"></script>' + doc[i:]
+    doc = (doc[:i]
+           + '<script src="stories-data.js"></script>'
+           + '<script src="figures-data.js"></script>'
+           + doc[i:])
 
     return doc
 
