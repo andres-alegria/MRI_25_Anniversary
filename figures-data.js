@@ -56,7 +56,7 @@ const FIGURES = [
 ];
 
 /* Section heading — adjust wording here */
-const FIGURES_EYEBROW = 'BEYOND THE TWENTY-FIVE';
+const FIGURES_EYEBROW = 'SUMMARY FIGURES';
 const FIGURES_HEADING = 'The bigger picture';
 const FIGURES_STANDFIRST =
   'Four figures that cut across the stories — the systems, measurements and processes they all sit inside.';
