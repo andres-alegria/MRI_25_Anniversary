@@ -196,13 +196,26 @@ SCENERY = """
                so the water reads as issuing from that valley. Both banks
                converge on that single point rather than meeting a flat top
                edge, which is what gives the channel its recession. -->
-          <g transform="translate(466,391) scale(0.74)">
-            <ellipse cx="80" cy="82" rx="62" ry="46" fill="#eef2ea" opacity="0.28" filter="url(#mjIcoSoft)"></ellipse>
-            <path d="M73 6 C 62 28, 84 38, 80 56 C 76 76, 44 80, 46 100 C 48 120, 84 122, 92 136 L 116 136 C 106 116, 70 112, 68 100 C 66 88, 100 82, 104 56 C 108 34, 84 26, 73 6 Z" fill="url(#mjIcoRiver)" stroke="#3a3630" stroke-width="1.5" stroke-linejoin="round" filter="url(#mjIco)"></path>
-            <path d="M75 22 C 71 38, 92 44, 88 58 C 84 78, 54 82, 56 100" fill="none" stroke="#fbf9f2" stroke-width="2" opacity="0.5" stroke-linecap="round" filter="url(#mjIcoSoft)"></path>
-            <g fill="#ede6d5" opacity="0.95" filter="url(#mjIcoSoft)">
-              <ellipse cx="97" cy="46" rx="8" ry="4.5" transform="rotate(-24 97 46)"></ellipse>
-              <ellipse cx="60" cy="94" rx="9" ry="5" transform="rotate(16 60 94)"></ellipse>
+          <g transform="translate(456,390) scale(0.88)">
+            <path d="M73 6
+                     C 73 17, 75 29, 75 40 C 75 52, 54 63, 54 75
+                     C 54 87, 73 98, 73 110 C 73 122, 44 133, 44 145
+                     C 44 157, 69 168, 69 180 C 69 192, 43 203, 43 215
+                     C 43 225, 63 235, 63 245
+                     L 121 245
+                     C 121 235, 88 225, 88 215 C 88 203, 103 192, 103 180
+                     C 103 168, 72 157, 72 145 C 72 133, 95 122, 95 110
+                     C 95 98, 70 87, 70 75 C 70 63, 85 52, 85 40
+                     C 85 29, 73 17, 73 6 Z"
+                  fill="url(#mjIcoRiver)" stroke="#3a3630" stroke-width="1.5" stroke-linejoin="round" filter="url(#mjIco)"></path>
+            <path d="M76 26 C 76 42, 58 56, 58 76 C 58 94, 75 100, 75 112 C 75 126, 48 136, 48 146"
+                  fill="none" stroke="#fbf9f2" stroke-width="2" opacity="0.45" stroke-linecap="round" filter="url(#mjIcoSoft)"></path>
+            <!-- gravel bars on the inside of each bend -->
+            <g fill="#ede6d5" opacity="0.9" filter="url(#mjIcoSoft)">
+              <ellipse cx="59" cy="78" rx="5" ry="3" transform="rotate(18 59 78)"></ellipse>
+              <ellipse cx="90" cy="112" rx="6" ry="3.2" transform="rotate(-18 90 112)"></ellipse>
+              <ellipse cx="51" cy="147" rx="7" ry="3.6" transform="rotate(16 51 147)"></ellipse>
+              <ellipse cx="53" cy="216" rx="8" ry="4" transform="rotate(14 53 216)"></ellipse>
             </g>
           </g>
 """
