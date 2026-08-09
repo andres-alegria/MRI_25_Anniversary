@@ -102,7 +102,7 @@ RENDER_CODE = """
 # chip styling. Sits after the hero and before "About the Publication".
 FIGURES_SECTION = """
 <!-- ============ FIGURES ============ -->
-<section id="figures" data-screen-label="Figures" style="background:#f5f1e6;padding:clamp(48px,7vw,84px) clamp(20px,4vw,48px);border-top:1px solid rgba(58,54,48,.25)">
+<section id="figures" data-screen-label="Figures" style="background:#f5f1e6;padding:clamp(48px,7vw,84px) clamp(20px,4vw,48px);border-top:1px solid rgba(58,54,48,.25);scroll-margin-top:95px">
   <div style="max-width:1000px;margin:0 auto">
     <div style="font:500 11px Jost,sans-serif;letter-spacing:.22em;color:#7d7666;margin-bottom:10px">{{ figEyebrow }}</div>
     <h2 style="margin:0 0 10px;font:700 clamp(26px,4vw,34px)/1.15 'Source Serif 4',Georgia,serif;color:#2b2721">{{ figHeading }}</h2>
@@ -154,6 +154,14 @@ REPLACEMENTS = [
     (
         ">A. Author &amp; B. Author — Placeholder Institution<",
         ">{{ authorLine }}<",
+    ),
+    # nav entry for the figures section, between Journey and About
+    (
+        '<a href="#journey" style="color:#2b2721">The Journey</a>\n'
+        '    <a href="#about" style="color:#2b2721">About the Publication</a>',
+        '<a href="#journey" style="color:#2b2721">The Journey</a>\n'
+        '    <a href="#figures" style="color:#2b2721">Summary Figures</a>\n'
+        '    <a href="#about" style="color:#2b2721">About the Publication</a>',
     ),
     # map frame: 2:1 -> 16:9
     ("aspect-ratio:2/1", "aspect-ratio:16/9"),
@@ -216,21 +224,19 @@ REPLACEMENTS = [
 # the summit was scaled by (675-80)/(600-80).
 #
 # The old leftmost peak (x=170) is gone — the slope now climbs smoothly from
-# the left edge — leaving five peaks. The middle one is a plateau rather than
-# an apex.
+# the left edge — leaving five peaks.
 TERRAIN = """<rect x="0" y="0" width="1200" height="538" fill="url(#mjSky)" filter="url(#mjWatercolorSoft)"></rect>
           <ellipse cx="300" cy="480" rx="240" ry="25" fill="#eef2ea" opacity="0.7" filter="url(#mjWatercolorSoft)"></ellipse>
           <ellipse cx="950" cy="446" rx="220" ry="23" fill="#eef2ea" opacity="0.6" filter="url(#mjWatercolorSoft)"></ellipse>
           <g>
             <polygon points="0,561 80,503 160,469 250,423 330,446 420,400 500,423 580,378 660,332 740,355 810,309 900,286 980,320 1060,343 1140,366 1200,400 1200,675 0,675" fill="#ede6d5" filter="url(#mjWatercolorSoft)"></polygon>
-            <polygon points="0,620 110,593 230,535 330,469 400,492 470,389 520,440 560,336 640,332 690,389 720,423 790,332 820,240 870,80 910,206 940,252 1000,332 1040,378 1100,320 1200,423 1200,675 0,675" fill="#e7e0cd" stroke="#3a3630" stroke-width="1.5" filter="url(#mjWatercolorSoft)"></polygon>
+            <polygon points="0,620 110,593 230,535 330,469 400,492 470,389 520,440 600,332 650,383 720,423 790,332 820,240 870,80 910,206 940,252 1000,332 1040,378 1100,320 1200,423 1200,675 0,675" fill="#e7e0cd" stroke="#3a3630" stroke-width="1.5" filter="url(#mjWatercolorSoft)"></polygon>
             <rect x="0" y="435" width="1200" height="240" fill="url(#mjGreenFade)" clip-path="url(#mjMountainClip)" filter="url(#mjWatercolor)"></rect>
             <rect x="0" y="80" width="1200" height="343" fill="url(#mjIceFade)" clip-path="url(#mjMountainClip)" filter="url(#mjWatercolor)"></rect>
             <polygon points="820,240 870,80 910,206 940,252 918,242 895,280 872,257 848,288 826,261" fill="#fbf9f2" stroke="#3a3630" stroke-width="1.5" filter="url(#mjWatercolorSoft)"></polygon>
             <polygon points="870,80 910,206 890,200 875,126" fill="#c9d3d6" opacity="0.55" filter="url(#mjWatercolorSoft)"></polygon>
             <polygon points="1078,349 1100,320 1126,352 1112,343 1099,361 1087,344" fill="#fbf9f2" stroke="#3a3630" stroke-width="1" filter="url(#mjWatercolorSoft)"></polygon>
-            <!-- snow lying along the plateau rather than capping a point -->
-            <polygon points="556,348 560,336 640,332 646,347 630,341 614,352 596,343 578,353 566,342" fill="#fbf9f2" stroke="#3a3630" stroke-width="1" filter="url(#mjWatercolorSoft)"></polygon>
+            <polygon points="582,357 600,332 620,358 610,351 600,366 591,350" fill="#fbf9f2" stroke="#3a3630" stroke-width="1" filter="url(#mjWatercolorSoft)"></polygon>
           </g>"""
 
 TERRAIN_RE = re.compile(
@@ -243,8 +249,8 @@ DEFS_FIXES = [
     ('<polygon points="0,540 90,505 170,470 240,485 330,420 400,440 470,350 520,395 '
      '600,300 650,345 720,380 790,300 820,220 870,80 910,190 940,230 1000,300 '
      '1040,340 1100,290 1200,380 1200,600 0,600"></polygon>',
-     '<polygon points="0,620 110,593 230,535 330,469 400,492 470,389 520,440 560,336 '
-     '640,332 690,389 720,423 790,332 820,240 870,80 910,206 940,252 1000,332 '
+     '<polygon points="0,620 110,593 230,535 330,469 400,492 470,389 520,440 600,332 '
+     '650,383 720,423 790,332 820,240 870,80 910,206 940,252 1000,332 '
      '1040,378 1100,320 1200,423 1200,675 0,675"></polygon>'),
     ('x1="0" y1="390" x2="0" y2="530"', 'x1="0" y1="435" x2="0" y2="595"'),
     ('x1="0" y1="0" x2="0" y2="480"', 'x1="0" y1="0" x2="0" y2="538"'),
