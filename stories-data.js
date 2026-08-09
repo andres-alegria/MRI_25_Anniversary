@@ -18,7 +18,9 @@
                   'p'     normal paragraph (supports <em> and <strong>)
                   'quote' pull quote, set apart from the flow
                   'sub'   subheading within the story
-     images       [{ src, caption, credit }] — files live in images/
+     image        { src, alt, caption } — the photo at the top of the panel.
+                  Files live in images/. Omit it and the story falls back to
+                  one of the four generic photos bundled with the export.
 --------------------------------------------------------------------------- */
 
 /* Cross-cutting themes used by the filter chips. Deliberately short and small
@@ -82,7 +84,24 @@ const STORIES = [
     topic: 'Climate dynamics in mountain regions / elevation-dependent warming',
     tags: ['Climate', 'Knowledge'],
     authors: [{ name: 'Nick Pepin', institution: 'University of Portsmouth' }],
-    status: 'pending' // draft exists in Drive (EDCC article Draft 2) — not yet ingested
+    status: 'draft',
+    lead: 'On my first ascent of Kilimanjaro, I was amazed how a single mountain could contain so many different worlds.',
+    body: [
+      { t: 'p', x: 'In just a few days and a few kilometres, I walked through towns and savannah grassland; densely populated farmland and rainforest; giant heather and moorland; alpine desert; and then finally entered the realm of snow and ice. Ecosystems that would normally be separated by thousands of kilometres of latitude, from the tropics to the Arctic, appeared stacked one above another along the slope.' },
+      { t: 'p', x: 'For generations the boundaries between these contrasting worlds seemed almost permanent — fixed features of mountain landscapes around the globe. Over the last 25 years, a more complex picture has emerged of ecological boundaries on the move.' },
+      { t: 'sub', x: 'The lines that were supposed to hold still' },
+      { t: 'p', x: 'The scientific term for these changes is <em>ecological zonation</em>: different life systems typically inhabit different elevation bands, some near the top, some halfway up, some near the bottom. Although the specific ecosystems depend on location, two features are almost universal — the treeline and the snowline. Above the treeline, trees will not grow because it is not warm enough. Higher still, it can be cold enough for snow to last permanently, and for glaciers to form.' },
+      { t: 'p', x: 'These lines are so distinctive that we may feel they are immovable. But with warming they will logically move uphill: once-snowy areas may become snow-free, and open ground may eventually be dominated by trees. Twenty-five years ago these boundaries were relatively stable. Today we can observe them shifting in many mountain regions.' },
+      { t: 'sub', x: 'Mountains do not warm evenly' },
+      { t: 'p', x: 'If everywhere warmed at the same rate, ecological zones would shift upslope in parallel — and we previously assumed mountains warmed much like everywhere else. Then evidence began to emerge that they do not. Our work has shown that high mountains have warmed more rapidly than comparable lowland areas, with implications for snow loss, glacier retreat, biodiversity and water resources.' },
+      { t: 'quote', x: 'In 25 years the community has gone from a limited understanding of elevation-dependent climate change to recognising it as a key aspect of mountain climate science.' },
+      { t: 'p', x: 'That shift has driven an important effort to improve mountain observations through international collaboration.' },
+      { t: 'sub', x: 'What it looks like on one mountain' },
+      { t: 'p', x: 'Uneven warming means some ecosystems may be compressed while others expand. On Kilimanjaro, the summit ice fields are in rapid retreat, and above 5,000 m — where snow and ice are being lost — our 22-year records show amplified warming. Losing snow, which reflects sunlight, exposes bare rock that heats in the sun, and that creates a runaway effect.' },
+      { t: 'p', x: 'At the treeline, around 3,000 m, the picture is less clear. Trees might be expected to move upslope, but increasing forest fires and population pressure have <em>lowered</em> the treeline in places, while the giant heather zone unique to tropical mountains has expanded both up and downslope.' },
+      { t: 'p', x: 'The rainforest itself is sustained by clouds forming on the lower slopes, which release heat into the atmosphere while lowering temperatures beneath the canopy. Where forest has survived on Kilimanjaro, there is evidence that surface warming has been more limited.' },
+      { t: 'p', x: 'The next time you climb a mountain and marvel at the changing plants and animals adapted to life in their different worlds, spare a thought for those that may be forced to move to keep up with the changing climate — and let us hope they manage to succeed.' }
+    ]
   },
   {
     num: 4,
@@ -145,24 +164,172 @@ const STORIES = [
   },
   { num: 6,  title: 'Mountain Ecosystems and Nature-Based Solutions', topic: 'Mountain ecosystems & Ecosystem Services & Nature Based Solutions', tags: ['Ecosystems', 'Land Use'], authors: [{ name: 'Christian Rixen', institution: 'WSL Institute for Snow and Avalanche Research SLF' }], status: 'pending' },
   { num: 7,  title: 'Forests, Soils and Carbon Dynamics', topic: 'Forests, soils & carbon dynamics', tags: ['Ecosystems', 'Climate'], authors: [{ name: 'Harald Bugmann', institution: 'ETH Zürich' }], status: 'pending' },
-  { num: 8,  title: 'Beyond Mainstream Adaptation', topic: 'Adaptation & resilience: Communities responding to change', tags: ['Livelihoods', 'Equity'], authors: [{ name: 'Aida Cuni-Sanchez', institution: 'Norwegian University of Life Sciences' }], status: 'pending' }, // draft exists in Drive — not yet ingested
+  {
+    num: 8,
+    title: '“This Doesn’t Work Here”',
+    topic: 'Adaptation & resilience: Communities responding to change',
+    tags: ['Livelihoods', 'Equity', 'Knowledge'],
+    authors: [
+      { name: 'Aida Cuni-Sanchez', institution: 'Norwegian University of Life Sciences' },
+      { name: 'Gerard Imani', institution: '' }
+    ],
+    status: 'draft',
+    lead: '“Nothing,” the translator said to me in French. Nothing? How could “nothing” be the answer? I was shocked — the old man and the translator had been speaking for at least five minutes.',
+    body: [
+      { t: 'p', x: 'I was leading a small research project on local observations of climatic change in African mountains. Where there is no historical meteorological data, local people’s perceptions are the best we have. They help us understand not only how temperature, rainfall, snow and fog have changed over recent decades, but what those changes have done to rivers, animals, plants, crops and livelihoods. We also ask what people have done to adapt.' },
+      { t: 'p', x: 'If yields decline because of reduced rainfall, a farmer can extend the area farmed, irrigate by hand, or try short-cycle varieties if they can afford the seed. They always try to do something. It is human nature to adapt.' },
+      { t: 'p', x: 'The old man had described plenty of change: higher temperatures, less annual rainfall, a late start to the rainy season, dry spells within it, even more frequent showers during the dry season. All of which, he said, meant lower yields of cassava, the main staple. How could he not be trying <em>something</em>?' },
+      { t: 'p', x: 'Tembo farmers, the neighbouring ethnic group, reported eight different strategies — from drying cassava over the fire in the dry season, to growing new crops such as pineapples to sell to the army for good money. But the old Batwa man said they had changed nothing. We try not to prompt answers, but when we asked whether he had started drying cassava over the fire, he said no.' },
+      { t: 'quote', x: '“This doesn’t work here. We have no spare cassava to dry. Everything we get, we eat.”' },
+      { t: 'p', x: 'The same answer came from the other 99 Batwa we interviewed. People do lie — but it is strange for a hundred people to lie in the same direction. Why were the Batwa not attempting what their Tembo neighbours were?' },
+      { t: 'sub', x: 'Landless, and therefore option-less' },
+      { t: 'p', x: 'The answer is complicated, and it took me a while to work out. The Batwa, traditionally hunter-gatherers, were expelled from their ancestral forest lands thirty years ago when a national park was created. Most remained landless — so there is nowhere to farm, and nowhere to implement any of these strategies.' },
+      { t: 'p', x: 'Most also have limited skill in, or interest in, farming. Their culture is one of living inside the forest: hunting, gathering plants including wild yams, exchanging wild meat and plants with farmers for cassava. They do not want to become sedentary, or farmers. Being landless, they have fewer options than others — and fewer opportunities to diversify. Without schooling or numeracy, starting a business is difficult; without French, trading pineapples with the army is complicated, even if you manage to grow them.' },
+      { t: 'sub', x: 'When conflict is the binding constraint' },
+      { t: 'p', x: 'Across our study of ten African mountains, an absence of adaptation, or a very limited range of it, was reported in several places — often driven by context rather than climate, and particularly by armed conflict. In the Bamboutos Mountains of Cameroon, farmers were unwilling to invest in animal rearing because “animals can be easily stolen by the rebels”. In the Itombwe Mountains of the Democratic Republic of the Congo, few invested in soil conservation or agroforestry, because they were likely to abandon their villages during periods of violence, and preferred livestock they could move.' },
+      { t: 'quote', x: '“You can move your cows, not your crops, when the rebels arrive.”' },
+      { t: 'p', x: 'A Nyindu farmer told me that. Sadly, he was right.' },
+      { t: 'p', x: 'We tend to treat climate change as the main challenge to farmers’ livelihoods. In some contexts there are compounding issues that matter more: landlessness, lack of market access, insecure tenure. Researchers and NGOs tend to avoid these extremely complex settings — but they are probably the ones requiring our attention most.' },
+      { t: 'p', x: 'As of 2026, the eastern provinces of the DRC are under rebel control — not merely some villages, as was the case when we conducted this study. The conflict in Anglophone Africa continues, and several of the villages we studied remain fully deserted.' },
+      { t: 'p', x: '<strong>Most Batwa remain landless.</strong>' }
+    ]
+  },
   { num: 9,  title: 'Cascading Hazards and Risks', topic: 'Impacts (e.g. cascading hazards & risks)', tags: ['Hazards', 'Climate'], authors: [{ name: 'Joyce Kimutai', institution: 'Imperial College London' }], status: 'pending' },
   { num: 10, title: 'Agriculture and Food Systems', topic: 'Agriculture & food systems', tags: ['Livelihoods', 'Land Use'], authors: [{ name: 'Theresa Tribaldos', institution: 'University of Bern' }], status: 'pending' },
-  { num: 11, title: 'Walking Mount Sinai', topic: 'Cultural landscapes & heritage', tags: ['Culture', 'Land Use'], authors: [{ name: 'Ahmed Shams', institution: '' }], status: 'pending' }, // draft exists in Drive — not yet ingested
+  {
+    num: 11,
+    title: 'Walking Mount Sinai',
+    topic: 'Cultural landscapes & heritage',
+    tags: ['Culture', 'Land Use', 'Knowledge'],
+    authors: [{ name: 'Ahmed Shams', institution: 'Sinai Peninsula Research' }],
+    status: 'draft',
+    lead: 'It would have been true to say that walking Mount Sinai and the surrounding High Mountains of the Sinai Peninsula did not change until the late 1970s, or even the early 2000s.',
+    body: [
+      { t: 'p', x: 'Monks, pilgrims, travellers, scholars and tourists had experienced the same cultural landscape since the mountain’s first mention in a historic account in 363 CE. Its protection was <em>de facto</em> — enshrined in local knowledge, in remoteness, and in the kind of visitor it drew — long before it became a protected area in 1986, effectively in 1996, and a UNESCO World Heritage Site in 2002. What made it mountainous came first; the legislation and the designation came after.' },
+      { t: 'sub', x: 'The keepers of the landscape' },
+      { t: 'p', x: 'The local Bedouins of the Gebaliya tribe have been, and remain, the source of knowledge about this cultural landscape. Theirs is a practical knowledge. It assigns place names and points of interest on maps. It harvests runoff and taps groundwater for orchard agriculture through an ancient Byzantine and Nabatean network — and a modern one — of terraces, conduits, reservoirs, wells, cisterns and retaining walls. It guides visitors along ancient paths through the valleys and to the summits. It regulates livelihoods through customary law governing land, water and pasture. It knows the medicinal plants.' },
+      { t: 'p', x: 'The expanse of that local knowledge <em>is</em> the expanse of the cultural landscape.' },
+      { t: 'sub', x: 'What twenty-five years have taught us' },
+      { t: 'p', x: 'A quarter-century ago, walking Mount Sinai — physically and metaphorically — traversed a local knowledge that had mostly been documented by outsiders, in hundreds of accounts, studies, maps and photographic collections. The impact of that outside group on the landscape itself was marginal. But we knew little about the spatial pattern of local knowledge: how it had been compiled, altered or lost over the centuries, or how far it informs present governance and spatial planning.' },
+      { t: 'p', x: 'The absence of a formalised notion of landscape, of mountains as a geographical category requiring particular legislation, of a distinction between strict protection and sustainable development, and of any requirement to consult local knowledge — all of it opened the way to exploitation-driven landscape investment in recent years.' },
+      { t: 'p', x: 'The effectiveness of the protected area and the World Heritage designation was tied to a limited period of multilateral funding, and to the continuous presence of technical capacity on the ground. Without it came a local shift from a culture of commons towards the maximisation of personal benefit. An external NGO built numerous small water dams, later copied by a local government organisation. A mass tourism project was constructed on the most documented historic landscape in the region.' },
+      { t: 'quote', x: 'Paradoxically, the local Bedouins think vertical, while the developers from the lowlands think lateral.' },
+      { t: 'sub', x: 'Why it matters downstream' },
+      { t: 'p', x: 'Developers around Mount Sinai, and NGOs that have reached into the high valleys, are exploiting the very resource they promote. The absence of local spatial planning, financial instruments, geo-databases and observations to support decisions — combined with the commodification of a historically significant landscape — leaves the door open to the same practices elsewhere in the country.' },
+      { t: 'p', x: 'In a mountain region with cyclic droughts and no systematic long-term observation or modelling, it is hard to attribute impacts on water resources or biodiversity loss to climate change. Local knowledge and observation serve as a partial substitute — which means its loss multiplies the damage.' },
+      { t: 'p', x: 'The kind of visitor a place receives is dictated by the kind of investment made in it. A long-proposed cable car to Mount Sinai or a nearby summit would alter the cultural landscape and deliver unprecedented numbers of tourists into sensitive habitats and heritage sites. Historically, walking Mount Sinai was an ascent in the sense of the sixth-century <em>Ladder of Divine Ascent</em>, while its benefits flowed downstream as tourism and cultural services.' },
+      { t: 'sub', x: 'The next twenty-five years' },
+      { t: 'p', x: 'The young Bedouin is tech-savvy, with a strong online presence and traditional entrepreneurial skill. Some are promoting the cultural landscape and the walk itself, connecting with a small but steadily growing community of hikers from the Nile Valley. Only a handful are involved in documenting and using local knowledge.' },
+      { t: 'p', x: 'External funds — from developers and NGOs alike — dictate the course of action: a transition from conservation-led to exploitation-driven investment. It began between 2006 and 2010, when a component of a multilateral fund was allocated to individual projects rather than to the commons. The direction was not wholly unproductive, but its execution divided the community, at a moment when the protected area had become far less visible than during its funded management period between 1996 and 2003.' },
+      { t: 'p', x: '<strong>Ultimately, it is a question of how local knowledge evolves, and who gets to make it.</strong>' },
+      { t: 'p', x: 'The untraditional small dams are characterised by high elevation, solar exposure and silting — short-lived seasonal successes with long-lasting effects on water resources and on the look of the landscape. A local Bedouin once told me: <em>“But the seasonal lakes behind the water dams look good in the photographs.”</em> An unexpected win for the online promotion of the landscape. Not for the landscape.' }
+    ]
+  },
   { num: 12, title: 'Gender and Social Equity', topic: 'Gender & social equity', tags: ['Equity', 'Livelihoods'], authors: [{ name: 'Léa Sallenave', institution: 'University of Geneva' }, { name: 'Marie Oiry Varacca', institution: 'Université Gustave Eiffel' }], status: 'pending' },
   { num: 13, title: 'Tourism', topic: 'Tourism', tags: ['Livelihoods', 'Culture'], authors: [{ name: 'Emmanuel Salim', institution: 'University of Lausanne' }], status: 'pending' },
-  { num: 14, title: 'Demographic Change and Migration', topic: 'Demographic change & migration', tags: ['Livelihoods', 'Equity'], authors: [{ name: 'Amina Maharjan', institution: 'ICIMOD' }], status: 'pending' }, // draft + 2 maps in Drive — not yet ingested
+  {
+    num: 14,
+    title: 'Changing Migration Dynamics in the Hindu Kush Himalaya',
+    topic: 'Demographic change & migration',
+    tags: ['Livelihoods', 'Equity', 'Hazards'],
+    authors: [{ name: 'Amina Maharjan', institution: 'ICIMOD' }],
+    status: 'draft',
+    image: {
+      src: 'images/migration-sindhupalchowk.png',
+      alt: 'Map of migration destinations from Sindhupalchowk district, Nepal.',
+      caption: 'Migration destinations recorded from Sindhupalchowk district, Nepal — a spread that would have been unimaginable a generation ago.'
+    },
+    lead: 'Migration has always been part of mountain livelihoods. What has changed over three decades is its reach — how far people go, for how long, and what they leave behind.',
+    body: [
+      { t: 'sub', x: 'What is changing' },
+      { t: 'p', x: 'Transhumance among pastoral communities, and the seasonal descent of high-altitude dwellers escaping harsh winters, are centuries-old traditions that made living at altitude possible in the first place. Most of that movement was short-distance and within national borders, because mountain areas were hard to reach.' },
+      { t: 'p', x: 'As connectivity grew, distances grew with it. Roads, railways, electrification and education have been development priorities across the Hindu Kush Himalaya, and in the last decade digital infrastructure has connected remote communities to the wider world. Mountain communities are globalising rapidly, and the aspirations of the younger generation have changed with them. Subsistence farming meets neither those aspirations nor, increasingly, basic household needs in a market economy. Small holdings constrain commercialisation, and climate change adds uncertainty.' },
+      { t: 'sub', x: 'What twenty-five years have taught us' },
+      { t: 'p', x: 'The region is increasingly exposed to climatic disasters — intense floods, landslides, glacial lake outburst floods. These damage homes, farmland and infrastructure, and force people to relocate temporarily or permanently.' },
+      { t: 'quote', x: 'Though migration in the mountains is largely voluntary and livelihood-oriented, disaster-induced displacement is increasingly becoming a new reality.' },
+      { t: 'p', x: 'Such movement is often characterised by constrained choices, particularly for marginalised populations, and deepens existing vulnerabilities. Displacement also follows infrastructure and conservation projects, and conflict: a military operation in May 2009 displaced <strong>2.3 million people</strong> from Malakand Division, including Swat, for nearly six months — one of the largest population displacements in so short a time in modern history.' },
+      { t: 'p', x: 'Rural-to-urban migration within countries has risen sharply, producing rapid urbanisation across the region, including in high mountain areas. International labour migration, long confined to cross-border movement, now reaches much further: over three decades the Gulf states have become a major destination.' },
+      { t: 'p', x: 'In Nepal the international migrant population has <strong>tripled in 25 years</strong>. Remittances now contribute around <strong>26 per cent of GDP</strong>, and about <strong>56 per cent of households</strong> receive them — support for food, health and education, investment in assets, and a buffer against shocks. They have contributed to nearly eliminating extreme poverty.' },
+      { t: 'p', x: 'That migration is highly gendered. Young men move; the rest of the family stays. The result is a growing feminisation of mountain societies.' },
+      { t: 'sub', x: 'What is coming' },
+      { t: 'p', x: 'Many internal migrants move repeatedly between origin and destination, holding on to social, economic and cultural ties and sustaining multi-local livelihoods. But permanent migration is growing, bringing depopulation, land left fallow and agrarian decline — driven not by migration alone but by the viability of agriculture, climate and market uncertainty, and better opportunities elsewhere.' },
+      { t: 'p', x: 'Youth mobility to Europe, Australia and North America for study and work is rising: Australian authorities recorded <strong>13,406 Bhutanese students</strong> enrolled in Australian universities between January and September 2024.' },
+      { t: 'p', x: 'And people are returning. Return migration follows new opportunities in tourism, economic crises such as COVID-19, health, retirement or simple preference — made possible by the same improved infrastructure. Alongside it comes a newer trend: second homes in the mountains, bought to escape pollution and heat stress in the cities, and as investment. It is visible in the Uttarakhand mountains, within reach of Delhi.' }
+    ]
+  },
   { num: 15, title: 'Conflict, Peacebuilding and Transboundary Cooperation', topic: 'Conflict, peacebuilding & transboundary cooperation', tags: ['Governance', 'Equity'], authors: [{ name: 'Mariana Melnykovych', institution: 'WSL Swiss Federal Institute for Forest, Snow and Landscape Research' }], status: 'pending' },
   { num: 16, title: 'Urbanisation and Infrastructure', topic: 'Urbanisation & infrastructure challenges', tags: ['Land Use', 'Governance'], authors: [{ name: 'Karen Seto', institution: 'Yale University' }], status: 'pending' },
   { num: 17, title: 'Indigenous and Local Knowledge', topic: 'Indigenous & local knowledge', tags: ['Knowledge', 'Culture'], authors: [{ name: 'Nand Kishor', institution: '' }], status: 'pending' },
-  { num: 18, title: 'Land Tenure and Mountain Governance', topic: 'Land tenure and Mountain Governance', tags: ['Governance', 'Land Use'], authors: [{ name: 'Glenn Hunt', institution: '' }, { name: 'Athong Makury', institution: '' }], status: 'pending' }, // draft exists in Drive — not yet ingested
+  {
+    num: 18,
+    title: 'Who Owns the Fallow?',
+    topic: 'Land tenure and Mountain Governance',
+    tags: ['Governance', 'Land Use', 'Knowledge'],
+    // Institutions not stated in the draft — to be confirmed with the authors
+    authors: [{ name: 'Glenn Hunt', institution: '' }, { name: 'Athong Makury', institution: '' }],
+    status: 'draft',
+    lead: 'In the high hills of north-western Myanmar, near the Indian border, Indigenous Naga villages farm landscapes that do not stay still.',
+    body: [
+      { t: 'p', x: 'Fields move, forests regrow, and land passes through cycles of use and rest. To the state, these shifting patterns often appear unproductive, or even invisible. To Naga communities in Layshi Township, they are the foundation of food security, governance, and life in the mountains.' },
+      { t: 'sub', x: 'A living landscape' },
+      { t: 'p', x: 'In Layshi, one of the most remote parts of Myanmar, villages manage large mountain territories through collective institutions: village councils, clan leaders, elders, women’s groups. Their landscapes are mosaics — shifting cultivation fields (<em>jhum</em>), long fallows, forests, gardens, orchards, grazing areas and sacred sites — each with different roles at different times.' },
+      { t: 'quote', x: 'A forest today may be a field tomorrow, and a field may return to forest over time.' },
+      { t: 'p', x: 'Rather than fixed plots with permanent boundaries, land here is understood through use, season and social agreement. That flexibility is not accidental. It is how communities spread risk, maintain soil fertility and secure food in a rugged, climate-exposed environment.' },
+      { t: 'sub', x: 'What twenty-five years have taught us' },
+      { t: 'p', x: 'Twenty-five years ago, dominant policy narratives across much of Asia treated shifting cultivation as a problem to be solved. <em>Jhum</em> was framed as inefficient, environmentally destructive, or transitional — something to be replaced by permanent agriculture or forest conservation. Those assumptions shaped land laws, agricultural investment and conservation programmes, often without serious engagement with how upland communities actually used and valued their land.' },
+      { t: 'p', x: 'Long-term research in the Naga hills tells a very different story. Participatory mapping in Layshi shows that <em>jhum</em> systems are neither chaotic nor unmanaged, but highly multifunctional. Asked how different land types contribute to their lives, villagers ranked fields and fallows highest across a wide range of needs: staple food, vegetables, medicinal plants, income, construction materials and cultural practice. Forests and home gardens complement them, forming one interdependent system rather than separate categories.' },
+      { t: 'p', x: 'Resilience here does not come from maximising a single output. It comes from diversity and overlap. Different land types provide similar benefits at different times, spreading risk across space and season. When one crop fails, others compensate; when market access fluctuates, subsistence cushions the shock. That portfolio has allowed Naga communities to persist through ecological uncertainty and political marginalisation.' },
+      { t: 'p', x: 'The same complexity makes these landscapes difficult for a state to govern. Land administration is designed to see permanent fields and static boundaries; rotational systems resist easy classification. So many of the most productive and culturally important lands in Layshi remain legally insecure, despite being central to everyday life.' },
+      { t: 'sub', x: 'Why it matters beyond the mountains' },
+      { t: 'p', x: 'This reflects a far wider challenge for Indigenous mountain communities across the Global South. From the Andes to the Himalayas, upland communities manage land in ways that do not fit standard policy boxes — multifunctional, seasonal, collectively governed. Precisely the qualities that make them resilient, and politically inconvenient.' },
+      { t: 'p', x: 'Where fallows and communal lands lack legal recognition, households face pressure to make land “legible” by converting it into permanent plots or commercial orchards. In Layshi the early signs are visible. Some changes are driven by market opportunity, others are defensive responses to tenure insecurity. What appears as agricultural modernisation can quietly erode the ecological and social foundations that make mountain livelihoods resilient.' },
+      { t: 'sub', x: 'A narrow window' },
+      { t: 'p', x: 'Commercial agricultural expansion has slowed since Myanmar’s political crisis of 2021, temporarily easing pressure on customary lands, while Naga political representation has increased — opening fragile new space for Indigenous voices. That creates a rare window for preventive action.' },
+      { t: 'p', x: 'The choice is not between tradition and development, but between development pathways. Strengthening customary tenure, recognising fallows as productive land and supporting collective governance could let Naga communities engage with markets on their own terms, without losing the diversity that defines their landscapes.' },
+      { t: 'p', x: 'Once commons are enclosed and fallows disappear, rebuilding these systems becomes extraordinarily difficult. <strong>Resilient mountain futures depend not only on what land produces, but on who governs it, and how its complexity is allowed to endure.</strong>' }
+    ]
+  },
   { num: 19, title: 'Hydropower and Energy Transitions', topic: 'Energy security: Hydropower & energy transitions', tags: ['Water', 'Governance'], authors: [{ name: 'Marc Landry', institution: 'Tulane University' }, { name: 'Yan Zhong', institution: '' }], status: 'pending' },
   { num: 20, title: 'Mountains in Global Frameworks', topic: 'Mountains in global frameworks: From UNFCCC/IPCC to SDGs', tags: ['Governance', 'Knowledge'], authors: [{ name: 'Amlan Mishra', institution: '' }], status: 'pending' },
   { num: 21, title: 'Legal Action and Mountain Justice', topic: 'Legal Action (rights of nature, legal advocacy and mountain justice)', tags: ['Governance', 'Equity'], authors: [], status: 'pending' },
   { num: 22, title: 'Mountains and the Arts', topic: 'Mountains and Arts: connecting and dealing with change', tags: ['Culture', 'Knowledge'], authors: [{ name: 'Olivier Dangles', institution: 'Institut de Recherche pour le Développement' }], status: 'pending' },
   { num: 23, title: 'Future Scenarios for Mountain Regions', topic: 'Future scenarios for mountain regions', tags: ['Climate', 'Governance'], authors: [{ name: 'Rob Marchant', institution: 'University of York' }], status: 'pending' },
   { num: 24, title: 'Snow Dynamics', topic: 'Snow dynamics', tags: ['Snow & Permafrost', 'Water'], authors: [], status: 'pending' },
-  { num: 25, title: 'Mountain Permafrost and the Blatten Catastrophe', topic: 'Permafrost', tags: ['Snow & Permafrost', 'Hazards'], authors: [{ name: 'Wilfried Haeberli', institution: 'University of Zurich' }, { name: 'Lukas Arenson', institution: 'BGC Engineering' }, { name: 'Pandey', institution: '' }], status: 'pending' } // draft + 3 figures in Drive — not yet ingested
+  {
+    num: 25,
+    title: 'Mountain Permafrost and the Blatten Catastrophe',
+    topic: 'Permafrost',
+    tags: ['Snow & Permafrost', 'Hazards', 'Knowledge'],
+    authors: [
+      { name: 'Wilfried Haeberli', institution: 'University of Zurich' },
+      { name: 'Lukas U. Arenson', institution: 'BGC Engineering' },
+      { name: 'Pratima Pandey', institution: 'Indian Institute of Remote Sensing, ISRO' }
+    ],
+    status: 'draft',
+    image: {
+      src: 'images/blatten-swisstopo.jpg',
+      alt: 'Aerial view of the rock-ice avalanche that destroyed the village of Blatten in the Swiss Alps.',
+      caption: 'The rock-ice avalanche which destroyed the historical village of Blatten on 28 May 2025. Photo © swisstopo, 30.05.2025'
+    },
+    lead: 'Warming permafrost is changing the stability, hydrology and hazard potential of icy peaks faster than many assessment frameworks have adapted.',
+    body: [
+      { t: 'p', x: 'Mountain permafrost must move from a specialised research topic to a routine component of hazard assessment, infrastructure planning and climate adaptation in high mountain regions.' },
+      { t: 'sub', x: 'Weakening permafrost, and the Blatten catastrophe' },
+      { t: 'p', x: 'Mean annual air temperatures at high altitude are commonly negative, and permafrost — defined as negative subsurface temperature throughout the year — is widespread. Such deep-frozen conditions exert a stabilising effect on steep rock faces. Warming-induced permafrost degradation reduces it.' },
+      { t: 'p', x: 'On 28 May 2025, a devastating rock-ice avalanche destroyed the historical village of Blatten in the Swiss Alps. A destabilising permafrost slope had overloaded a small glacier, which ultimately collapsed. In the years before, collapsing permafrost slopes in connection with a hanging glacier at <em>Chamoli</em> in 2021, and with an enlarging glacier lake at <em>South Lhonak</em> in 2023, had already caused severe damage to people, livelihoods and hydropower infrastructure in the Indian Himalaya.' },
+      { t: 'p', x: 'Three insights follow. Catastrophic damage cannot always be avoided. Careful observation and early warning can limit fatalities. And the application of what is already understood about mountain permafrost must improve — because this is a phenomenon of icy mountains that is not directly visible, and so often goes unnoticed even within the wider scientific community.' },
+      { t: 'quote', x: 'Recent catastrophic events in India and in the Alps must be understood as a wake-up call.' },
+      { t: 'sub', x: 'A young research field, rapidly matured' },
+      { t: 'p', x: 'Research on mountain permafrost started late. After the seminal analysis of long-term permafrost creep in rock glaciers by Wahrhaftig and Cox in the 1950s, major steps in the 1980s included core drilling to analyse ice characteristics and climate-induced warming, followed by the first spatial models simulating permafrost occurrence in rugged terrain.' },
+      { t: 'p', x: 'Around the turn of the century the EU-funded project <em>Permafrost and Climate in Europe</em> brought a breakthrough. It strengthened the geotechnical domain and established a unique north–south transect of 100-metre-deep boreholes through European mountains for long-term monitoring of permafrost temperatures. Together with the later Rock Glacier Inventories and Kinematics programme, mountain permafrost now forms an important part of the Essential Climate Variable Permafrost within the Global Climate Observing System.' },
+      { t: 'p', x: 'That progress has been particularly influential in High Mountain Asia, where space-based datasets now provide near-continuous synoptic observation across large remote regions. Thermal infrared sensors are used routinely in regional permafrost assessments; interferometric radar missions offer new ways to monitor creep rates and rock glacier velocities; and machine-learning approaches are improving regional distribution models by integrating climatic, topographic and remote sensing data.' },
+      { t: 'p', x: 'Water, meanwhile, is now recognised to play a far more active role within deep-frozen rock masses than previously thought. Infiltration into fracture networks accelerates degradation and promotes localised thaw zones, and pressurised groundwater flow is considered an important factor in destabilising steep frozen rock.' },
+      { t: 'sub', x: 'The heating of icy peaks' },
+      { t: 'p', x: 'Bedrock permafrost in steep mountain slopes is presently warming at unprecedented rates, reaching about <strong>5 °C per century</strong> in systematic European observations. But heat diffusion and latent heat exchange at depth are slow. Permafrost will therefore continue to exist inside mountain slopes — thermally far out of equilibrium — long after many glaciers have disappeared.' },
+      { t: 'p', x: 'Millennia-old, ice-rich creeping permafrost in rock glaciers will continue to degrade, but only slowly, providing limited late-summer meltwater once lowland rivers are no longer fed by vanished glaciers. Many high-mountain settlements and infrastructure systems will face serious challenges of water supply and rock-ice avalanches, in some cases involving far-reaching cascading process chains, especially where lakes are expanding or newly forming.' },
+      { t: 'p', x: 'The primary task is to overcome the underrepresentation of permafrost degradation in scientific assessments and adaptation strategies. Permafrost mapping and monitoring should systematically become part of environmental impact assessments, infrastructure planning and disaster risk reduction frameworks.' }
+    ]
+  }
 ];
 
 window.MRI_CONTENT = { TAG_VOCABULARY, TAG_COLORS, PENDING_TEXT, STORIES };
