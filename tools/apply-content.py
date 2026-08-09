@@ -144,8 +144,8 @@ SCENERY_DEFS = """
 # big it reads. Both are safe to nudge — the story markers are HTML drawn on
 # top, so moving these cannot disturb them.
 SCENERY = """
-          <!-- town on the lower slopes -->
-          <g transform="translate(468,490) scale(0.58)">
+          <!-- town on the lower slopes, left of the scene -->
+          <g transform="translate(120,478) scale(0.56)">
             <ellipse cx="80" cy="122" rx="66" ry="9" fill="#eef2ea" opacity="0.85" filter="url(#mjIcoSoft)"></ellipse>
             <g filter="url(#mjIcoSoft)">
               <polygon points="18,120 18,78 34,68 50,78 50,120" fill="#ede6d5"></polygon>
@@ -171,11 +171,35 @@ SCENERY = """
             <path d="M12 120 H148" stroke="#3a3630" stroke-width="1.5" fill="none" stroke-linecap="round" filter="url(#mjIcoSoft)"></path>
           </g>
 
-          <!-- river on the valley floor -->
-          <g transform="translate(706,502) scale(0.62)">
+          <!-- distant town, high on the right-hand slope.
+               Smaller and without window marks: at this size they would only
+               read as mud, and dropping them reads as aerial perspective. -->
+          <g transform="translate(940,330) scale(0.46)">
+            <ellipse cx="80" cy="122" rx="60" ry="8" fill="#eef2ea" opacity="0.7" filter="url(#mjIcoSoft)"></ellipse>
+            <g filter="url(#mjIcoSoft)">
+              <polygon points="18,120 18,78 34,68 50,78 50,120" fill="#ede6d5"></polygon>
+              <polygon points="104,120 104,62 120,52 136,62 136,120" fill="#ede6d5"></polygon>
+            </g>
+            <g filter="url(#mjIco)" stroke="#3a3630" stroke-width="2" stroke-linejoin="round">
+              <rect x="30" y="86" width="26" height="34" fill="#e7e0cd"></rect>
+              <polygon points="52,86 52,54 68,44 84,54 84,86" fill="#fbf9f2"></polygon>
+              <rect x="84" y="72" width="24" height="48" fill="#e7e0cd"></rect>
+              <polygon points="106,72 106,58 118,50 130,58 130,120 106,120" fill="#fbf9f2"></polygon>
+            </g>
+            <rect x="14" y="52" width="132" height="70" fill="url(#mjIcoTown)" filter="url(#mjIco)"></rect>
+            <path d="M12 120 H148" stroke="#3a3630" stroke-width="2" fill="none" stroke-linecap="round" filter="url(#mjIcoSoft)"></path>
+          </g>
+
+          <!-- river, centre of the scene.
+               Its source (local 73,6) is placed on the valley notch at scene
+               520,395 — the low point between the peaks at x=470 and x=600 —
+               so the water reads as issuing from that valley. Both banks
+               converge on that single point rather than meeting a flat top
+               edge, which is what gives the channel its recession. -->
+          <g transform="translate(466,391) scale(0.74)">
             <ellipse cx="80" cy="82" rx="62" ry="46" fill="#eef2ea" opacity="0.28" filter="url(#mjIcoSoft)"></ellipse>
-            <path d="M66 8 C 60 30, 84 38, 80 56 C 76 76, 44 80, 46 100 C 48 120, 84 122, 92 136 L 116 136 C 106 116, 70 112, 68 100 C 66 88, 100 82, 104 56 C 108 32, 84 26, 80 8 Z" fill="url(#mjIcoRiver)" stroke="#3a3630" stroke-width="1.5" stroke-linejoin="round" filter="url(#mjIco)"></path>
-            <path d="M74 16 C 70 34, 92 42, 88 58 C 84 78, 54 82, 56 100" fill="none" stroke="#fbf9f2" stroke-width="2" opacity="0.5" stroke-linecap="round" filter="url(#mjIcoSoft)"></path>
+            <path d="M73 6 C 62 28, 84 38, 80 56 C 76 76, 44 80, 46 100 C 48 120, 84 122, 92 136 L 116 136 C 106 116, 70 112, 68 100 C 66 88, 100 82, 104 56 C 108 34, 84 26, 73 6 Z" fill="url(#mjIcoRiver)" stroke="#3a3630" stroke-width="1.5" stroke-linejoin="round" filter="url(#mjIco)"></path>
+            <path d="M75 22 C 71 38, 92 44, 88 58 C 84 78, 54 82, 56 100" fill="none" stroke="#fbf9f2" stroke-width="2" opacity="0.5" stroke-linecap="round" filter="url(#mjIcoSoft)"></path>
             <g fill="#ede6d5" opacity="0.95" filter="url(#mjIcoSoft)">
               <ellipse cx="97" cy="46" rx="8" ry="4.5" transform="rotate(-24 97 46)"></ellipse>
               <ellipse cx="60" cy="94" rx="9" ry="5" transform="rotate(16 60 94)"></ellipse>
