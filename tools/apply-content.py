@@ -155,6 +155,45 @@ REPLACEMENTS = [
         ">A. Author &amp; B. Author — Placeholder Institution<",
         ">{{ authorLine }}<",
     ),
+    # map frame: 2:1 -> 16:9
+    ("aspect-ratio:2/1", "aspect-ratio:16/9"),
+    # hero box: same 16:9 frame, contents centred within it
+    (
+        'style="max-width:860px;text-align:center;border:1px solid rgba(58,54,48,.5);'
+        'outline:1px solid rgba(58,54,48,.5);outline-offset:5px;'
+        'padding:clamp(36px,6vw,64px) clamp(24px,6vw,72px)"',
+        'style="max-width:860px;width:100%;aspect-ratio:16/9;box-sizing:border-box;'
+        'display:flex;flex-direction:column;align-items:center;justify-content:center;'
+        'text-align:center;border:1px solid rgba(58,54,48,.5);'
+        'outline:1px solid rgba(58,54,48,.5);outline-offset:5px;'
+        'padding:clamp(24px,4vw,48px) clamp(24px,6vw,72px)"',
+    ),
+    # marker coordinates, restretched onto the taller frame
+    (
+        "const coords = [[870,115],[895,185],[845,210],[915,250],[800,300],[1100,320],"
+        "[605,330],[960,300],[770,345],[480,375],[655,375],[1040,380],[560,410],"
+        "[880,390],[720,410],[1130,420],[345,450],[620,450],[990,460],[1160,500],"
+        "[180,495],[780,480],[280,505],[430,470],[60,535]];",
+        "const coords = [[870,120],[895,200],[845,229],[915,275],[800,332],[1100,355],"
+        "[605,366],[960,332],[770,383],[480,418],[655,418],[1040,423],[560,458],"
+        "[880,435],[720,458],[1130,469],[345,503],[620,503],[990,515],[1160,561],"
+        "[180,555],[780,538],[280,566],[430,526],[60,601]];",
+    ),
+    # markers are positioned as a percentage of the viewBox height
+    ("py: +(s.y / 6).toFixed(2),", "py: +(s.y / 6.75).toFixed(2),"),
+    # altitude readout on the story cards
+    (
+        '<span style="font:500 10.5px Jost,sans-serif;letter-spacing:.1em;'
+        'color:#7d7666" data-comment-anchor="e84f3e2f9d-span">~{{ s.elev }} m</span>',
+        "",
+    ),
+    # altitude readout at the top of the story panel; the empty div is kept so
+    # the close button stays where it is in the space-between row
+    (
+        '<div style="font:500 11.5px Jost,sans-serif;letter-spacing:.18em;'
+        'color:#7d7666">~{{ open.elev }} M</div>',
+        "<div></div>",
+    ),
     # hide the pull-quote box when the story has no quote (e.g. not yet drafted)
     (
         '<div style="border:1.5px solid #0067b2;background:#e9f0f6;'
@@ -167,6 +206,50 @@ REPLACEMENTS = [
         '        </div>\n        <sc-for list="{{ parasB }}"',
         '        </div>\n        </sc-if>\n        <sc-for list="{{ parasB }}"',
     ),
+]
+
+
+# --- 2b. taller frame, five peaks, one plateau -----------------------------
+# The frame goes from 2:1 to 16:9. The viewBox grows 600 -> 675 while the
+# summit stays at y=80, so one viewBox unit still renders at the same size:
+# the sky band is untouched and the mountain simply gets taller. Every y below
+# the summit was scaled by (675-80)/(600-80).
+#
+# The old leftmost peak (x=170) is gone — the slope now climbs smoothly from
+# the left edge — leaving five peaks. The middle one is a plateau rather than
+# an apex.
+TERRAIN = """<rect x="0" y="0" width="1200" height="538" fill="url(#mjSky)" filter="url(#mjWatercolorSoft)"></rect>
+          <ellipse cx="300" cy="480" rx="240" ry="25" fill="#eef2ea" opacity="0.7" filter="url(#mjWatercolorSoft)"></ellipse>
+          <ellipse cx="950" cy="446" rx="220" ry="23" fill="#eef2ea" opacity="0.6" filter="url(#mjWatercolorSoft)"></ellipse>
+          <g>
+            <polygon points="0,561 80,503 160,469 250,423 330,446 420,400 500,423 580,378 660,332 740,355 810,309 900,286 980,320 1060,343 1140,366 1200,400 1200,675 0,675" fill="#ede6d5" filter="url(#mjWatercolorSoft)"></polygon>
+            <polygon points="0,620 110,593 230,535 330,469 400,492 470,389 520,440 560,336 640,332 690,389 720,423 790,332 820,240 870,80 910,206 940,252 1000,332 1040,378 1100,320 1200,423 1200,675 0,675" fill="#e7e0cd" stroke="#3a3630" stroke-width="1.5" filter="url(#mjWatercolorSoft)"></polygon>
+            <rect x="0" y="435" width="1200" height="240" fill="url(#mjGreenFade)" clip-path="url(#mjMountainClip)" filter="url(#mjWatercolor)"></rect>
+            <rect x="0" y="80" width="1200" height="343" fill="url(#mjIceFade)" clip-path="url(#mjMountainClip)" filter="url(#mjWatercolor)"></rect>
+            <polygon points="820,240 870,80 910,206 940,252 918,242 895,280 872,257 848,288 826,261" fill="#fbf9f2" stroke="#3a3630" stroke-width="1.5" filter="url(#mjWatercolorSoft)"></polygon>
+            <polygon points="870,80 910,206 890,200 875,126" fill="#c9d3d6" opacity="0.55" filter="url(#mjWatercolorSoft)"></polygon>
+            <polygon points="1078,349 1100,320 1126,352 1112,343 1099,361 1087,344" fill="#fbf9f2" stroke="#3a3630" stroke-width="1" filter="url(#mjWatercolorSoft)"></polygon>
+            <!-- snow lying along the plateau rather than capping a point -->
+            <polygon points="556,348 560,336 640,332 646,347 630,341 614,352 596,343 578,353 566,342" fill="#fbf9f2" stroke="#3a3630" stroke-width="1" filter="url(#mjWatercolorSoft)"></polygon>
+          </g>"""
+
+TERRAIN_RE = re.compile(
+    r'<rect x="0" y="0" width="1200" height="480".*?\n          </g>', re.S
+)
+
+# The clip path has to follow the new ridge, and the gradients have to be
+# restretched over the taller frame.
+DEFS_FIXES = [
+    ('<polygon points="0,540 90,505 170,470 240,485 330,420 400,440 470,350 520,395 '
+     '600,300 650,345 720,380 790,300 820,220 870,80 910,190 940,230 1000,300 '
+     '1040,340 1100,290 1200,380 1200,600 0,600"></polygon>',
+     '<polygon points="0,620 110,593 230,535 330,469 400,492 470,389 520,440 560,336 '
+     '640,332 690,389 720,423 790,332 820,240 870,80 910,206 940,252 1000,332 '
+     '1040,378 1100,320 1200,423 1200,675 0,675"></polygon>'),
+    ('x1="0" y1="390" x2="0" y2="530"', 'x1="0" y1="435" x2="0" y2="595"'),
+    ('x1="0" y1="0" x2="0" y2="480"', 'x1="0" y1="0" x2="0" y2="538"'),
+    ('x1="0" y1="80" x2="0" y2="380"', 'x1="0" y1="80" x2="0" y2="423"'),
+    ('sc-camel-view-box="0 0 1200 600"', 'sc-camel-view-box="0 0 1200 675"'),
 ]
 
 
@@ -203,8 +286,8 @@ SCENERY_DEFS = """
 # big it reads. Both are safe to nudge — the story markers are HTML drawn on
 # top, so moving these cannot disturb them.
 SCENERY = """
-          <!-- town on the lower slopes, left of the scene -->
-          <g transform="translate(120,478) scale(0.56)">
+          <!-- town on the lower slopes, below the first peak (x=330) -->
+          <g transform="translate(285,500) scale(0.56)">
             <ellipse cx="80" cy="122" rx="66" ry="9" fill="#eef2ea" opacity="0.85" filter="url(#mjIcoSoft)"></ellipse>
             <g filter="url(#mjIcoSoft)">
               <polygon points="18,120 18,78 34,68 50,78 50,120" fill="#ede6d5"></polygon>
@@ -233,7 +316,7 @@ SCENERY = """
           <!-- distant town, high on the right-hand slope.
                Smaller and without window marks: at this size they would only
                read as mud, and dropping them reads as aerial perspective. -->
-          <g transform="translate(940,330) scale(0.46)">
+          <g transform="translate(940,366) scale(0.46)">
             <ellipse cx="80" cy="122" rx="60" ry="8" fill="#eef2ea" opacity="0.7" filter="url(#mjIcoSoft)"></ellipse>
             <g filter="url(#mjIcoSoft)">
               <polygon points="18,120 18,78 34,68 50,78 50,120" fill="#ede6d5"></polygon>
@@ -251,11 +334,11 @@ SCENERY = """
 
           <!-- river, centre of the scene.
                Its source (local 73,6) is placed on the valley notch at scene
-               520,395 — the low point between the peaks at x=470 and x=600 —
-               so the water reads as issuing from that valley. Both banks
-               converge on that single point rather than meeting a flat top
-               edge, which is what gives the channel its recession. -->
-          <g transform="translate(456,390) scale(0.88)">
+               520,440 — the low point between the peak at x=470 and the
+               plateau — so the water reads as issuing from that valley. Both
+               banks converge on that single point rather than meeting a flat
+               top edge, which is what gives the channel its recession. -->
+          <g transform="translate(447,434) scale(1)">
             <path d="M73 6
                      C 73 17, 75 29, 75 40 C 75 52, 54 63, 54 75
                      C 54 87, 73 98, 73 110 C 73 122, 44 133, 44 145
@@ -307,6 +390,23 @@ def patch_template(doc: str) -> str:
     doc, n = quote_re.subn(r'\1{{ quote }}\3', doc, count=1)
     if n != 1:
         sys.exit("Could not find the pull-quote block.")
+
+    # taller frame: new ridge, restretched gradients, new clip path
+    doc, n = TERRAIN_RE.subn(lambda m: TERRAIN, doc, count=1)
+    if n != 1:
+        sys.exit("Could not find the terrain block.")
+    for old, new in DEFS_FIXES:
+        if doc.count(old) != 1:
+            sys.exit(f"Expected one of:\n  {old[:70]}...\nfound {doc.count(old)}")
+        doc = doc.replace(old, new, 1)
+
+    # the altitude axis down the right-hand side of the map
+    scale_re = re.compile(
+        r'\s*<sc-if value="\{\{ showScale \}\}".*?</sc-if>', re.S
+    )
+    doc, n = scale_re.subn("", doc, count=1)
+    if n != 1:
+        sys.exit("Could not find the elevation scale block.")
 
     # scenery: filters/gradients into the mountain's <defs>, artwork before </svg>
     if doc.count("</defs>") != 1:

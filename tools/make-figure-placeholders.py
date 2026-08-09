@@ -15,11 +15,11 @@ from PIL import Image, ImageDraw, ImageFont
 OUT = Path(__file__).resolve().parent.parent / "figures"
 W, H = 1600, 900  # 16:9, the aspect the real figures will be delivered in
 
-# adjust placeholder palette here — taken from the publication artwork
-BG = "#ede6d5"
+# adjust placeholder palette here. BG matches the figures section background
+# so the placeholder reads as empty space rather than as a filled panel.
+BG = "#f5f1e6"
 INK = "#3a3630"
 MUTED = "#8a8377"
-RULE = "#c9bfa6"
 
 SERIF = "/System/Library/Fonts/Supplemental/Georgia.ttf"
 SANS = "/System/Library/Fonts/Supplemental/Futura.ttc"
@@ -48,9 +48,6 @@ def centred(draw, y, text, f, fill):
 def build(filename: str, title: str) -> None:
     img = Image.new("RGB", (W, H), BG)
     d = ImageDraw.Draw(img)
-
-    # inset rule, so the 16:9 edge is visible against the page
-    d.rectangle([40, 40, W - 41, H - 41], outline=RULE, width=3)
 
     centred(d, 360, "PLACEHOLDER", font(SANS, 30), MUTED)
     centred(d, 415, f'Placeholder for “{title}”', font(SERIF, 76), INK)
