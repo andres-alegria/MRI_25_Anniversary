@@ -176,10 +176,20 @@ REPLACEMENTS = [
         "openImg: openStory ? React.createElement('img', {\n"
         "        src: (openStory.image && openStory.image.src) || this.placeholderImgs[(openStory.num - 1) % 4],\n"
         "        alt: (openStory.image && openStory.image.alt) || 'Placeholder story photo',\n"
-        "        style: { width: '100%', height: '100%',\n"
-        "                 objectFit: openStory.image ? 'contain' : 'cover', display: 'block' }\n"
+        "        style: openStory.image\n"
+        "          ? { maxWidth: '100%', maxHeight: '70vh', width: 'auto', height: 'auto', display: 'block' }\n"
+        "          : { width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' },\n"
         "      }) : null,\n"
         "      photoCaption: (openStory && openStory.image && openStory.image.caption) || '',",
+    ),
+    # The photo frame was locked to 16:9, which pillarboxed portrait images
+    # like the Blatten aerial. Let the frame follow the image instead; the
+    # max-height keeps a tall photo from pushing the text off the panel.
+    (
+        '<div style="aspect-ratio:16/9;margin-bottom:8px;overflow:hidden;'
+        'background:#e6e0d0">',
+        '<div style="margin-bottom:8px;overflow:hidden;background:#e6e0d0;'
+        'max-height:70vh;display:flex;align-items:center;justify-content:center">',
     ),
     # caption under the photo
     (
