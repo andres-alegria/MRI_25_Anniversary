@@ -115,7 +115,9 @@ FIGURES_SECTION = """
       </sc-for>
     </div>
 
-    <div style="border:1.5px solid #3a3630;border-radius:6px;background:#e7e0cd;overflow:hidden">
+    <!-- Same hairline as an unselected chip, so the frame recedes and the
+         figure carries itself. Adjust border weight/tint here. -->
+    <div style="border:1px solid rgba(58,54,48,.35);border-radius:6px;background:#f5f1e6;overflow:hidden">
       <div style="position:relative;width:100%;aspect-ratio:16/9">
         {{ figImg }}
       </div>
