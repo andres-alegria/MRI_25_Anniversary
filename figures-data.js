@@ -25,10 +25,12 @@ const FIGURES = [
     id: 'policy',
     title: 'Policy Process',
     subtitle: 'Mountains and climate change in the IPCC and the UNFCCC',
-    // Draft, generated from figures/src/fig1_policy_process.py. SVG while it is
-    // still being edited; swap to a 16:9 JPG once finalised in Illustrator.
-    src: 'figures/policy-process-v2.svg',
-    alt: 'Two lanes from 1990 to 2026. An IPCC science lane climbs from passing mountain mentions to a dedicated chapter in 2019 and a cross-chapter paper in 2022, while the policy lane shows the Kyoto Protocol and Paris Agreement naming mountains zero times before COP27 and the first Global Stocktake reconnect.',
+    // Back on the placeholder while the figure is reworked. The drafts are
+    // still in the repo — figures/policy-process.svg and
+    // figures/policy-process-v2.svg, generated from figures/src/ — so point
+    // src at one of those to bring a draft back.
+    src: 'figures/policy-process.jpg',
+    alt: 'Placeholder image for the policy process figure.',
     caption: 'How mountain science has travelled into international climate policy — through IPCC assessment cycles and the UNFCCC, alongside the UN years and decades that opened space for it.'
   },
   {
