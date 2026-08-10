@@ -24,13 +24,10 @@ const FIGURES = [
   {
     id: 'policy',
     title: 'Policy Process',
-    subtitle: 'Mountains and climate change in the IPCC and the UNFCCC',
-    // Back on the placeholder while the figure is reworked. The drafts and
-    // their generating script now live outside the repo — drop the finished
-    // figure into figures/ and point src at it.
+    subtitle: 'Mountains in global policy processes, through space and time',
     src: 'figures/policy-process.jpg',
-    alt: 'Placeholder image for the policy process figure.',
-    caption: 'How mountain science has travelled into international climate policy — through IPCC assessment cycles and the UNFCCC, alongside the UN years and decades that opened space for it.'
+    alt: 'A world map shading each country by the share of its territory that is mountainous — more than 30 per cent of global land — with 26 countries party to a regional mountain-specific agreement, and a timeline from 1990 to 2027 marking IPCC assessments, UNFCCC treaty decisions, UN General Assembly resolutions and global and regional instruments.',
+    caption: 'More than 30% of the world’s land is mountainous, yet only 26 countries are party to an agreement written specifically for mountains — most of them in Europe. The timeline below tracks how scientific evidence has gradually underwritten the case for mountains in global policy.'
   },
   {
     id: 'observatories',
