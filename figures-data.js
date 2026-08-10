@@ -25,10 +25,9 @@ const FIGURES = [
     id: 'policy',
     title: 'Policy Process',
     subtitle: 'Mountains and climate change in the IPCC and the UNFCCC',
-    // Back on the placeholder while the figure is reworked. The drafts are
-    // still in the repo — figures/policy-process.svg and
-    // figures/policy-process-v2.svg, generated from figures/src/ — so point
-    // src at one of those to bring a draft back.
+    // Back on the placeholder while the figure is reworked. The drafts and
+    // their generating script now live outside the repo — drop the finished
+    // figure into figures/ and point src at it.
     src: 'figures/policy-process.jpg',
     alt: 'Placeholder image for the policy process figure.',
     caption: 'How mountain science has travelled into international climate policy — through IPCC assessment cycles and the UNFCCC, alongside the UN years and decades that opened space for it.'
