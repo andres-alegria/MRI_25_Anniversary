@@ -1,0 +1,6 @@
+# Figure drafts live outside this repo, in the Figures working folder.
+# Only finished figures and the JPG placeholders belong here.
+figures/*.svg
+figures/src/
+
+.DS_Store
