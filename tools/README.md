@@ -63,3 +63,25 @@ casual link-sharing; it is not access control.
 
 For real protection the content would need to be encrypted at rest and the repo
 made private (GitHub Pages from a private repo requires a paid plan).
+
+## The motion layer
+
+`motion.js` holds the GSAP choreography and sits beside `stories-data.js` and
+`figures-data.js` — outside the bundle, so a Claude Design re-export leaves it
+alone. `apply-content.py` injects the four script tags; nothing else in the
+pipeline knows about it. Delete the file and the page still works.
+
+GSAP is vendored in `vendor/` rather than pulled from a CDN, so the publication
+does not depend on a third party staying up. To update:
+
+```bash
+V=$(curl -s https://registry.npmjs.org/gsap/latest | python3 -c 'import sys,json;print(json.load(sys.stdin)["version"])')
+for f in gsap.min.js DrawSVGPlugin.min.js Flip.min.js; do
+  curl -sfL -o "vendor/$f" "https://cdn.jsdelivr.net/npm/gsap@$V/dist/$f"
+done
+echo "$V" > vendor/GSAP_VERSION
+```
+
+Timings and colours live in the `MOTION` object at the top of `motion.js`.
+`MRI_MOTION.replay()` re-runs the opening from the console;
+`MRI_MOTION.replay().pause(1.4)` freezes it partway for tuning.
