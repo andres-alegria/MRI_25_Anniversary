@@ -612,6 +612,14 @@ def patch_template(doc: str) -> str:
            + FONT_LINK
            + '<script src="stories-data.js"></script>'
            + '<script src="figures-data.js"></script>'
+           # GSAP is vendored rather than pulled from a CDN: this publication
+           # has to keep working long after any CDN we picked today. motion.js
+           # waits for the bundle to swap in the real document before it runs,
+           # so load order here does not matter.
+           + '<script src="vendor/gsap.min.js"></script>'
+           + '<script src="vendor/DrawSVGPlugin.min.js"></script>'
+           + '<script src="vendor/Flip.min.js"></script>'
+           + '<script src="motion.js"></script>'
            + doc[i:])
 
     return doc
