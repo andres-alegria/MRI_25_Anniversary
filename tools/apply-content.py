@@ -309,8 +309,17 @@ REPLACEMENTS = [
         '        </div>\n        <sc-for list="{{ parasB }}"',
         '        </div>\n        </sc-if>\n        <sc-for list="{{ parasB }}"',
     ),
+    # The story list becomes a numbered index. The card surface is deleted
+    # rather than recoloured — #fcfaf3 was the last warm value, reading beige
+    # against the neutral ground — and the same 01-25 numerals as the mountain
+    # tie the list to the map. Tags lose their theme colour: five of the twelve
+    # failed AA at this size.
+    (
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px">\n          <sc-for list="{{ visibleStories }}" as="s" hint-placeholder-count="0">\n            <button sc-camel-on-click="{{ s.onOpen }}" style="cursor:pointer;text-align:left;background:#fcfaf3;border:1px solid rgba(58,54,48,.35);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:4px" style-hover="border-color:#0067b2">\n              \n              <span style="font:600 16px \'Source Serif 4\',Georgia,serif;color:#2b2721">{{ s.title }}</span>\n              <span style="display:flex;flex-wrap:wrap;gap:6px;font:500 10.5px Jost,sans-serif;letter-spacing:.1em"><sc-for list="{{ s.tagList }}" as="tg" hint-placeholder-count="2"><sc-if value="{{ tg.notFirst }}" hint-placeholder-val="{{ false }}"><span style="color:#a89f8c">·</span></sc-if><span style="color:{{ tg.color }}">{{ tg.name }}</span></sc-for></span>\n            </button>',
+        '<div style="border-bottom:1px solid #e6e6e0">\n          <sc-for list="{{ visibleStories }}" as="s" hint-placeholder-count="0">\n            <button sc-camel-on-click="{{ s.onOpen }}" style="cursor:pointer;text-align:left;width:100%;background:transparent;border:0;border-top:1px solid #e6e6e0;border-radius:0;padding:14px 4px;display:grid;grid-template-columns:44px 1fr;gap:14px;align-items:baseline" style-hover="background:#f2f2ee">\n              <span style="font:500 12px \'IBM Plex Mono\',ui-monospace,monospace;color:#9a9a90;font-variant-numeric:tabular-nums">{{ s.numLabel }}</span>\n              <span style="display:flex;flex-direction:column;gap:5px">\n                <span style="font:600 18px/1.3 \'Source Serif 4\',Georgia,serif;color:#15150f">{{ s.title }}</span>\n                <span style="display:flex;flex-wrap:wrap;gap:6px;font:400 10.5px \'IBM Plex Mono\',ui-monospace,monospace;letter-spacing:.07em;color:#5f5f58;text-transform:uppercase"><sc-for list="{{ s.tagList }}" as="tg" hint-placeholder-count="2"><sc-if value="{{ tg.notFirst }}" hint-placeholder-val="{{ false }}"><span>·</span></sc-if><span>{{ tg.name }}</span></sc-for></span>\n              </span>\n            </button>',
+    ),
+    ("num: s.num,", "num: s.num,\n        numLabel: String(s.num).padStart(2, '0'),"),
 ]
-
 
 # --- 2b. taller frame, five peaks, one plateau -----------------------------
 # The frame goes from 2:1 to 16:9. The viewBox grows 600 -> 675 while the
