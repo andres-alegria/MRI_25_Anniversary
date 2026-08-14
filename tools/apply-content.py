@@ -201,9 +201,14 @@ REPLACEMENTS = [
         '<div style="font:italic 400 13px \'Source Serif 4\',Georgia,serif;'
         'color:#7d7666;margin-bottom:26px">{{ photoCaption }}</div>',
     ),
+    # Titles on hover only. The bundle passes labelMode='auto' explicitly, so
+    # the ?? fallback never fires — the decision itself has to change. 'auto'
+    # showed every label whenever 12 or fewer stories matched, which with all
+    # 25 markers now drawn meant 25 overlapping titles.
     (
-        "const labelMode = this.props.labelMode ?? 'auto';",
-        "const labelMode = this.props.labelMode ?? 'hover';",
+        "const labelsAlways = labelMode === 'always' || "
+        "(labelMode === 'auto' && visible.length > 0 && visible.length <= 12);",
+        "const labelsAlways = labelMode === 'always';",
     ),
     (
         'font:600 10px Jost,sans-serif;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 0 0 2.5px rgba(250,246,236,.85)',
@@ -215,15 +220,43 @@ REPLACEMENTS = [
     ),
     (
         'border:1.5px solid {{ s.markerColor }}',
-        'border:1px solid #15150f',
+        'border:1px solid {{ s.markerColor }}',
+    ),
+    # Filtering highlights instead of hiding: all 25 markers stay on the
+    # mountain, the matching thread turns MRI blue and the rest recede. The
+    # list below still filters — the mountain shows the whole set, the list
+    # shows the selection.
+    (
+        "const visibleStories = visible.map((s, i) => {",
+        "const _matched = new Set(visible.map(v => v.num));\n"
+        "    const _filtering = !!activeTag && activeTag !== 'All';\n"
+        "    const visibleStories = this.stories.map((s, i) => {\n"
+        "      const _hi = _filtering && _matched.has(s.num);\n"
+        "      const _dim = _filtering && !_matched.has(s.num);",
+    ),
+    (
+        "markerColor: mc,",
+        "markerColor: _hi ? '#0067b2' : (_dim ? '#e2e2da' : '#15150f'),",
     ),
     (
         "dotColor: hoverId === s.id ? '#ffffff' : '#3a3630'",
-        "dotColor: hoverId === s.id ? '#ffffff' : '#15150f'",
+        "dotColor: hoverId === s.id ? '#ffffff'\n"
+        "          : (_hi ? '#0067b2' : (_dim ? '#b3b3aa' : '#15150f'))",
     ),
     (
         "dotBg: hoverId === s.id ? mc : '#fbf9f2'",
-        "dotBg: hoverId === s.id ? mc : '#ffffff'",
+        "dotBg: hoverId === s.id ? (_hi ? '#0067b2' : '#15150f') : '#ffffff'",
+    ),
+    # the prompt overlay covered a mountain that is now always populated
+    ("showPrompt: !activeTag,", "showPrompt: false,"),
+    (
+        "filterCaption = 'No theme selected yet — the mountain is waiting.';",
+        "filterCaption = 'All 25 stories are marked on the mountain. "
+        "Choose a theme to highlight a thread.';",
+    ),
+    (
+        "'\\u201D. Other stories remain hidden on the mountain.'",
+        "'\\u201D. The rest stay on the mountain, dimmed.'",
     ),
     # map frame: 2:1 -> 16:9
     ("aspect-ratio:2/1", "aspect-ratio:16/9"),
