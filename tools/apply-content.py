@@ -201,6 +201,30 @@ REPLACEMENTS = [
         '<div style="font:italic 400 13px \'Source Serif 4\',Georgia,serif;'
         'color:#7d7666;margin-bottom:26px">{{ photoCaption }}</div>',
     ),
+    (
+        "const labelMode = this.props.labelMode ?? 'auto';",
+        "const labelMode = this.props.labelMode ?? 'hover';",
+    ),
+    (
+        'font:600 10px Jost,sans-serif;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 0 0 2.5px rgba(250,246,236,.85)',
+        "font:500 10px 'IBM Plex Mono',ui-monospace,monospace;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 0 0 2.5px rgba(255,255,255,.92)",
+    ),
+    (
+        "dotLabel: numbers ? String(s.num) : ''",
+        "dotLabel: numbers ? String(s.num).padStart(2, '0') : ''",
+    ),
+    (
+        'border:1.5px solid {{ s.markerColor }}',
+        'border:1px solid #15150f',
+    ),
+    (
+        "dotColor: hoverId === s.id ? '#ffffff' : '#3a3630'",
+        "dotColor: hoverId === s.id ? '#ffffff' : '#15150f'",
+    ),
+    (
+        "dotBg: hoverId === s.id ? mc : '#fbf9f2'",
+        "dotBg: hoverId === s.id ? mc : '#ffffff'",
+    ),
     # map frame: 2:1 -> 16:9
     ("aspect-ratio:2/1", "aspect-ratio:16/9"),
     # hero box: same 16:9 frame, contents centred within it
@@ -220,10 +244,10 @@ REPLACEMENTS = [
         "[605,330],[960,300],[770,345],[480,375],[655,375],[1040,380],[560,410],"
         "[880,390],[720,410],[1130,420],[345,450],[620,450],[990,460],[1160,500],"
         "[180,495],[780,480],[280,505],[430,470],[60,535]];",
-        "const coords = [[870,120],[895,200],[845,229],[915,275],[800,332],[1100,355],"
-        "[605,366],[960,332],[770,383],[480,418],[655,418],[1040,423],[560,458],"
-        "[880,435],[720,458],[1130,469],[345,503],[620,503],[990,515],[1160,561],"
-        "[180,555],[780,538],[280,566],[430,526],[60,601]];",
+        "const coords = [[870,112],[895,176],[845,199],[915,236],[800,282],[1100,300],"
+        "[605,309],[960,282],[770,322],[480,350],[655,350],[1040,354],[560,382],"
+        "[880,364],[720,382],[1130,391],[345,418],[620,418],[990,428],[1160,465],"
+        "[180,460],[780,446],[280,469],[430,437],[60,497]];",
     ),
     # markers are positioned as a percentage of the viewBox height
     ("py: +(s.y / 6).toFixed(2),", "py: +(s.y / 6.75).toFixed(2),"),
@@ -263,18 +287,18 @@ REPLACEMENTS = [
 #
 # The old leftmost peak (x=170) is gone — the slope now climbs smoothly from
 # the left edge — leaving five peaks.
-TERRAIN = """<rect x="0" y="0" width="1200" height="538" fill="url(#mjSky)" filter="url(#mjWatercolorSoft)"></rect>
-          <ellipse cx="300" cy="480" rx="240" ry="25" fill="#eef2ea" opacity="0.7" filter="url(#mjWatercolorSoft)"></ellipse>
-          <ellipse cx="950" cy="446" rx="220" ry="23" fill="#eef2ea" opacity="0.6" filter="url(#mjWatercolorSoft)"></ellipse>
+TERRAIN = """<rect x="0" y="0" width="1200" height="446" fill="url(#mjSky)" filter="url(#mjWatercolorSoft)"></rect>
+          <ellipse cx="300" cy="400" rx="240" ry="20" fill="#eef2ea" opacity="0.7" filter="url(#mjWatercolorSoft)"></ellipse>
+          <ellipse cx="950" cy="373" rx="220" ry="18" fill="#eef2ea" opacity="0.6" filter="url(#mjWatercolorSoft)"></ellipse>
           <g>
-            <polygon points="0,561 80,503 160,469 250,423 330,446 420,400 500,423 580,378 660,332 740,355 810,309 900,286 980,320 1060,343 1140,366 1200,400 1200,675 0,675" fill="#ede6d5" filter="url(#mjWatercolorSoft)"></polygon>
-            <polygon points="0,620 110,593 230,535 330,469 400,492 470,389 520,440 600,332 650,383 720,423 790,332 820,240 870,80 910,206 940,252 1000,332 1040,378 1100,320 1200,423 1200,675 0,675" fill="#e7e0cd" stroke="#3a3630" stroke-width="1.5" filter="url(#mjWatercolorSoft)"></polygon>
-            <rect x="0" y="435" width="1200" height="240" fill="url(#mjGreenFade)" clip-path="url(#mjMountainClip)" filter="url(#mjWatercolor)"></rect>
-            <rect x="0" y="80" width="1200" height="343" fill="url(#mjIceFade)" clip-path="url(#mjMountainClip)" filter="url(#mjWatercolor)"></rect>
-            <polygon points="820,240 870,80 910,206 940,252 918,242 895,280 872,257 848,288 826,261" fill="#fbf9f2" stroke="#3a3630" stroke-width="1.5" filter="url(#mjWatercolorSoft)"></polygon>
-            <polygon points="870,80 910,206 890,200 875,126" fill="#c9d3d6" opacity="0.55" filter="url(#mjWatercolorSoft)"></polygon>
-            <polygon points="1078,349 1100,320 1126,352 1112,343 1099,361 1087,344" fill="#fbf9f2" stroke="#3a3630" stroke-width="1" filter="url(#mjWatercolorSoft)"></polygon>
-            <polygon points="582,357 600,332 620,358 610,351 600,366 591,350" fill="#fbf9f2" stroke="#3a3630" stroke-width="1" filter="url(#mjWatercolorSoft)"></polygon>
+            <polygon points="0,465 80,418 160,391 250,354 330,373 420,336 500,354 580,318 660,282 740,300 810,263 900,245 980,272 1060,290 1140,309 1200,336 1200,675 0,675" fill="#ede6d5" filter="url(#mjWatercolorSoft)"></polygon>
+            <polygon points="0,512 110,490 230,444 330,391 400,410 470,327 520,368 600,282 650,322 720,354 790,282 820,208 870,80 910,181 940,218 1000,282 1040,318 1100,272 1200,354 1200,675 0,675" fill="#e7e0cd" stroke="#3a3630" stroke-width="1.5" filter="url(#mjWatercolorSoft)"></polygon>
+            <rect x="0" y="364" width="1200" height="311" fill="url(#mjGreenFade)" clip-path="url(#mjMountainClip)" filter="url(#mjWatercolor)"></rect>
+            <rect x="0" y="80" width="1200" height="274" fill="url(#mjIceFade)" clip-path="url(#mjMountainClip)" filter="url(#mjWatercolor)"></rect>
+            <polygon points="820,208 870,80 910,181 940,218 918,210 895,240 872,222 848,246 826,225" fill="#fbf9f2" stroke="#3a3630" stroke-width="1.5" filter="url(#mjWatercolorSoft)"></polygon>
+            <polygon points="870,80 910,181 890,176 875,117" fill="#c9d3d6" opacity="0.55" filter="url(#mjWatercolorSoft)"></polygon>
+            <polygon points="1078,295 1100,272 1126,298 1112,290 1099,305 1087,291" fill="#fbf9f2" stroke="#3a3630" stroke-width="1" filter="url(#mjWatercolorSoft)"></polygon>
+            <polygon points="582,302 600,282 620,302 610,297 600,309 591,296" fill="#fbf9f2" stroke="#3a3630" stroke-width="1" filter="url(#mjWatercolorSoft)"></polygon>
           </g>"""
 
 TERRAIN_RE = re.compile(
@@ -287,12 +311,12 @@ DEFS_FIXES = [
     ('<polygon points="0,540 90,505 170,470 240,485 330,420 400,440 470,350 520,395 '
      '600,300 650,345 720,380 790,300 820,220 870,80 910,190 940,230 1000,300 '
      '1040,340 1100,290 1200,380 1200,600 0,600"></polygon>',
-     '<polygon points="0,620 110,593 230,535 330,469 400,492 470,389 520,440 600,332 '
-     '650,383 720,423 790,332 820,240 870,80 910,206 940,252 1000,332 '
-     '1040,378 1100,320 1200,423 1200,675 0,675"></polygon>'),
-    ('x1="0" y1="390" x2="0" y2="530"', 'x1="0" y1="435" x2="0" y2="595"'),
-    ('x1="0" y1="0" x2="0" y2="480"', 'x1="0" y1="0" x2="0" y2="538"'),
-    ('x1="0" y1="80" x2="0" y2="380"', 'x1="0" y1="80" x2="0" y2="423"'),
+     '<polygon points="0,512 110,490 230,444 330,391 400,410 470,327 520,368 600,282 '
+     '650,322 720,354 790,282 820,208 870,80 910,181 940,218 1000,282 '
+     '1040,318 1100,272 1200,354 1200,675 0,675"></polygon>'),
+    ('x1="0" y1="390" x2="0" y2="530"', 'x1="0" y1="364" x2="0" y2="492"'),
+    ('x1="0" y1="0" x2="0" y2="480"', 'x1="0" y1="0" x2="0" y2="446"'),
+    ('x1="0" y1="80" x2="0" y2="380"', 'x1="0" y1="80" x2="0" y2="354"'),
     ('sc-camel-view-box="0 0 1200 600"', 'sc-camel-view-box="0 0 1200 675"'),
 ]
 
@@ -331,7 +355,7 @@ SCENERY_DEFS = """
 # top, so moving these cannot disturb them.
 SCENERY = """
           <!-- town on the lower slopes, below the first peak (x=330) -->
-          <g transform="translate(285,500) scale(0.56)">
+          <g transform="translate(285,416) scale(0.56)">
             <ellipse cx="80" cy="122" rx="66" ry="9" fill="#eef2ea" opacity="0.85" filter="url(#mjIcoSoft)"></ellipse>
             <g filter="url(#mjIcoSoft)">
               <polygon points="18,120 18,78 34,68 50,78 50,120" fill="#ede6d5"></polygon>
@@ -360,7 +384,7 @@ SCENERY = """
           <!-- distant town, high on the right-hand slope.
                Smaller and without window marks: at this size they would only
                read as mud, and dropping them reads as aerial perspective. -->
-          <g transform="translate(940,366) scale(0.46)">
+          <g transform="translate(940,309) scale(0.46)">
             <ellipse cx="80" cy="122" rx="60" ry="8" fill="#eef2ea" opacity="0.7" filter="url(#mjIcoSoft)"></ellipse>
             <g filter="url(#mjIcoSoft)">
               <polygon points="18,120 18,78 34,68 50,78 50,120" fill="#ede6d5"></polygon>
@@ -382,7 +406,7 @@ SCENERY = """
                plateau — so the water reads as issuing from that valley. Both
                banks converge on that single point rather than meeting a flat
                top edge, which is what gives the channel its recession. -->
-          <g transform="translate(447,434) scale(1)">
+          <g transform="translate(424,360) scale(1.31)">
             <path d="M73 6
                      C 73 17, 75 29, 75 40 C 75 52, 54 63, 54 75
                      C 54 87, 73 98, 73 110 C 73 122, 44 133, 44 145
