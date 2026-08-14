@@ -407,6 +407,64 @@ SCENERY = """
 """
 
 
+# --- 5. interface register: neutral ground, contemporary sans ------------
+# The illustration keeps its warm, hand-made character; everything around it
+# becomes quiet and precise, so the contrast between the two carries the
+# identity. Adjust the palette here.
+#
+# These replacements are applied ONLY outside the mountain <svg>: several
+# colours (e.g. #fbf9f2 is snow inside the artwork and a card background
+# outside it) mean different things in the two contexts.
+MOUNTAIN_SVG_RE = re.compile(r'<svg sc-camel-view-box="0 0 1200 675".*?</svg>', re.S)
+
+UI_RESTYLE = [
+    # typography — Jost is Futura-derived and reads period; Inter is neutral
+    ("Jost,system-ui,sans-serif", "Inter,system-ui,sans-serif"),
+    ("Jost,sans-serif", "Inter,system-ui,sans-serif"),
+
+    # grounds — warm off-white out, near-neutral in
+    ("background:#f4efe3", "background:#fafaf8"),
+    ("#efe9da", "#f2f2ee"),
+    ("#f5f1e6", "#f7f7f4"),
+    ("#fbf9f2", "#ffffff"),
+    # the map frame stays warm: it is the one surface that belongs to the artwork
+    ("#faf6ec", "#f6f2e8"),
+
+    # contrast — #a89f8c was 2.29:1 and #7d7666 3.93:1 on the old ground,
+    # both below AA for normal text
+    ("#a89f8c", "#5f5f58"),
+    ("#8f8878", "#5f5f58"),
+    ("#7d7666", "#5f5f58"),
+
+    # geometry — precision is most of what reads as contemporary
+    ("border-radius:6px", "border-radius:2px"),
+    ("1.5px solid #3a3630", "1px solid #dcdcd4"),
+    ("rgba(58,54,48,.35)", "#d4d4cd"),
+    ("rgba(58,54,48,.3)", "#e2e2da"),
+    ("rgba(58,54,48,.25)", "#e2e2da"),
+
+    # monospaced metadata reads as measurement rather than decoration
+    ('font:400 13px Inter,system-ui,sans-serif;color:#5f5f58;margin-bottom:22px',
+     "font:400 12px 'IBM Plex Mono',ui-monospace,monospace;color:#5f5f58;margin-bottom:22px"),
+]
+
+FONT_LINK = ('<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+             '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?'
+             'family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">')
+
+
+def restyle_ui(doc: str) -> str:
+    """Apply the interface restyle everywhere except inside the mountain SVG."""
+    m = MOUNTAIN_SVG_RE.search(doc)
+    if not m:
+        sys.exit("Could not isolate the mountain SVG; refusing to restyle.")
+    head, art, tail = doc[:m.start()], m.group(0), doc[m.end():]
+    for old, new in UI_RESTYLE:
+        head = head.replace(old, new)
+        tail = tail.replace(old, new)
+    return head + art + tail
+
+
 def patch_template(doc: str) -> str:
     if MARKER in doc:
         print("Already wired — nothing to do.")
@@ -468,12 +526,24 @@ def patch_template(doc: str) -> str:
         sys.exit(f"Expected one ABOUT section marker, found {doc.count(about)}")
     doc = doc.replace(about, FIGURES_SECTION + about, 1)
 
+    # the paper texture tiled behind the journey section — the single
+    # strongest source of the "aged paper" reading
+    texture = ('background:linear-gradient(rgba(244,239,227,.2),rgba(244,239,227,.2)),'
+               'url(&quot;b4252c89-0b9b-4a32-90ff-59fd6e3e3de8&quot;) #f4efe3;'
+               'background-size:auto,1000px auto')
+    if doc.count(texture) != 1:
+        sys.exit(f"Expected one tiled paper texture, found {doc.count(texture)}")
+    doc = doc.replace(texture, 'background:#fafaf8', 1)
+
+    doc = restyle_ui(doc)
+
     # load the content files before the component runs
     head = re.search(r"<head[^>]*>", doc)
     if not head:
         sys.exit("No <head> in template.")
     i = head.end()
     doc = (doc[:i]
+           + FONT_LINK
            + '<script src="stories-data.js"></script>'
            + '<script src="figures-data.js"></script>'
            + doc[i:])
