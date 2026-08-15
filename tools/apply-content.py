@@ -153,6 +153,18 @@ REPLACEMENTS = [
         "      figHeading: _fg.FIGURES_HEADING || '',\n"
         "      figStandfirst: _fg.FIGURES_STANDFIRST || '',",
     ),
+    # Marker positions come from the generated plate. plate.js builds its
+    # geometry synchronously at load, before the component is constructed, so
+    # the table is already there by the time this runs. The original
+    # expression is kept as a fallback: if plate.js is removed the markers
+    # fall back onto the old artwork's coordinates rather than stacking at 0.
+    (
+        "        px: +(mx / 12).toFixed(2),\n        py: +(s.y / 6).toFixed(2),",
+        "        px: (window.MRI_PLATE && window.MRI_PLATE.nodes[s.num])\n"
+        "          ? window.MRI_PLATE.nodes[s.num].px : +(mx / 12).toFixed(2),\n"
+        "        py: (window.MRI_PLATE && window.MRI_PLATE.nodes[s.num])\n"
+        "          ? window.MRI_PLATE.nodes[s.num].py : +(s.y / 6.75).toFixed(2),",
+    ),
     # author byline: "Name, Institution", standard across all stories
     (
         ">A. Author &amp; B. Author — Placeholder Institution<",
@@ -282,8 +294,8 @@ REPLACEMENTS = [
         "[880,364],[720,382],[1130,391],[345,418],[620,418],[990,428],[1160,465],"
         "[180,460],[780,446],[280,469],[430,437],[60,497]];",
     ),
-    # markers are positioned as a percentage of the viewBox height
-    ("py: +(s.y / 6).toFixed(2),", "py: +(s.y / 6.75).toFixed(2),"),
+    # (the old percentage-of-viewBox restretch is now folded into the plate
+    #  fallback above, since the plate supplies these positions directly)
     # altitude readout on the story cards
     (
         '<span style="font:500 10.5px Jost,sans-serif;letter-spacing:.1em;'
@@ -624,9 +636,9 @@ BRAND_STYLE = """<style id="mri-brand">
      the washes a dead grey-violet, losing the difference between rock, meadow
      and ice. Set filter:none to let the plate keep its daylight and read as a
      lit window in a dark page instead; that is the other legitimate answer. */
-  svg[viewBox="0 0 1200 675"] {
-    filter: none;
-  }
+  /* The plate is taken full-bleed in plate.js rather than here: the <svg>
+     carries an inline width:100% inside an absolutely-positioned wrapper, and
+     an inline style always beats a stylesheet rule. */
 </style>"""
 
 
@@ -739,6 +751,10 @@ def patch_template(doc: str) -> str:
            + '<script src="vendor/gsap.min.js"></script>'
            + '<script src="vendor/DrawSVGPlugin.min.js"></script>'
            + '<script src="vendor/Flip.min.js"></script>'
+           # plate.js must run before the component is constructed: it builds
+           # the marker table the render reads. It needs gsap and the stories,
+           # so it loads after both.
+           + '<script src="plate.js"></script>'
            + '<script src="motion.js"></script>'
            + doc[i:])
 
