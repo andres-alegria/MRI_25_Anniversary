@@ -7,8 +7,9 @@
 
    Two behaviours live here:
 
-     1. THE OVERTURE — the massif draws itself once, as a pencil line, before
-        the watercolour washes bleed in behind it.
+     1. THE OVERTURE — the massif's silhouette draws itself once, the altitude
+        belts fill in behind it, and the ascent route draws last, with the
+        numbered stories landing on it in climb order.
 
      2. THE LINK — the numbered markers on the mountain and the numbered rows
         in the index are treated as one object. Hovering either highlights
@@ -27,22 +28,13 @@ const MOTION = {
   // set to false to ship the page without an opening animation
   overture: true,
   // seconds. Raise for a more languid draw, lower to get out of the way sooner
-  drawBackRidge: 1.10,
-  drawFrontRidge: 1.45,
-  drawRiver: 1.10,
-  washFade: 1.20,
+  drawFrontRidge: 1.45,   // the massif silhouette drawing itself
+  drawRoute: 1.30,        // the ascent path drawing itself
+  washFade: 1.20,         // each belt fading up behind the line
+  beltStagger: 0.10,
   // how long each marker takes, and the gap between consecutive markers
   markerRise: 0.45,
   markerStagger: 0.028,
-
-  // adjust pencil line colour and weight here — these are the drawn strokes,
-  // not the finished artwork, and they fade away once the washes arrive
-  pencilColor: '#3a3630',
-  pencilWidth: 1.4,
-  // opacity the pencil lines settle at once the drawing is finished.
-  // 0 leaves the artwork exactly as it looks with no animation at all;
-  // raise it a little for a visible sketch underlay
-  pencilRestOpacity: 0,
 
   /* ---- the link ---------------------------------------------------- */
   link: true,
@@ -57,22 +49,6 @@ const MOTION = {
   // pause before a hover counts as intent, in ms
   hoverIntent: 90
 };
-
-/* --- the ridge lines, as drawn rather than as filled ----------------------
-   The artwork's silhouettes are closed polygons: their point lists run along
-   the skyline and then back along the bottom of the frame to close the shape.
-   Drawing those strokes directly would draw the frame too, so the skyline
-   vertices are repeated here as open polylines. Keep these in step with the
-   polygons in tools/apply-content.py if the terrain is ever reshaped.
-------------------------------------------------------------------------- */
-const RIDGE_BACK =
-  '0,465 80,418 160,391 250,354 330,373 420,336 500,354 580,318 660,282 ' +
-  '740,300 810,263 900,245 980,272 1060,290 1140,309 1200,336';
-
-const RIDGE_FRONT =
-  '0,512 110,490 230,444 330,391 400,410 470,327 520,368 600,282 650,322 ' +
-  '720,354 790,282 820,208 870,80 910,181 940,218 1000,282 1040,318 ' +
-  '1100,272 1200,354';
 
 (function () {
   'use strict';
@@ -100,7 +76,8 @@ const RIDGE_FRONT =
 
   const numberOf = el => (el.textContent.trim().match(/^\d{2}/) || [null])[0];
 
-  const scene = () => document.querySelector('svg[viewBox="0 0 1200 675"]') ||
+  // the plate sets its own viewBox once generated, so find it by role
+  const scene = () => document.querySelector('svg[data-mri-plate="done"]') ||
                       document.querySelector('svg');
 
   /* Waits for the bundle to finish swapping in the real document.
@@ -120,7 +97,9 @@ const RIDGE_FRONT =
 
   function ready() {
     const svg = scene();
-    if (!svg || svg.children.length < 8) return null;
+    // wait for the generated plate, not just any <svg>
+    if (!svg || svg.getAttribute('data-mri-plate') !== 'done') return null;
+    if (!svg.querySelector('[data-mri-route]')) return null;
     if (markers().length < 25) return null;
     return svg;
   }
@@ -136,60 +115,25 @@ const RIDGE_FRONT =
       running.kill();
       running = null;
     }
-    [...svg.querySelectorAll('[data-motion="pencil"]')].forEach(n => n.remove());
 
-    // svg children, in paint order:
-    //   0 defs · 1 sky · 2,3 cloud banks · 4 terrain · 5,6 towns · 7 river
-    const kids = [...svg.children];
-    const terrain = kids[4];
-    const towns = [kids[5], kids[6]].filter(Boolean);
-    const river = kids[7];
-    const riverPath = river && river.querySelector('path');
-    if (!terrain) return;
+    // The plate is generated, so nothing here may depend on a fixed child
+    // order. Three things are found by role and everything else is "the
+    // drawing": the sky, which is never hidden because the page would flash
+    // its ground through; the massif's silhouette, which is drawn as a line;
+    // and the ascent route, which is drawn last.
+    const kids = [...svg.children].filter(n => !n.hasAttribute('data-motion'));
+    const sky = kids.find(n => n.tagName === 'rect') || null;
+    const outline = svg.querySelector('[data-mri-outline]');
+    const route = svg.querySelector('[data-mri-route]');
+    const routeLine = route && route.querySelector('path:last-of-type');
+    const painted = kids.filter(n =>
+      n !== sky && n !== outline && n !== route && n.tagName !== 'defs');
+    if (!painted.length) return null;
 
-    // The pencil lines live in their own group so the artwork underneath is
-    // never modified — removing this group restores the original drawing.
-    const pencil = document.createElementNS(SVG_NS, 'g');
-    pencil.setAttribute('data-motion', 'pencil');
-    pencil.setAttribute('fill', 'none');
-    pencil.setAttribute('stroke', MOTION.pencilColor);
-    pencil.setAttribute('stroke-width', MOTION.pencilWidth);
-    pencil.setAttribute('stroke-linejoin', 'round');
-    pencil.setAttribute('stroke-linecap', 'round');
-
-    const line = points => {
-      const p = document.createElementNS(SVG_NS, 'polyline');
-      p.setAttribute('points', points);
-      pencil.appendChild(p);
-      return p;
-    };
-    const back = line(RIDGE_BACK);
-    const front = line(RIDGE_FRONT);
-    svg.insertBefore(pencil, terrain);
-
-    // A ghost of the river outline, drawn in the river's own placement so it
-    // traces the banks rather than a straight line down the slope.
-    let riverGhost = null;
-    if (riverPath) {
-      riverGhost = riverPath.cloneNode(false);
-      riverGhost.setAttribute('fill', 'none');
-      riverGhost.setAttribute('stroke', MOTION.pencilColor);
-      riverGhost.setAttribute('stroke-width', '1.2');
-      riverGhost.removeAttribute('filter');
-      const holder = document.createElementNS(SVG_NS, 'g');
-      holder.setAttribute('transform', river.getAttribute('transform') || '');
-      holder.setAttribute('data-motion', 'pencil');
-      holder.appendChild(riverGhost);
-      svg.appendChild(holder);
-    }
-
-    const painted = [terrain, ...towns, river].filter(Boolean);
     const badges = markers();
 
     if (reduced) {
       // Reduced motion: no drawing, no staggered arrival. The page simply is.
-      pencil.remove();
-      if (riverGhost) riverGhost.parentNode.remove();
       return null;
     }
 
@@ -197,8 +141,9 @@ const RIDGE_FRONT =
       defaults: { ease: 'power2.out' },
       onComplete() {
         // Hand the DOM back exactly as it was found.
-        [...svg.querySelectorAll('[data-motion="pencil"]')].forEach(n => n.remove());
         gsap.set(painted, { clearProps: 'opacity' });
+        if (outline) gsap.set(outline, { clearProps: 'opacity' });
+        if (route) gsap.set(route, { clearProps: 'opacity' });
         gsap.set(badges, { clearProps: 'opacity,transform' });
         running = null;
       }
@@ -206,26 +151,29 @@ const RIDGE_FRONT =
     running = tl;
 
     tl.set(painted, { opacity: 0 })
-      .set(badges, { opacity: 0 })
-      .fromTo(back, { drawSVG: '0% 0%' },
-                    { drawSVG: '0% 100%', duration: MOTION.drawBackRidge }, 0)
-      .fromTo(front, { drawSVG: '0% 0%' },
-                     { drawSVG: '0% 100%', duration: MOTION.drawFrontRidge }, 0.18);
+      .set(badges, { opacity: 0 });
 
-    if (riverGhost) {
-      tl.fromTo(riverGhost, { drawSVG: '0% 0%' },
-                            { drawSVG: '0% 100%', duration: MOTION.drawRiver }, 0.9);
+    // 1. the silhouette is drawn as a line, before anything is filled
+    if (outline) {
+      tl.set(outline, { opacity: 1 })
+        .fromTo(outline, { drawSVG: '0% 0%' },
+                         { drawSVG: '0% 100%', duration: MOTION.drawFrontRidge }, 0);
     }
 
-    // washes bleed in behind the line, then the line itself recedes
-    tl.to(painted, { opacity: 1, duration: MOTION.washFade, stagger: 0.12 }, 1.05)
-      .to(pencil, { opacity: MOTION.pencilRestOpacity, duration: 0.9 }, 1.5);
+    // 2. the belts, textures, rivers and settlements arrive behind it, low to
+    //    high, so the mountain fills in the way it would be climbed
+    tl.to(painted, {
+      opacity: 1, duration: MOTION.washFade, stagger: MOTION.beltStagger
+    }, outline ? MOTION.drawFrontRidge * 0.62 : 0);
 
-    if (riverGhost) {
-      tl.to(riverGhost.parentNode, { opacity: MOTION.pencilRestOpacity, duration: 0.9 }, 1.7);
+    // 3. the ascent route draws itself last — it is the thing to follow
+    if (routeLine) {
+      tl.set(route, { opacity: 1 })
+        .fromTo(route.querySelectorAll('path'), { drawSVG: '0% 0%' },
+                { drawSVG: '0% 100%', duration: MOTION.drawRoute }, '>-0.35');
     }
 
-    // the markers arrive last, low to high, so the eye is led up the massif
+    // 4. and the numbers land on it, in climb order
     const byHeight = badges.slice().sort(
       (a, b) => b.getBoundingClientRect().top - a.getBoundingClientRect().top
     );
@@ -237,7 +185,7 @@ const RIDGE_FRONT =
       stagger: MOTION.markerStagger,
       ease: 'back.out(1.7)',
       startAt: { y: 10, scale: 0.8 }
-    }, 1.85);
+    }, '>-0.55');
 
     // Safety net. The drawing starts by hiding the artwork, and GSAP only
     // advances while the browser is issuing animation frames — a tab opened in
