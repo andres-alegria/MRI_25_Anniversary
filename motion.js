@@ -239,6 +239,15 @@ const RIDGE_FRONT =
       startAt: { y: 10, scale: 0.8 }
     }, 1.85);
 
+    // Safety net. The drawing starts by hiding the artwork, and GSAP only
+    // advances while the browser is issuing animation frames — a tab opened in
+    // the background gets none. If for any reason the timeline has not run to
+    // the end on its own, force it there: a mountain that never appears is a
+    // far worse failure than an opening that does not play.
+    setTimeout(() => {
+      if (running === tl && tl.progress() < 1) tl.progress(1);
+    }, (tl.duration() + 5) * 1000);
+
     return tl;
   }
 
