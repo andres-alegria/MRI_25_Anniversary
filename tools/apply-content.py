@@ -516,16 +516,133 @@ UI_RESTYLE = [
 
 FONT_LINK = ('<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
              '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?'
-             'family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">')
+             'family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500'
+             '&family=Jost:wght@300;400;500;600&display=swap">')
 
 
-def restyle_ui(doc: str) -> str:
-    """Apply the interface restyle everywhere except inside the mountain SVG."""
+# --- 6. brand: the register developed in Ascent_25Stories -----------------
+#
+# Colour derives from the MRI Corporate Identity Guide (Pantone 2935 / #0067B2
+# and the secondary navy / teal / green set). The page turns nocturnal: an ink
+# ground with light text, the way the plate in Ascent reads.
+#
+# Like UI_RESTYLE these run only outside the mountain SVG — several of these
+# values mean something different inside the artwork.
+
+# adjust the brand palette here; these are the tokens the whole page derives from
+BRAND = {
+    'ink':      '#061A29',   # page ground
+    'ink_soft': '#0B2740',   # raised panels, cards, the figure well
+    'ink_line': '#12395C',   # a panel edge that is felt more than seen
+    'text':     '#DCE8F1',   # body text on the ground
+    'text_dim': '#93A9BC',   # metadata — 7:1 on the ground, comfortably AA
+    'blue':     '#0067B2',   # MRI blue: fills and selection
+    'blue_lit': '#4FA3D9',   # blue as *text* on a dark ground, where #0067B2 fails
+    'teal':     '#16A3B8',
+    'green':    '#009E60',
+}
+
+BRAND_RESTYLE = [
+    # --- typography ------------------------------------------------------
+    # Body prose stops being a serif before the blanket rule below turns every
+    # remaining Source Serif into Jost — order matters here.
+    ("font:400 16px/1.72 'Source Serif 4',Georgia,serif",
+     "font:300 16px/1.75 Inter,system-ui,sans-serif"),
+    ("font:400 13px/1.6 'Source Serif 4',Georgia,serif",
+     "font:300 13px/1.6 Inter,system-ui,sans-serif"),
+    # Display face is Jost — the closest free stand-in for MRI's corporate
+    # Futura. Substituting real Futura here changes every line break, because
+    # its x-height is much smaller; Jost keeps all readers on the same page.
+    ("'Source Serif 4',Georgia,serif", "Jost,'Century Gothic',system-ui,sans-serif"),
+
+    # --- grounds ---------------------------------------------------------
+    ("background:#fafaf8", f"background:{BRAND['ink']}"),
+    ("#fafaf8", BRAND['ink']),
+    ("#f2f2ee", BRAND['ink_soft']),
+    ("#f7f7f4", BRAND['ink_soft']),
+    ("#ffffff", BRAND['ink_soft']),
+    # the map frame is the one surface that belongs to the artwork; it keeps a
+    # little of the sky's warmth so the plate does not float free of the page
+    ("#f6f2e8", "#0A2233"),
+
+    # --- text ------------------------------------------------------------
+    # As *text* on this ground #0067B2 is only 3.0:1, so every `color:` use —
+    # the Print Edition link, the eyebrows, the reader's controls — takes the
+    # lit blue instead. Fills keep the true brand blue, where white sits on it
+    # at 4.6:1, and those are written `background:` so this cannot touch them.
+    ("color:#0067b2", f"color:{BRAND['blue_lit']}"),
+    ("#134e7f", BRAND['blue_lit']),
+
+    ("#15150f", BRAND['text']),
+    ("#5f5f58", BRAND['text_dim']),
+    # the bundle's own inks, which the neutral pass never had to touch
+    ("#2b2721", BRAND['text']),      # headings, nav, footer, inactive chip text
+    ("#33302a", BRAND['text']),
+    ("#55503f", BRAND['text_dim']),  # secondary text and the quieter chip label
+    ("#44402f", BRAND['text_dim']),
+    # #3a3630 is the *selected* chip's fill, and its paired text colour is
+    # already the dark panel ink — so on this ground the fill has to become
+    # light, not dark, or selection would read as a hole.
+    ("#3a3630", BRAND['text']),
+
+    # --- edges -----------------------------------------------------------
+    ("#dcdcd4", BRAND['ink_line']),
+    ("#e2e2da", BRAND['ink_line']),
+    ("#d4d4cd", BRAND['ink_line']),
+    # the greys a dimmed marker falls back to during filtering
+    ("#b3b3aa", "#3E5F7E"),
+]
+
+# Fixed texture layers and the few rules that inline styles cannot express.
+# Injected as a stylesheet rather than markup so no component has to change.
+BRAND_STYLE = """<style id="mri-brand">
+  /* Grain and contour overlay the finished page rather than sitting behind it.
+     Behind would mean giving every top-level child a stacking context, and the
+     bundle positions those itself — safer to lay the texture on top at a low
+     enough strength that nothing underneath is harmed. Adjust strength here. */
+  body::before, body::after {
+    content: ''; position: fixed; inset: -10%;
+    pointer-events: none; z-index: 9000;
+  }
+  body::before {                       /* topographic line motif */
+    opacity: .04; mix-blend-mode: soft-light;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='600' viewBox='0 0 600 600'><g fill='none' stroke='%23ffffff' stroke-width='1.1'><path d='M-50 120 C 90 60, 200 190, 320 130 S 560 60, 660 140'/><path d='M-50 170 C 90 110, 200 240, 320 180 S 560 110, 660 190'/><path d='M-50 220 C 90 160, 200 290, 320 230 S 560 160, 660 240'/><path d='M-50 290 C 100 230, 210 360, 330 300 S 570 235, 660 315'/><path d='M-50 345 C 100 285, 210 415, 330 355 S 570 290, 660 370'/><path d='M-50 425 C 110 370, 220 495, 340 440 S 580 375, 660 455'/><path d='M-50 480 C 110 425, 220 550, 340 495 S 580 430, 660 510'/></g></svg>");
+    background-size: clamp(420px, 45vw, 760px);
+  }
+  body::after {                        /* film grain */
+    opacity: .08; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23g)'/></svg>");
+  }
+  /* Jost sets tighter than the serif it replaced */
+  h1, h2, h3 { letter-spacing: -.022em; }
+
+  ::selection { background: __GREEN__; color: __INK__; }
+
+  /* The watercolour plate was painted for a white page, so on this ground it
+     would otherwise glare. Dimming and cooling it settles it into the night
+     without rotating its hues — an earlier attempt used hue-rotate and turned
+     the washes a dead grey-violet, losing the difference between rock, meadow
+     and ice. Set filter:none to let the plate keep its daylight and read as a
+     lit window in a dark page instead; that is the other legitimate answer. */
+  svg[viewBox="0 0 1200 675"] {
+    filter: none;
+  }
+</style>"""
+
+
+def brand_style() -> str:
+    return (BRAND_STYLE
+            .replace('__GREEN__', BRAND['green'])
+            .replace('__INK__', BRAND['ink']))
+
+
+def restyle_ui(doc: str, rules=UI_RESTYLE) -> str:
+    """Apply an interface restyle everywhere except inside the mountain SVG."""
     m = MOUNTAIN_SVG_RE.search(doc)
     if not m:
         sys.exit("Could not isolate the mountain SVG; refusing to restyle.")
     head, art, tail = doc[:m.start()], m.group(0), doc[m.end():]
-    for old, new in UI_RESTYLE:
+    for old, new in rules:
         head = head.replace(old, new)
         tail = tail.replace(old, new)
     return head + art + tail
@@ -602,6 +719,8 @@ def patch_template(doc: str) -> str:
     doc = doc.replace(texture, 'background:#fafaf8', 1)
 
     doc = restyle_ui(doc)
+    # then the brand pass, on top of the neutral one
+    doc = restyle_ui(doc, BRAND_RESTYLE)
 
     # load the content files before the component runs
     head = re.search(r"<head[^>]*>", doc)
@@ -610,6 +729,7 @@ def patch_template(doc: str) -> str:
     i = head.end()
     doc = (doc[:i]
            + FONT_LINK
+           + brand_style()
            + '<script src="stories-data.js"></script>'
            + '<script src="figures-data.js"></script>'
            # GSAP is vendored rather than pulled from a CDN: this publication
