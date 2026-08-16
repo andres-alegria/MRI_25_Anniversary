@@ -347,7 +347,13 @@ function plateHW(e) {
      splay out into the plain. */
   return 10 + 1020 * Math.pow((5200 - e) / 5200, 0.72);
 }
-const plateCX = (e) => PLATE.cx + 70 * (e / 5200);   /* a slight lean, still centred */
+const plateCX = (e) => PLATE.cx + 70 * (e / 5200);
+
+/* How the flanks are shaped. `roughness` is the raw displacement as a fraction
+   of the cone's half-width at that height; `smoothing` is how many averaging
+   passes run over it — more passes give a calmer, more natural ascent, fewer
+   give a craggier one. `shoulder` sets how far the two shelves step out. */
+const SILHOUETTE = { roughness: 0.085, smoothing: 4, shoulder: 0.10 };   /* a slight lean, still centred */
 /* the ascent path: a serpentine that stays on the face and narrows with it */
 function plateNode(e) {
   const t = e / 5200;
@@ -367,25 +373,43 @@ function generateMountainPlate(seedKey) {
      broken by shoulders and arêtes. So each flank is a polyline through a small
      number of control points joined by STRAIGHT segments, with the displacement
      proportional to the cone's own width — never enough to eat the summit. */
-  const FACETS = 19;
+  const FACETS = 26;
   function flank(side) {
-    const pts = [];
+    /* Raw displacement per facet. Independent kicks at each step gave a
+       zig-zag edge that read as distortion rather than as terrain, so the
+       series is smoothed before it is used: each point is averaged with its
+       neighbours, which keeps the shoulders but removes the spikes between
+       them. */
+    const disp = [];
     for (let i = 0; i <= FACETS; i++) {
       const t = i / FACETS;                       /* 0 at the summit, 1 at sea level */
-      const e = 5200 * (1 - t);
-      const base = plateHW(e);
-      /* damped near the peak, and biased inward so shoulders read as steps out */
-      const damp = Math.pow(t, 0.75);
-      const kick = (rand() - 0.5) * 2;
-      let disp = kick * base * 0.19 * damp;
-      /* two deliberate shoulders per flank — a shelf, then a steeper plane */
-      if (i === Math.round(FACETS * 0.42) || i === Math.round(FACETS * 0.68)) disp = Math.abs(kick) * base * 0.24;
-      pts.push([plateCX(e) + side * (base + disp), plateY(e)]);
+      const damp = Math.pow(t, 0.75);             /* nothing may eat the summit */
+      disp.push((rand() - 0.5) * 2 * SILHOUETTE.roughness * damp);
     }
-    /* a subsidiary top, inserted in altitude order so the arête reads as one
-       break in the ridge rather than a notch */
-    const subE = 4680;
-    pts.splice(1, 0, [plateCX(subE) + side * plateHW(subE) * (1.02 + rand() * 0.22), plateY(subE)]);
+    /* two deliberate shoulders per flank — a shelf, then a steeper plane.
+       They are set before smoothing so they soften into the slope rather than
+       sitting on it as a step. */
+    [0.42, 0.68].forEach(f => {
+      const i = Math.round(FACETS * f);
+      disp[i] = Math.abs(disp[i]) + SILHOUETTE.shoulder;
+    });
+
+    for (let pass = 0; pass < SILHOUETTE.smoothing; pass++) {
+      const out = disp.slice();
+      for (let i = 1; i < disp.length - 1; i++) {
+        out[i] = (disp[i - 1] + disp[i] * 2 + disp[i + 1]) / 4;
+      }
+      out[0] = 0;                                  /* the summit stays a point */
+      disp.length = 0;
+      disp.push(...out);
+    }
+
+    const pts = [];
+    for (let i = 0; i <= FACETS; i++) {
+      const e = 5200 * (1 - i / FACETS);
+      const base = plateHW(e);
+      pts.push([plateCX(e) + side * base * (1 + disp[i]), plateY(e)]);
+    }
     return pts;
   }
   const left = flank(-1), right = flank(1);
@@ -660,7 +684,52 @@ function generateMountainPlate(seedKey) {
     });
   }
 
-  window.addEventListener('resize', placeMarkers);
+  /* --- the frame around the plate ------------------------------------------
+     The plate used to sit in a bordered, rounded, tinted box the width of the
+     text column. Now that it runs to the window edges, that box's own edges
+     showed through underneath it as a second line inside the first — so the
+     containers above the artwork are taken full-bleed and stripped of their
+     frame and fill.
+
+     The page owns these inline styles and rewrites them whenever it
+     re-renders, so this is re-applied alongside the marker positions rather
+     than done once. */
+  function dressFrame() {
+    const host = document.querySelector('svg[data-mri-plate="done"]');
+    if (!host) return;
+    const frame = host.parentElement;
+    if (frame) {
+      frame.style.width = '100vw';
+      frame.style.maxWidth = '100vw';
+      frame.style.marginLeft = 'calc(50% - 50vw)';
+      frame.style.marginRight = 'calc(50% - 50vw)';
+    }
+    /* Clear the frame off every wrapper between the artwork and the section.
+       Walking by computed style rather than by a fixed depth: the box that
+       carries the border is not always the same ancestor. */
+    for (let n = host.parentElement, i = 0; n && i < 5; n = n.parentElement, i++) {
+      if (n.tagName === 'SECTION' || n.tagName === 'BODY') break;
+      n.style.setProperty('border', '0', 'important');
+      n.style.setProperty('border-radius', '0', 'important');
+      n.style.setProperty('background', 'transparent', 'important');
+      n.style.setProperty('box-shadow', 'none', 'important');
+      n.setAttribute('data-mri-undressed', String(i));
+    }
+  }
+
+  /* Re-applying our own inline styles would retrigger the observer that
+     called us, so the observer is paused for the duration. */
+  let applying = false;
+  function relayout() {
+    if (applying) return;
+    applying = true;
+    // the two jobs are independent: if one fails the other must still run
+    try { dressFrame(); } catch (e) { /* frame already dressed or gone */ }
+    try { placeMarkers(); } catch (e) { /* markers not rendered yet */ }
+    applying = false;
+  }
+
+  window.addEventListener('resize', relayout);
 
   /* Inject the artwork into the page's mountain host once it exists, and keep
      the host's own attributes in step with the plate's geometry. */
@@ -711,26 +780,30 @@ function generateMountainPlate(seedKey) {
          artwork is cropped from the sides rather than scaled, and the route
          is held near the centre line, so a wider frame only ever reveals more
          terrain — it never pushes the path off a narrow screen. */
-      const frame = host.parentElement;
-      if (frame) {
-        frame.style.width = '100vw';
-        frame.style.maxWidth = '100vw';
-        frame.style.marginLeft = 'calc(50% - 50vw)';
-        frame.style.marginRight = 'calc(50% - 50vw)';
-        frame.style.border = '0';
-        frame.style.borderRadius = '0';
-      }
+      /* The page re-renders on hover and on filtering, rewriting the inline
+         styles it owns — both the marker positions and the frame around the
+         plate. Reassert ours whenever that happens.
 
-      placeMarkers();
-      /* the page re-renders on hover and on filtering, rewriting the inline
-         positions it owns — reassert ours whenever that happens */
-      const holder = document.querySelector('button[style*="border-radius: 50%"]');
-      const scope = holder && holder.parentElement && holder.parentElement.parentElement;
+         The watcher is attached BEFORE the first layout pass, so that a
+         failure in either job cannot leave the page with no watcher at all —
+         which is exactly what happened when the observer was created last. */
+      const scope = host.closest('section') || host.parentElement.parentElement;
       if (scope) {
-        new MutationObserver(() => placeMarkers())
+        new MutationObserver(() => relayout())
           .observe(scope, { childList: true, subtree: true, attributes: true,
                             attributeFilter: ['style'] });
       }
+
+      relayout();
+
+      /* The component can still re-render once or twice after we settle,
+         restoring the styles it owns. Re-assert for a few seconds, then stop
+         and leave it to the observer. */
+      let ticks = 0;
+      const settle = setInterval(() => {
+        relayout();
+        if (++ticks > 12) clearInterval(settle);
+      }, 250);
       return;
     }
     if (Date.now() - t0 > 20000) return;

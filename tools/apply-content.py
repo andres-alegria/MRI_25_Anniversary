@@ -165,6 +165,14 @@ REPLACEMENTS = [
         "        py: (window.MRI_PLATE && window.MRI_PLATE.nodes[s.num])\n"
         "          ? window.MRI_PLATE.nodes[s.num].py : +(s.y / 6.75).toFixed(2),",
     ),
+    # The colour-coded dot on each filter chip. The twelve-colour theme
+    # palette is no longer used to carry meaning — selection is carried by the
+    # chip's own fill — so the dot is removed rather than restyled.
+    (
+        '<span style="width:7px;height:7px;border-radius:50%;'
+        'background:{{ t.dot }};display:{{ t.dotDisplay }}"></span>',
+        '',
+    ),
     # author byline: "Name, Institution", standard across all stories
     (
         ">A. Author &amp; B. Author — Placeholder Institution<",
@@ -576,6 +584,12 @@ BRAND_RESTYLE = [
     # the map frame is the one surface that belongs to the artwork; it keeps a
     # little of the sky's warmth so the plate does not float free of the page
     ("#f6f2e8", "#0A2233"),
+    # Warm near-whites used as *surfaces*, not as text: the story cards, the
+    # COMPANION VOLUME panel and the story reader itself. Left light they hold
+    # light text on a near-white ground — the reader panel was unreadable.
+    ("#fcfaf3", BRAND['ink_soft']),
+    ("#e6e0d0", "#0A2233"),
+    ("#e9f0f6", "#0A2233"),
 
     # --- text ------------------------------------------------------------
     # As *text* on this ground #0067B2 is only 3.0:1, so every `color:` use —
@@ -646,6 +660,23 @@ def brand_style() -> str:
     return (BRAND_STYLE
             .replace('__GREEN__', BRAND['green'])
             .replace('__INK__', BRAND['ink']))
+
+
+def asset(name: str) -> str:
+    """A <script> tag whose URL changes when the file does.
+
+    index.html, stories-data.js, plate.js and motion.js are separate requests,
+    and a browser will happily pair a fresh index.html with a cached copy of
+    the others — locally that shows up as edits that appear to do nothing, and
+    on GitHub Pages it would serve readers a stale script against new markup.
+    Hashing the contents into the query string makes that impossible.
+    """
+    f = ROOT / name
+    tag = ""
+    if f.exists():
+        import hashlib
+        tag = "?v=" + hashlib.sha1(f.read_bytes()).hexdigest()[:10]
+    return f'<script src="{name}{tag}"></script>'
 
 
 def restyle_ui(doc: str, rules=UI_RESTYLE) -> str:
@@ -742,20 +773,18 @@ def patch_template(doc: str) -> str:
     doc = (doc[:i]
            + FONT_LINK
            + brand_style()
-           + '<script src="stories-data.js"></script>'
-           + '<script src="figures-data.js"></script>'
+           + asset('stories-data.js')
+           + asset('figures-data.js')
            # GSAP is vendored rather than pulled from a CDN: this publication
-           # has to keep working long after any CDN we picked today. motion.js
-           # waits for the bundle to swap in the real document before it runs,
-           # so load order here does not matter.
-           + '<script src="vendor/gsap.min.js"></script>'
-           + '<script src="vendor/DrawSVGPlugin.min.js"></script>'
-           + '<script src="vendor/Flip.min.js"></script>'
+           # has to keep working long after any CDN we picked today.
+           + asset('vendor/gsap.min.js')
+           + asset('vendor/DrawSVGPlugin.min.js')
+           + asset('vendor/Flip.min.js')
            # plate.js must run before the component is constructed: it builds
            # the marker table the render reads. It needs gsap and the stories,
            # so it loads after both.
-           + '<script src="plate.js"></script>'
-           + '<script src="motion.js"></script>'
+           + asset('plate.js')
+           + asset('motion.js')
            + doc[i:])
 
     return doc
