@@ -266,6 +266,93 @@ function texturePatterns(uid, C, p, scale = 1) {
     taller blocks, a church spire, and a lane running out of it. `k` scales the
     whole thing, so the same routine draws a city on the plain and a hamlet on
     the terraces. Adjust the built silhouette here. */
+/* --- the city on the plain -------------------------------------------------
+   Fewer buildings, each actually shaped, rather than a long run of random
+   bars. A real skyline reads through a handful of recognisable silhouettes —
+   a slab, a stepped tower, a pitched block, a spire — set at different depths
+   and heights, with a low mass of smaller roofs filling in behind them.
+
+   Laid out on a fixed script rather than at random so the composition is the
+   same every time: `w` is width, `h` height, `type` the silhouette, and `d`
+   how far back it sits (which only affects its tone). */
+const CITY_PLAN = [
+  { x: -0.92, w: 0.075, h: 0.30, type: 'pitched', d: 0.55 },
+  { x: -0.80, w: 0.055, h: 0.52, type: 'slab',    d: 0.35 },
+  { x: -0.68, w: 0.085, h: 0.38, type: 'pitched', d: 0.10 },
+  { x: -0.52, w: 0.060, h: 0.86, type: 'stepped', d: 0.00 },
+  { x: -0.38, w: 0.048, h: 0.62, type: 'slab',    d: 0.22 },
+  { x: -0.24, w: 0.030, h: 1.00, type: 'spire',   d: 0.05 },
+  { x: -0.10, w: 0.070, h: 0.70, type: 'stepped', d: 0.15 },
+  { x:  0.06, w: 0.055, h: 0.44, type: 'slab',    d: 0.42 },
+  { x:  0.20, w: 0.090, h: 0.34, type: 'pitched', d: 0.08 },
+  { x:  0.36, w: 0.050, h: 0.78, type: 'slab',    d: 0.28 },
+  { x:  0.50, w: 0.075, h: 0.50, type: 'stepped', d: 0.48 },
+  { x:  0.66, w: 0.065, h: 0.32, type: 'pitched', d: 0.20 },
+  { x:  0.82, w: 0.045, h: 0.58, type: 'slab',    d: 0.60 }
+];
+
+function drawCity(rand, x, y, width, C, p, k) {
+  const tallest = 46 * k;                 /* height of the tallest building */
+  const wall = MIX(C.urban, p.text, 0.42);
+  const back = MIX(C.urban, p.text, 0.16);
+  const roof = MIX(C.urban, p.ink, 0.28);
+  const lit  = MIX(p.accent, p.text, 0.45);
+  let g = "";
+
+  /* a low haze band, so the city sits in the plain rather than on it */
+  g += `<rect x="${(x - width * 0.62).toFixed(1)}" y="${(y - tallest * 0.5).toFixed(1)}" width="${(width * 1.24).toFixed(1)}" height="${(tallest * 0.5).toFixed(1)}" fill="${MIX(C.urban, p.haze, .5)}" opacity="0.18"/>`;
+
+  CITY_PLAN.forEach((b, i) => {
+    const bw = b.w * width, bh = b.h * tallest;
+    const bx = x + b.x * width * 0.5 - bw / 2, by = y - bh;
+    const tone = MIX(wall, back, b.d);            /* further back, flatter */
+    const rf = MIX(roof, back, b.d);
+
+    if (b.type === 'spire') {
+      /* a church or clock tower: a narrow shaft, a belfry, then a point */
+      const shaft = bh * 0.72;
+      g += `<rect x="${bx.toFixed(1)}" y="${(y - shaft).toFixed(1)}" width="${bw.toFixed(1)}" height="${shaft.toFixed(1)}" fill="${tone}"/>`;
+      g += `<rect x="${(bx - bw * 0.22).toFixed(1)}" y="${(y - shaft - bh * 0.10).toFixed(1)}" width="${(bw * 1.44).toFixed(1)}" height="${(bh * 0.10).toFixed(1)}" fill="${rf}"/>`;
+      g += `<path d="M ${(bx - bw * 0.22).toFixed(1)} ${(y - shaft - bh * 0.10).toFixed(1)}
+             L ${(bx + bw * 0.5).toFixed(1)} ${(y - bh).toFixed(1)}
+             L ${(bx + bw * 1.22).toFixed(1)} ${(y - shaft - bh * 0.10).toFixed(1)} Z" fill="${rf}"/>`;
+    } else if (b.type === 'stepped') {
+      /* a tower that loses width as it rises — two setbacks */
+      const t1 = bh * 0.52, t2 = bh * 0.80;
+      g += `<rect x="${bx.toFixed(1)}" y="${(y - t1).toFixed(1)}" width="${bw.toFixed(1)}" height="${t1.toFixed(1)}" fill="${tone}"/>`;
+      g += `<rect x="${(bx + bw * 0.14).toFixed(1)}" y="${(y - t2).toFixed(1)}" width="${(bw * 0.72).toFixed(1)}" height="${(t2 - t1).toFixed(1)}" fill="${tone}"/>`;
+      g += `<rect x="${(bx + bw * 0.30).toFixed(1)}" y="${(y - bh).toFixed(1)}" width="${(bw * 0.40).toFixed(1)}" height="${(bh - t2).toFixed(1)}" fill="${tone}"/>`;
+      g += `<rect x="${(bx + bw * 0.44).toFixed(1)}" y="${(y - bh - bh * 0.10).toFixed(1)}" width="${(bw * 0.12).toFixed(1)}" height="${(bh * 0.10).toFixed(1)}" fill="${rf}"/>`;
+    } else if (b.type === 'pitched') {
+      /* a wide low block under a shallow gable */
+      const body = bh * 0.74;
+      g += `<rect x="${bx.toFixed(1)}" y="${(y - body).toFixed(1)}" width="${bw.toFixed(1)}" height="${body.toFixed(1)}" fill="${tone}"/>`;
+      g += `<path d="M ${(bx - bw * 0.08).toFixed(1)} ${(y - body).toFixed(1)}
+             L ${(bx + bw * 0.5).toFixed(1)} ${(y - bh).toFixed(1)}
+             L ${(bx + bw * 1.08).toFixed(1)} ${(y - body).toFixed(1)} Z" fill="${rf}"/>`;
+    } else {
+      /* a plain slab with a parapet */
+      g += `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" fill="${tone}"/>`;
+      g += `<rect x="${(bx - bw * 0.06).toFixed(1)}" y="${(by - tallest * 0.022).toFixed(1)}" width="${(bw * 1.12).toFixed(1)}" height="${(tallest * 0.022).toFixed(1)}" fill="${rf}"/>`;
+    }
+
+    /* lit windows, only on the nearer buildings and only a few */
+    if (b.d < 0.36) {
+      const rows = Math.max(2, Math.round(bh / (tallest * 0.14)));
+      for (let r2 = 1; r2 < rows; r2++) {
+        if (rand() > 0.62) continue;
+        const wy = y - bh * (r2 / rows) - tallest * 0.012;
+        const wx = bx + bw * (0.22 + rand() * 0.5);
+        g += `<rect x="${wx.toFixed(1)}" y="${wy.toFixed(1)}" width="${(bw * 0.16).toFixed(1)}" height="${(tallest * 0.022).toFixed(1)}" fill="${lit}" opacity="${(0.35 + rand() * 0.35).toFixed(2)}"/>`;
+      }
+    }
+  });
+
+  /* the ground line the city stands on */
+  g += `<rect x="${(x - width * 0.62).toFixed(1)}" y="${(y - 0.8 * k).toFixed(1)}" width="${(width * 1.24).toFixed(1)}" height="${(2.2 * k).toFixed(1)}" fill="${MIX(C.urban, p.ink, 0.5)}" opacity="0.55"/>`;
+  return g;
+}
+
 function drawSettlement(rand, x, y, width, C, p, k, opts = {}) {
   /* Walls sit just above the ground tone and roofs just below it, so the town
      reads as a mass of buildings rather than a row of bright bars. */
@@ -337,15 +424,21 @@ function drawTrees(rand, x, y, spread, count, C, p, k) {
    cropped away as decoration. The mountain is centred at x = 1200, and the
    margins above the summit and below sea level absorb any vertical crop. */
 
-const PLATE = { w: 2400, h: 1000, seaY: 900, topY: 110, cx: 1200 };
+/* `base` is the massif's half-width at sea level, in plate units; lower it for
+   a taller, more slender mountain and more sky. */
+const PLATE = { w: 2400, h: 1000, seaY: 900, topY: 110, cx: 1200, base: 620 };
 const plateY = (e) => PLATE.seaY - (e / 5200) * (PLATE.seaY - PLATE.topY);
 /* half-width of the massif at this altitude, and its leaning centre line */
 function plateHW(e) {
   /* One smooth concave profile all the way down. A separate flare term near
      sea level put a kink in the slope and made the base look pinched, so the
      apron is part of the same curve: exponent < 1 gives concave flanks that
-     splay out into the plain. */
-  return 10 + 1020 * Math.pow((5200 - e) / 5200, 0.72);
+     splay out into the plain.
+
+     BASE is the half-width at sea level. Narrowing it is what makes the
+     mountain read as tall — the summit does not move, so the same height is
+     carried on a smaller footprint and the sky opens out either side. */
+  return 10 + PLATE.base * Math.pow((5200 - e) / 5200, 0.78);
 }
 const plateCX = (e) => PLATE.cx + 70 * (e / 5200);
 
@@ -377,12 +470,18 @@ function generateMountainPlate(seedKey) {
      `k` multiplies the cone's own half-width at that height, so a value above
      1 steps the flank out into a shelf and a value below 1 pinches it into an
      arête. The two sides carry different sequences so the mountain is not
-     symmetrical. */
+     symmetrical.
+
+     The top of each flank is left alone: a multiplier other than 1 within a
+     few hundred metres of the summit steps the ridge out into a small horn,
+     and several of those together read as a crown rather than as a peak. The
+     shelves only begin below SUMMIT_CLEAN. */
+  const SUMMIT_CLEAN = 4200;
   const RIDGE_NODES = {
-    left: [[5200, 1.00], [4520, 1.07], [3760, 0.96], [2900, 1.09],
+    left: [[5200, 1.00], [4600, 1.00], [4000, 0.97], [2900, 1.08],
            [1950, 0.99], [1080, 1.05], [380, 1.00], [0, 1.02]],
-    right: [[5200, 1.00], [4640, 0.95], [3900, 1.08], [3050, 0.97],
-            [2100, 1.06], [1150, 0.98], [430, 1.04], [0, 1.00]]
+    right: [[5200, 1.00], [4600, 1.00], [4050, 1.06], [3050, 0.97],
+            [2100, 1.05], [1150, 0.98], [430, 1.04], [0, 1.00]]
   };
 
   /* One massif: its own summit height, its own centre, and how far its colour
@@ -393,7 +492,10 @@ function generateMountainPlate(seedKey) {
     const flank = (side) => RIDGE_NODES[side < 0 ? 'left' : 'right'].map(([e, k]) => {
       const eh = e * scale;                       /* squash onto this summit */
       const base = plateHW(e) * cfg.spread;
-      return [plateCX(eh) + cfg.dx + side * base * k, plateY(eh)];
+      /* neutralise the shelf multipliers near the top, so the summit is one
+         clean point rather than a cluster of little horns */
+      const kk = e >= SUMMIT_CLEAN ? 1 : k;
+      return [plateCX(eh) + cfg.dx + side * base * kk, plateY(eh)];
     });
     const L = flank(-1), R = flank(1);
     let d = `M ${R[0][0].toFixed(1)} ${R[0][1].toFixed(1)}`;
@@ -442,7 +544,7 @@ function generateMountainPlate(seedKey) {
     for (let i = teeth - 1; i >= 0; i--) {
       const t = (i + (rnd() - 0.5) * 0.35) / (teeth - 1);
       const x = xl + (xr - xl) * Math.max(0, Math.min(1, t));
-      const deep = i % 2 ? 0.05 + rnd() * 0.18 : 0.40 + rnd() * 0.34;
+      const deep = i % 2 ? 0.04 + rnd() * 0.12 : 0.22 + rnd() * 0.20;
       d += ` L ${x.toFixed(1)} ${(yCut - span * deep).toFixed(1)}`;
     }
     return d + " Z";
@@ -453,11 +555,11 @@ function generateMountainPlate(seedKey) {
      depth, and are flat, hazier and capped only. Draw order is back to front:
      the right peak sits behind the main massif, the left one in front of it. */
   const MASSIFS = {
-    far:  { summit: 4050, dx: 780, spread: 0.56, haze: 0.62 },
+    far:  { summit: 4050, dx: 620, spread: 0.58, haze: 0.62 },
     main: { summit: 5200, dx: 0,   spread: 1.00, haze: 0.00 },
     /* the foreground shoulder is kept small and pushed well left: any bigger
        and it covers the bottom of the ascent path */
-    near: { summit: 3180, dx: -880, spread: 0.54, haze: 0.26 }
+    near: { summit: 3180, dx: -690, spread: 0.56, haze: 0.26 }
   };
   const mFar = buildMassif(MASSIFS.far);
   const mMain = buildMassif(MASSIFS.main);
@@ -637,7 +739,7 @@ function generateMountainPlate(seedKey) {
 
   /* one city, on the plain to the left of the massif */
   /* kept inside the crop-safe centre band, so the one city survives on a phone */
-  svg += drawSettlement(rand, PLATE.cx - 200, plateY(70), 300, beltC.urban, beltPal.urban, 1.7, { towers: 4 });
+  svg += drawCity(rand, PLATE.cx - 140, plateY(70), 460, beltC.urban, beltPal.urban, 1.7);
   svg += `<rect x="-200" y="0" width="${W + 400}" height="${H}" fill="url(#shade-${uid})"/>`;
   svg += `</g>`;
   /* the main peak's own shaded half and cap, over the belts. Kept light: the
@@ -737,15 +839,42 @@ function generateMountainPlate(seedKey) {
     const ox = (box.width - VW * scale) / 2;
     const oy = (box.height - VH * scale) / 2;
 
+    const placed = [];
     document.querySelectorAll('button').forEach(btn => {
       if (!/border-radius:\s*50%/.test(btn.getAttribute('style') || '')) return;
       const num = parseInt(btn.textContent.trim(), 10);
       const node = plate.nodes[num];
       const wrap = btn.parentElement;
       if (!node || !wrap) return;
-      wrap.style.left = (ox + (node.px / 100) * VW * scale).toFixed(1) + 'px';
-      wrap.style.top  = (oy + (node.py / 100) * VH * scale).toFixed(1) + 'px';
+      const px = ox + (node.px / 100) * VW * scale;
+      const py = oy + (node.py / 100) * VH * scale;
+      wrap.style.left = px.toFixed(1) + 'px';
+      wrap.style.top  = py.toFixed(1) + 'px';
+      placed.push({ btn, px, py });
     });
+
+    /* --- keeping the numbers legible as the path shortens ------------------
+       The markers are a fixed size in CSS pixels, but the path they sit on
+       shrinks with the window. Below a certain spacing their rings start to
+       touch, and two heavy rings side by side read as one blob with digits
+       lost inside it. So the ring thins as the markers close up — the number
+       keeps its full contrast while the border gives way, rather than the
+       other way round. */
+    let nearest = Infinity;
+    for (let i = 0; i < placed.length; i++) {
+      for (let j = i + 1; j < placed.length; j++) {
+        const d = Math.hypot(placed[i].px - placed[j].px, placed[i].py - placed[j].py);
+        if (d < nearest) nearest = d;
+      }
+    }
+    if (isFinite(nearest)) {
+      /* adjust the crowding response here: at COMFORT apart the ring is full
+         weight, at TIGHT apart it is at its thinnest */
+      const COMFORT = 46, TIGHT = 22;
+      const t = Math.max(0, Math.min(1, (COMFORT - nearest) / (COMFORT - TIGHT)));
+      const w = (RING.full + (RING.thin - RING.full) * t).toFixed(2) + 'px';
+      placed.forEach(({ btn }) => { btn.style.borderWidth = w; });
+    }
   }
 
   /* --- the frame around the plate ------------------------------------------
@@ -792,6 +921,9 @@ function generateMountainPlate(seedKey) {
     try { placeMarkers(); } catch (e) { /* markers not rendered yet */ }
     applying = false;
   }
+
+  /* ring weights for the story markers, in CSS pixels */
+  const RING = { full: 1.5, thin: 0.6 };
 
   window.addEventListener('resize', relayout);
 
