@@ -369,56 +369,103 @@ function generateMountainPlate(seedKey) {
   BELTS.forEach(b => { beltPal[b.key] = paletteAt((b.lo + b.hi) / 2); beltC[b.key] = beltColours(beltPal[b.key]); });
 
   /* --- silhouette ----------------------------------------------------------
-     A mountain seen in profile is faceted, not wavy: long straight-ish planes
-     broken by shoulders and arêtes. So each flank is a polyline through a small
-     number of control points joined by STRAIGHT segments, with the displacement
-     proportional to the cone's own width — never enough to eat the summit. */
-  const FACETS = 26;
-  function flank(side) {
-    /* Raw displacement per facet. Independent kicks at each step gave a
-       zig-zag edge that read as distortion rather than as terrain, so the
-       series is smoothed before it is used: each point is averaged with its
-       neighbours, which keeps the shoulders but removes the spikes between
-       them. */
-    const disp = [];
-    for (let i = 0; i <= FACETS; i++) {
-      const t = i / FACETS;                       /* 0 at the summit, 1 at sea level */
-      const damp = Math.pow(t, 0.75);             /* nothing may eat the summit */
-      disp.push((rand() - 0.5) * 2 * SILHOUETTE.roughness * damp);
-    }
-    /* two deliberate shoulders per flank — a shelf, then a steeper plane.
-       They are set before smoothing so they soften into the slope rather than
-       sitting on it as a step. */
-    [0.42, 0.68].forEach(f => {
-      const i = Math.round(FACETS * f);
-      disp[i] = Math.abs(disp[i]) + SILHOUETTE.shoulder;
+     Seen in profile a mountain is faceted, not wavy: a few long straight
+     planes meeting at shoulders and arêtes. Each flank is therefore a polyline
+     through a SMALL number of deliberate control points joined by straight
+     segments — no per-facet noise, which is what previously read as a zig-zag.
+
+     `k` multiplies the cone's own half-width at that height, so a value above
+     1 steps the flank out into a shelf and a value below 1 pinches it into an
+     arête. The two sides carry different sequences so the mountain is not
+     symmetrical. */
+  const RIDGE_NODES = {
+    left: [[5200, 1.00], [4520, 1.07], [3760, 0.96], [2900, 1.09],
+           [1950, 0.99], [1080, 1.05], [380, 1.00], [0, 1.02]],
+    right: [[5200, 1.00], [4640, 0.95], [3900, 1.08], [3050, 0.97],
+            [2100, 1.06], [1150, 0.98], [430, 1.04], [0, 1.00]]
+  };
+
+  /* One massif: its own summit height, its own centre, and how far its colour
+     is carried toward the haze. That last value is the distance cue — the
+     further a peak is meant to read, the more of the sky is mixed into it. */
+  function buildMassif(cfg) {
+    const scale = cfg.summit / 5200;
+    const flank = (side) => RIDGE_NODES[side < 0 ? 'left' : 'right'].map(([e, k]) => {
+      const eh = e * scale;                       /* squash onto this summit */
+      const base = plateHW(e) * cfg.spread;
+      return [plateCX(eh) + cfg.dx + side * base * k, plateY(eh)];
     });
-
-    for (let pass = 0; pass < SILHOUETTE.smoothing; pass++) {
-      const out = disp.slice();
-      for (let i = 1; i < disp.length - 1; i++) {
-        out[i] = (disp[i - 1] + disp[i] * 2 + disp[i + 1]) / 4;
-      }
-      out[0] = 0;                                  /* the summit stays a point */
-      disp.length = 0;
-      disp.push(...out);
-    }
-
-    const pts = [];
-    for (let i = 0; i <= FACETS; i++) {
-      const e = 5200 * (1 - i / FACETS);
-      const base = plateHW(e);
-      pts.push([plateCX(e) + side * base * (1 + disp[i]), plateY(e)]);
-    }
-    return pts;
+    const L = flank(-1), R = flank(1);
+    let d = `M ${R[0][0].toFixed(1)} ${R[0][1].toFixed(1)}`;
+    R.forEach(pt => d += ` L ${pt[0].toFixed(1)} ${pt[1].toFixed(1)}`);
+    d += ` L ${W + 200} ${H + 60} L ${-200} ${H + 60}`;
+    for (let i = L.length - 1; i >= 0; i--) d += ` L ${L[i][0].toFixed(1)} ${L[i][1].toFixed(1)}`;
+    d += " Z";
+    return { d, left: L, right: R, cfg, summit: [L[0][0], L[0][1]] };
   }
-  const left = flank(-1), right = flank(1);
 
-  let dM = `M ${right[0][0].toFixed(1)} ${right[0][1].toFixed(1)}`;
-  right.forEach(pt => dM += ` L ${pt[0].toFixed(1)} ${pt[1].toFixed(1)}`);
-  dM += ` L ${W + 200} ${H + 60} L ${-200} ${H + 60}`;
-  for (let i = left.length - 1; i >= 0; i--) dM += ` L ${left[i][0].toFixed(1)} ${left[i][1].toFixed(1)}`;
-  dM += " Z";
+  /* The shaded half. In the reference idiom the light is flat and hard-edged:
+     one plane down the right side of every peak, not a gradient. Drawing it as
+     its own polygon from summit to base keeps that edge crisp. */
+  function shadedFace(m) {
+    const R = m.right;
+    let d = `M ${m.summit[0].toFixed(1)} ${m.summit[1].toFixed(1)}`;
+    R.forEach(pt => d += ` L ${pt[0].toFixed(1)} ${pt[1].toFixed(1)}`);
+    d += ` L ${m.summit[0].toFixed(1)} ${(H + 60).toFixed(1)} Z`;
+    return d;
+  }
+
+  /* An angular cap, cut off by a jagged line rather than a horizontal one, so
+     the snow reads as lying in the gullies rather than as a band. */
+  function snowCap(m, drop, rnd) {
+    const scale = m.cfg.summit / 5200;
+    const yTop = m.summit[1], yCut = plateY((m.cfg.summit - drop));
+    const at = (side) => {
+      const arr = side < 0 ? m.left : m.right;
+      for (let i = 1; i < arr.length; i++) {
+        const a = arr[i - 1], b = arr[i];
+        if (yCut >= a[1] && yCut <= b[1]) {
+          const f = b[1] === a[1] ? 0 : (yCut - a[1]) / (b[1] - a[1]);
+          return a[0] + (b[0] - a[0]) * f;
+        }
+      }
+      return arr[arr.length - 1][0];
+    };
+    const xl = at(-1), xr = at(1);
+    const span = yCut - yTop;
+    let d = `M ${xl.toFixed(1)} ${yCut.toFixed(1)} L ${m.summit[0].toFixed(1)} ${yTop.toFixed(1)} L ${xr.toFixed(1)} ${yCut.toFixed(1)}`;
+    /* The underside runs back right-to-left as a run of tongues of uneven
+       depth — snow lying in the gullies. An even zig-zag read as a decorative
+       border rather than as snow, so the depths are randomised and the teeth
+       are deliberately not all the same width. */
+    const teeth = 9;
+    for (let i = teeth - 1; i >= 0; i--) {
+      const t = (i + (rnd() - 0.5) * 0.35) / (teeth - 1);
+      const x = xl + (xr - xl) * Math.max(0, Math.min(1, t));
+      const deep = i % 2 ? 0.05 + rnd() * 0.18 : 0.40 + rnd() * 0.34;
+      d += ` L ${x.toFixed(1)} ${(yCut - span * deep).toFixed(1)}`;
+    }
+    return d + " Z";
+  }
+
+  /* Three peaks at three distances. The centre one is the mountain the stories
+     climb and carries all the belts; the other two exist to give the frame
+     depth, and are flat, hazier and capped only. Draw order is back to front:
+     the right peak sits behind the main massif, the left one in front of it. */
+  const MASSIFS = {
+    far:  { summit: 4050, dx: 780, spread: 0.56, haze: 0.62 },
+    main: { summit: 5200, dx: 0,   spread: 1.00, haze: 0.00 },
+    /* the foreground shoulder is kept small and pushed well left: any bigger
+       and it covers the bottom of the ascent path */
+    near: { summit: 3180, dx: -880, spread: 0.54, haze: 0.26 }
+  };
+  const mFar = buildMassif(MASSIFS.far);
+  const mMain = buildMassif(MASSIFS.main);
+  const mNear = buildMassif(MASSIFS.near);
+
+  const left = mMain.left, right = mMain.right;
+  const dM = mMain.d;
+
 
   /* linear interpolation along a flank, for anything that has to sit on it */
   function flankAt(e, side) {
@@ -517,6 +564,12 @@ function generateMountainPlate(seedKey) {
     svg += `<path d="${d}" fill="${MIX(MIX(p.haze, p.accent2, .2), p.ink, .3 + t * .4)}"/>`;
   }
 
+  /* the far peak: flat, carried well toward the haze, capped */
+  const farBody = MIX(MIX(p.ink, p.haze, .28), p.haze, MASSIFS.far.haze);
+  svg += `<path d="${mFar.d}" fill="${farBody}"/>`;
+  svg += `<path d="${shadedFace(mFar)}" fill="#000000" opacity="0.16"/>`;
+  svg += `<path d="${snowCap(mFar, 330, rand)}" fill="${MIX(beltC.ice.ice, p.haze, MASSIFS.far.haze)}" opacity="0.9"/>`;
+
   /* --- the massif, sectioned into belts ----------------------------------- */
   svg += `<path d="${dM}" fill="${MIX(p.ink, p.haze, .28)}"/>`;
   svg += `<g clip-path="url(#massif-${uid})">`;
@@ -587,7 +640,18 @@ function generateMountainPlate(seedKey) {
   svg += drawSettlement(rand, PLATE.cx - 200, plateY(70), 300, beltC.urban, beltPal.urban, 1.7, { towers: 4 });
   svg += `<rect x="-200" y="0" width="${W + 400}" height="${H}" fill="url(#shade-${uid})"/>`;
   svg += `</g>`;
+  /* the main peak's own shaded half and cap, over the belts. Kept light: the
+     belts carry the altitude information and a solid plane would bury it. */
+  svg += `<path d="${shadedFace(mMain)}" fill="#000000" opacity="0.13"/>`;
+  svg += `<path d="${snowCap(mMain, 430, rand)}" fill="${MIX(beltC.ice.ice, p.haze, 0.14)}" opacity="0.95"/>`;
   svg += `<path d="${dM}" fill="none" stroke="${MIX(p.text, p.haze, .45)}" stroke-width="1.6" opacity="0.45"/>`;
+
+  /* the near peak, in front of the main massif's lower left flank */
+  const nearBody = MIX(MIX(p.ink, p.haze, .28), p.haze, MASSIFS.near.haze);
+  svg += `<path d="${mNear.d}" fill="${nearBody}"/>`;
+  svg += `<path d="${shadedFace(mNear)}" fill="#000000" opacity="0.20"/>`;
+  svg += `<path d="${snowCap(mNear, 260, rand)}" fill="${MIX(beltC.ice.ice, p.haze, MASSIFS.near.haze)}" opacity="0.92"/>`;
+  svg += `<path d="${mNear.d}" fill="none" stroke="${MIX(p.text, p.haze, .55)}" stroke-width="1.4" opacity="0.35"/>`;
 
   /* the inversion layer, drawn over the face */
   if (typeof CLOUD_SEA === "object" && CLOUD_SEA) {
