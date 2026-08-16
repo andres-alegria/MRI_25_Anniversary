@@ -503,7 +503,10 @@ function generateMountainPlate(seedKey) {
     d += ` L ${W + 200} ${H + 60} L ${-200} ${H + 60}`;
     for (let i = L.length - 1; i >= 0; i--) d += ` L ${L[i][0].toFixed(1)} ${L[i][1].toFixed(1)}`;
     d += " Z";
-    return { d, left: L, right: R, cfg, summit: [L[0][0], L[0][1]] };
+    /* the apex sits midway between the two flanks' top points, so a cap hung
+       on it is centred rather than leaning to the left */
+    return { d, left: L, right: R, cfg,
+             summit: [(L[0][0] + R[0][0]) / 2, Math.min(L[0][1], R[0][1])] };
   }
 
   /* The shaded half. In the reference idiom the light is flat and hard-edged:
@@ -542,9 +545,16 @@ function generateMountainPlate(seedKey) {
        are deliberately not all the same width. */
     const teeth = 9;
     for (let i = teeth - 1; i >= 0; i--) {
-      const t = (i + (rnd() - 0.5) * 0.35) / (teeth - 1);
-      const x = xl + (xr - xl) * Math.max(0, Math.min(1, t));
-      const deep = i % 2 ? 0.04 + rnd() * 0.12 : 0.22 + rnd() * 0.20;
+      const t = i / (teeth - 1);
+      /* No jitter on x. Displacing it could push a tooth past its neighbour,
+         and the outline then doubled back on itself. */
+      const x = xl + (xr - xl) * t;
+      /* The two outermost points sit exactly on the flank, at the same height
+         as the corner they meet. Without this the outline dropped from the
+         corner straight back up to the first tooth, which drew a thin needle
+         at each end of every cap — a horn on each side of all three peaks. */
+      const edge = (i === teeth - 1 || i === 0);
+      const deep = edge ? 0 : (i % 2 ? 0.05 + rnd() * 0.12 : 0.20 + rnd() * 0.18);
       d += ` L ${x.toFixed(1)} ${(yCut - span * deep).toFixed(1)}`;
     }
     return d + " Z";
