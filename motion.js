@@ -9,7 +9,8 @@
 
      1. THE OVERTURE — the massif's silhouette draws itself once, the altitude
         belts fill in behind it, and the ascent route draws last, with the
-        numbered stories landing on it in climb order.
+        numbered stories landing on it in climb order. Off by default: the
+        page shows the finished mountain immediately.
 
      2. THE LINK — the numbered markers on the mountain and the numbered rows
         in the index are treated as one object. Hovering either highlights
@@ -25,8 +26,11 @@
 
 const MOTION = {
   /* ---- the overture ------------------------------------------------ */
-  // set to false to ship the page without an opening animation
-  overture: true,
+  // The mountain is there the moment the page is: no drawing-on, no fade-in,
+  // no staggered arrival of the numbers. Set to true to play the opening
+  // again — the timeline below is intact and MRI_MOTION.replay() runs it on
+  // demand from the console whichever way this is set.
+  overture: false,
   // seconds. Raise for a more languid draw, lower to get out of the way sooner
   drawFrontRidge: 1.45,   // the massif silhouette drawing itself
   drawRoute: 1.30,        // the ascent path drawing itself
