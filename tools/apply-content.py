@@ -220,13 +220,19 @@ REPLACEMENTS = [
         ">A. Author &amp; B. Author — Placeholder Institution<",
         ">{{ authorLine }}<",
     ),
-    # nav entry for the figures section, between Journey and About
+    # The whole navigation, rewritten in one replacement so the three changes
+    # to it cannot collide: Summary Figures is added between Journey and
+    # About; Print Edition is dropped, because the theme control now sits in
+    # that corner and the print edition is still announced in the About
+    # section where it belongs; and About takes the accent in its place, so
+    # the menu keeps exactly one highlighted item.
     (
         '<a href="#journey" style="color:#2b2721">The Journey</a>\n'
-        '    <a href="#about" style="color:#2b2721">About the Publication</a>',
+        '    <a href="#about" style="color:#2b2721">About the Publication</a>\n'
+        '    <a href="#about" style="color:#0067b2">Print Edition</a>',
         '<a href="#journey" style="color:#2b2721">The Journey</a>\n'
         '    <a href="#figures" style="color:#2b2721">Summary Figures</a>\n'
-        '    <a href="#about" style="color:#2b2721">About the Publication</a>',
+        '    <a href="#about" style="color:#0067b2">About the Publication</a>',
     ),
     # story photo: use the story's own image when it has one, otherwise fall
     # back to the generic photos bundled with the export. objectFit is
@@ -592,18 +598,78 @@ FONT_LINK = ('<link rel="preconnect" href="https://fonts.gstatic.com" crossorigi
 # Like UI_RESTYLE these run only outside the mountain SVG — several of these
 # values mean something different inside the artwork.
 
-# adjust the brand palette here; these are the tokens the whole page derives from
-BRAND = {
-    'ink':      '#061A29',   # page ground
-    'ink_soft': '#0B2740',   # raised panels, cards, the figure well
-    'ink_line': '#12395C',   # a panel edge that is felt more than seen
-    'text':     '#DCE8F1',   # body text on the ground
-    'text_dim': '#93A9BC',   # metadata — 7:1 on the ground, comfortably AA
-    'blue':     '#0067B2',   # MRI blue: fills and selection
-    'blue_lit': '#4FA3D9',   # blue as *text* on a dark ground, where #0067B2 fails
-    'teal':     '#16A3B8',
-    'green':    '#009E60',
+# --- the two palettes -------------------------------------------------------
+#
+# Every interface colour is a ROLE, not a value, and each role has a value in
+# each theme. The page emits `var(--mri-role)` rather than a literal, so a
+# reader can switch between them without the page being rebuilt.
+#
+# The roles invert rather than lighten. `text` is the page's ink: light on the
+# night ground, near-black in daylight. `panel` is the surface that sits on the
+# ground: dark in the night theme, white in daylight. That inversion is what
+# makes the selected filter chip work in both — its fill is `text` and its label
+# is `panel`, so it is a light chip with dark type at night and a dark chip with
+# white type in daylight, with no special case.
+TOKENS = {
+    #  role          dark        light      what it is
+    'ground':     ('#061A29', '#fafaf8'),   # the page itself
+    'panel':      ('#0B2740', '#ffffff'),   # cards, wells, the story reader
+    'frame':      ('#0A2233', '#f6f2e8'),   # surfaces belonging to the artwork
+    'line':       ('#12395C', '#dcdcd4'),   # edges, felt more than seen
+    'text':       ('#DCE8F1', '#2b2721'),   # body text and headings
+    'text-dim':   ('#93A9BC', '#5f5f58'),   # metadata
+    'accent':     ('#4FA3D9', '#0067b2'),   # MRI blue, pitched to be readable
+    'marker-dim': ('#3E5F7E', '#b3b3aa'),   # a marker that a filter has dimmed
+    'contour':    ('#ffffff', '#0A2233'),   # the topographic texture's line
 }
+
+# adjust the brand palette here; still used where a build-time literal is
+# unavoidable, and it is always the dark value
+BRAND = {k.replace('-', '_'): v[0] for k, v in TOKENS.items()}
+BRAND['ink'] = TOKENS['ground'][0]
+BRAND['ink_soft'] = TOKENS['panel'][0]
+BRAND['ink_line'] = TOKENS['line'][0]
+BRAND['text_dim'] = TOKENS['text-dim'][0]
+BRAND['blue'] = '#0067B2'
+BRAND['blue_lit'] = TOKENS['accent'][0]
+BRAND['green'] = '#009E60'
+
+
+# The twelve theme colours, in both themes. The daylight set is the original
+# palette, drawn for a light page. The night set is that palette lifted toward
+# white until dark type clears 4.8:1 on it — nine of the twelve were below AA
+# on the night ground otherwise.
+TAG_TOKENS = {
+    'glaciers-ice': ('#6d9fb5', '#517686'),   # Glaciers & Ice
+    'snow-permafrost': ('#8fb2c4', '#5e7581'),   # Snow & Permafrost
+    'water': ('#7096b1', '#33698f'),   # Water
+    'climate': ('#c68268', '#b05837'),   # Climate
+    'hazards': ('#c4817c', '#a8453e'),   # Hazards
+    'ecosystems': ('#799d6a', '#567c46'),   # Ecosystems
+    'land-use': ('#9f9175', '#7d6b45'),   # Land Use
+    'livelihoods': ('#b28c42', '#896c30'),   # Livelihoods
+    'culture': ('#9a8eae', '#7a6a94'),   # Culture
+    'governance': ('#81959f', '#55707d'),   # Governance
+    'equity': ('#ba8499', '#9c4f6d'),   # Equity
+    'knowledge': ('#859679', '#647756'),   # Knowledge
+}
+
+
+def tok(name: str) -> str:
+    return f'var(--mri-{name})'
+
+
+def theme_css() -> str:
+    """The two palettes, and the rule that switches between them."""
+    everything = list(TOKENS.items()) + [
+        ('tag-' + k, v) for k, v in TAG_TOKENS.items()]
+    dark = "\n".join(f'    --mri-{k}: {v[0]};' for k, v in everything)
+    light = "\n".join(f'    --mri-{k}: {v[1]};' for k, v in everything)
+    return (
+        "  :root {\n" + dark + "\n  }\n"
+        "  :root[data-theme=\"light\"] {\n" + light + "\n  }\n"
+    )
+
 
 BRAND_RESTYLE = [
     # --- typography ------------------------------------------------------
@@ -619,52 +685,45 @@ BRAND_RESTYLE = [
     ("'Source Serif 4',Georgia,serif", "Jost,'Century Gothic',system-ui,sans-serif"),
 
     # --- grounds ---------------------------------------------------------
-    ("background:#fafaf8", f"background:{BRAND['ink']}"),
-    ("#fafaf8", BRAND['ink']),
-    ("#f2f2ee", BRAND['ink_soft']),
-    ("#f7f7f4", BRAND['ink_soft']),
-    ("#ffffff", BRAND['ink_soft']),
-    # the map frame is the one surface that belongs to the artwork; it keeps a
-    # little of the sky's warmth so the plate does not float free of the page
-    ("#f6f2e8", "#0A2233"),
+    ("background:#fafaf8", "background:" + tok('ground')),
+    ("#fafaf8", tok('ground')),
+    ("#f2f2ee", tok('panel')),
+    ("#f7f7f4", tok('panel')),
+    ("#ffffff", tok('panel')),
+    # the map frame is the one surface that belongs to the artwork
+    ("#f6f2e8", tok('frame')),
     # Warm near-whites used as *surfaces*, not as text: the story cards, the
-    # COMPANION VOLUME panel and the story reader itself. Left light they hold
-    # light text on a near-white ground — the reader panel was unreadable.
-    ("#fcfaf3", BRAND['ink_soft']),
-    ("#e6e0d0", "#0A2233"),
-    ("#e9f0f6", "#0A2233"),
+    # COMPANION VOLUME panel and the story reader itself.
+    ("#fcfaf3", tok('panel')),
+    ("#e6e0d0", tok('frame')),
+    ("#e9f0f6", tok('frame')),
 
     # --- text ------------------------------------------------------------
-    # As *text* on this ground #0067B2 is only 3.0:1, so every `color:` use —
-    # the Print Edition link, the eyebrows, the reader's controls — takes the
-    # lit blue instead. Fills keep the true brand blue, where white sits on it
-    # at 4.6:1, and those are written `background:` so this cannot touch them.
-    ("color:#0067b2", f"color:{BRAND['blue_lit']}"),
-    ("#134e7f", BRAND['blue_lit']),
+    # As text on the night ground #0067B2 is only 3.0:1, so every `color:` use
+    # takes the accent role, which is the lit blue at night and true MRI blue
+    # in daylight. Fills are written `background:` and keep the brand blue.
+    ("color:#0067b2", "color:" + tok('accent')),
+    ("#134e7f", tok('accent')),
 
-    ("#15150f", BRAND['text']),
-    ("#5f5f58", BRAND['text_dim']),
-    # the bundle's own inks, which the neutral pass never had to touch
-    ("#2b2721", BRAND['text']),      # headings, nav, footer, inactive chip text
-    ("#33302a", BRAND['text']),
-    ("#55503f", BRAND['text_dim']),  # secondary text and the quieter chip label
-    ("#44402f", BRAND['text_dim']),
-    # #3a3630 is the *selected* chip's fill, and its paired text colour is
-    # already the dark panel ink — so on this ground the fill has to become
-    # light, not dark, or selection would read as a hole.
-    ("#3a3630", BRAND['text']),
+    ("#15150f", tok('text')),
+    ("#5f5f58", tok('text-dim')),
+    ("#2b2721", tok('text')),      # headings, nav, footer, inactive chip text
+    ("#33302a", tok('text')),
+    ("#55503f", tok('text-dim')),  # secondary text and the quieter chip label
+    ("#44402f", tok('text-dim')),
+    # the *selected* chip's fill; its label is the panel role, so the pair
+    # inverts together
+    ("#3a3630", tok('text')),
 
     # --- edges -----------------------------------------------------------
-    ("#dcdcd4", BRAND['ink_line']),
-    ("#e2e2da", BRAND['ink_line']),
-    ("#d4d4cd", BRAND['ink_line']),
-    # the greys a dimmed marker falls back to during filtering
-    ("#b3b3aa", "#3E5F7E"),
+    ("#dcdcd4", tok('line')),
+    ("#e2e2da", tok('line')),
+    ("#d4d4cd", tok('line')),
+    ("#b3b3aa", tok('marker-dim')),
 ]
 
-# Fixed texture layers and the few rules that inline styles cannot express.
-# Injected as a stylesheet rather than markup so no component has to change.
 BRAND_STYLE = """<style id="mri-brand">
+__THEMES__
   /* Grain and contour overlay the finished page rather than sitting behind it.
      Behind would mean giving every top-level child a stacking context, and the
      bundle positions those itself — safer to lay the texture on top at a low
@@ -675,34 +734,80 @@ BRAND_STYLE = """<style id="mri-brand">
   }
   body::before {                       /* topographic line motif */
     opacity: .04; mix-blend-mode: soft-light;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='600' viewBox='0 0 600 600'><g fill='none' stroke='%23ffffff' stroke-width='1.1'><path d='M-50 120 C 90 60, 200 190, 320 130 S 560 60, 660 140'/><path d='M-50 170 C 90 110, 200 240, 320 180 S 560 110, 660 190'/><path d='M-50 220 C 90 160, 200 290, 320 230 S 560 160, 660 240'/><path d='M-50 290 C 100 230, 210 360, 330 300 S 570 235, 660 315'/><path d='M-50 345 C 100 285, 210 415, 330 355 S 570 290, 660 370'/><path d='M-50 425 C 110 370, 220 495, 340 440 S 580 375, 660 455'/><path d='M-50 480 C 110 425, 220 550, 340 495 S 580 430, 660 510'/></g></svg>");
+    background-image: var(--mri-contour-image);
     background-size: clamp(420px, 45vw, 760px);
   }
   body::after {                        /* film grain */
     opacity: .08; mix-blend-mode: overlay;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23g)'/></svg>");
   }
+
   /* Jost sets tighter than the serif it replaced */
   h1, h2, h3 { letter-spacing: -.022em; }
 
-  ::selection { background: __GREEN__; color: __INK__; }
+  ::selection { background: __GREEN__; color: var(--mri-ground); }
 
-  /* The watercolour plate was painted for a white page, so on this ground it
-     would otherwise glare. Dimming and cooling it settles it into the night
-     without rotating its hues — an earlier attempt used hue-rotate and turned
-     the washes a dead grey-violet, losing the difference between rock, meadow
-     and ice. Set filter:none to let the plate keep its daylight and read as a
-     lit window in a dark page instead; that is the other legitimate answer. */
   /* The plate is taken full-bleed in plate.js rather than here: the <svg>
      carries an inline width:100% inside an absolutely-positioned wrapper, and
      an inline style always beats a stylesheet rule. */
+
+  /* --- the theme switch ---------------------------------------------------
+     A single control, top right, clear of the navigation. It states what it
+     will do rather than what is showing, which is the reading people expect
+     from a switch. Adjust its size and placement here. */
+  #mri-theme {
+    position: fixed; top: 14px; right: 16px; z-index: 9500;
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 7px 13px 7px 11px;
+    font: 500 12px 'IBM Plex Mono', ui-monospace, monospace;
+    letter-spacing: .06em;
+    color: var(--mri-text); background: var(--mri-panel);
+    border: 1px solid var(--mri-line); border-radius: 999px;
+    cursor: pointer; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  }
+  /* the navigation is right-aligned, so it has to yield the corner */
+  header nav { padding-right: 104px; }
+  @media (max-width: 720px) { header nav { padding-right: 46px; } }
+
+  #mri-theme:hover { border-color: var(--mri-accent); color: var(--mri-accent); }
+  #mri-theme:focus-visible { outline: 2px solid var(--mri-accent); outline-offset: 2px; }
+  #mri-theme svg { width: 14px; height: 14px; display: block; fill: currentColor; }
+  #mri-theme .mri-theme-label { display: inline-block; }
+  @media (max-width: 720px) {
+    /* on a phone the label would crowd the logo; the icon carries it */
+    #mri-theme { top: 10px; right: 10px; padding: 8px; gap: 0; }
+    #mri-theme .mri-theme-label { display: none; }
+  }
 </style>"""
 
 
 def brand_style() -> str:
+    contour = (
+        "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' "
+        "width='600' height='600' viewBox='0 0 600 600'><g fill='none' stroke='%s' "
+        "stroke-width='1.1'>"
+        "<path d='M-50 120 C 90 60, 200 190, 320 130 S 560 60, 660 140'/>"
+        "<path d='M-50 170 C 90 110, 200 240, 320 180 S 560 110, 660 190'/>"
+        "<path d='M-50 220 C 90 160, 200 290, 320 230 S 560 160, 660 240'/>"
+        "<path d='M-50 290 C 100 230, 210 360, 330 300 S 570 235, 660 315'/>"
+        "<path d='M-50 345 C 100 285, 210 415, 330 355 S 570 290, 660 370'/>"
+        "<path d='M-50 425 C 110 370, 220 495, 340 440 S 580 375, 660 455'/>"
+        "<path d='M-50 480 C 110 425, 220 550, 340 495 S 580 430, 660 510'/></g></svg>\")"
+    )
+    themes = theme_css()
+    # the contour texture needs a light line at night and a dark one in daylight
+    themes = themes.replace(
+        f'    --mri-contour: {TOKENS["contour"][0]};',
+        f'    --mri-contour: {TOKENS["contour"][0]};\n'
+        f'    --mri-contour-image: {contour % "%23ffffff"};')
+    themes = themes.replace(
+        f'    --mri-contour: {TOKENS["contour"][1]};',
+        f'    --mri-contour: {TOKENS["contour"][1]};\n'
+        f'    --mri-contour-image: {contour % "%230A2233"};')
     return (BRAND_STYLE
-            .replace('__GREEN__', BRAND['green'])
-            .replace('__INK__', BRAND['ink']))
+            .replace('__THEMES__', themes)
+            .replace('__GREEN__', BRAND['green']))
+
 
 
 def asset(name: str) -> str:
@@ -814,6 +919,7 @@ def patch_template(doc: str) -> str:
         sys.exit("No <head> in template.")
     i = head.end()
     doc = (doc[:i]
+           + THEME_BOOT
            + FONT_LINK
            + brand_style()
            + asset('stories-data.js')
@@ -827,9 +933,72 @@ def patch_template(doc: str) -> str:
            # so it loads after both.
            + asset('plate.js')
            + asset('motion.js')
+           + THEME_TOGGLE
            + doc[i:])
 
     return doc
+
+
+# --- 8. the theme, and the control that switches it -------------------------
+#
+# The chosen theme is written onto <html> by a script that runs BEFORE anything
+# paints, so a reader who prefers daylight never sees the night page flash
+# first. It reads a remembered choice, and falls back to what the reader's
+# system already asks for.
+THEME_BOOT = """<script>
+(function () {
+  var KEY = 'mri25-theme';
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) {}
+  var system = window.matchMedia &&
+               window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', saved || system);
+})();
+</script>"""
+
+# The control itself. It is added to <body> rather than into the navigation, so
+# a re-export cannot lose it and the menu stays uncluttered.
+THEME_TOGGLE = """<script>
+(function () {
+  var KEY = 'mri25-theme';
+  var SUN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-13.2a1 1 0 0 1-1-1V1.4a1 1 0 1 1 2 0v1.4a1 1 0 0 1-1 1zm0 18.8a1 1 0 0 1-1-1v-1.4a1 1 0 1 1 2 0v1.4a1 1 0 0 1-1 1zM3.8 12a1 1 0 0 1-1 1H1.4a1 1 0 1 1 0-2h1.4a1 1 0 0 1 1 1zm18.8 0a1 1 0 0 1-1 1h-1.4a1 1 0 1 1 0-2h1.4a1 1 0 0 1 1 1zM5.6 5.6a1 1 0 0 1-1.4 0l-1-1a1 1 0 0 1 1.4-1.4l1 1a1 1 0 0 1 0 1.4zm14.2 14.2a1 1 0 0 1-1.4 0l-1-1a1 1 0 0 1 1.4-1.4l1 1a1 1 0 0 1 0 1.4zM4.2 19.8a1 1 0 0 1 0-1.4l1-1a1 1 0 0 1 1.4 1.4l-1 1a1 1 0 0 1-1.4 0zM18.4 5.6a1 1 0 0 1 0-1.4l1-1a1 1 0 0 1 1.4 1.4l-1 1a1 1 0 0 1-1.4 0z"/></svg>';
+  var MOON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 13.3A9 9 0 1 1 10.7 3a7 7 0 0 0 10.3 10.3z"/></svg>';
+
+  function build() {
+    if (document.getElementById('mri-theme')) return true;
+    if (!document.body) return false;
+    var b = document.createElement('button');
+    b.id = 'mri-theme';
+    b.type = 'button';
+    document.body.appendChild(b);
+    paint(b);
+    b.addEventListener('click', function () {
+      var now = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', now);
+      try { localStorage.setItem(KEY, now); } catch (e) {}
+      paint(b);
+      window.dispatchEvent(new CustomEvent('mri-theme', { detail: now }));
+    });
+    return true;
+  }
+
+  function paint(b) {
+    var light = document.documentElement.getAttribute('data-theme') === 'light';
+    /* the control names what it will do, not what is showing */
+    b.innerHTML = (light ? MOON : SUN) +
+      '<span class="mri-theme-label">' + (light ? 'Dark' : 'Light') + '</span>';
+    b.setAttribute('aria-label', 'Switch to ' + (light ? 'dark' : 'light') + ' mode');
+  }
+
+  if (!build()) {
+    var t0 = Date.now();
+    (function retry() {
+      if (build() || Date.now() - t0 > 20000) return;
+      setTimeout(retry, 60);
+    })();
+  }
+})();
+</script>"""
 
 
 # --- 7. the bundler's own splash -------------------------------------------
@@ -852,24 +1021,31 @@ SPLASH_FIXES = [
         'stroke="#3a3630" stroke-width="1"></polygon></svg></div>',
         '<div id="__bundler_thumbnail"></div>',
     ),
-    # and the holding screen takes the page's own ground, so the page does not
-    # open on a bright cream rectangle before turning dark
+    # The holding screen takes the page's own ground. It has to know the
+    # theme before anything paints, and it lives in the OUTER document — which
+    # the template's own boot script never reaches — so the same script is
+    # planted here too, and the colours are variables like everywhere else.
     (
         'body { background: #faf9f5;',
-        'body { background: ' + BRAND['ink'] + ';',
+        'body { background: var(--mri-ground);',
     ),
     (
         '#__bundler_thumbnail { position: fixed; inset: 0; width: 100%; '
         'height: 100%; display: flex; align-items: center; justify-content: '
         'center; background: #faf9f5; z-index: 9999; }',
         '#__bundler_thumbnail { position: fixed; inset: 0; width: 100%; '
-        'height: 100%; background: ' + BRAND['ink'] + '; z-index: 9999; }',
+        'height: 100%; background: var(--mri-ground); z-index: 9999; }',
     ),
     # the "Unpacking..." pill, restyled to sit on that ground rather than
     # glare off it
     (
         'color: #666; background: #fff;',
-        'color: ' + BRAND['text_dim'] + '; background: ' + BRAND['ink_soft'] + ';',
+        'color: var(--mri-text-dim); background: var(--mri-panel);',
+    ),
+    # the outer document gets the palette and the same pre-paint theme script
+    (
+        '<style>\n    * { margin: 0; padding: 0; box-sizing: border-box; }',
+        '__OUTER_THEME__<style>\n    * { margin: 0; padding: 0; box-sizing: border-box; }',
     ),
 ]
 
@@ -877,7 +1053,9 @@ SPLASH_FIXES = [
 def fix_splash(html: str) -> str:
     """Quiet the bundler's holding screen. Missing pieces are not fatal: a
     future export may word them differently, and the page still works."""
+    outer = THEME_BOOT + '<style id="mri-theme-outer">\n' + theme_css() + '</style>'
     for old, new in SPLASH_FIXES:
+        new = new.replace('__OUTER_THEME__', outer)
         if old in html:
             html = html.replace(old, new, 1)
         else:

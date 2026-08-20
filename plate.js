@@ -113,10 +113,21 @@ const PALETTES = {
   ]
 };
 
-/* Which one the plate is drawn in. `window.MRI_THEME` lets it be set before
-   plate.js runs; nothing else reads this yet. */
-const THEME = (typeof window !== 'undefined' && window.MRI_THEME) || 'dark';
-const PALETTE_STOPS = PALETTES[THEME] || PALETTES.dark;
+/* Which one the plate is drawn in. The page writes its theme onto <html>
+   before anything paints; window.MRI_THEME is the override the offline
+   renderer uses. Unlike the interface, none of this can be a CSS variable —
+   the plate interpolates its colours in JavaScript — so a change of theme
+   means regenerating the artwork. */
+function currentTheme() {
+  if (typeof window !== 'undefined' && window.MRI_THEME) return window.MRI_THEME;
+  if (typeof document !== 'undefined' && document.documentElement) {
+    const t = document.documentElement.getAttribute('data-theme');
+    if (t) return t;
+  }
+  return 'dark';
+}
+
+let PALETTE_STOPS = PALETTES[currentTheme()] || PALETTES.dark;
 
 /* the altitude belts, each with its own texture — adjust the bands here */
 const BELTS = [
@@ -951,8 +962,12 @@ function generateMountainPlate(seedKey) {
   /* which layout the current geometry was built for */
   let builtFor = null;
 
+  let builtTheme = null;
+
   function build(width) {
     if (typeof gsap === 'undefined' || !window.MRI_CONTENT) return false;
+    builtTheme = currentTheme();
+    PALETTE_STOPS = PALETTES[builtTheme] || PALETTES.dark;
     const L = layoutFor(width !== undefined ? width : window.innerWidth);
     PLATE = Object.assign({}, L, { cx: L.w / 2 });
     builtFor = L;
@@ -976,7 +991,7 @@ function generateMountainPlate(seedKey) {
     window.MRI_PLATE = {
       svg: plate.svg, pathD: plate.pathD, viewBox: plate.viewBox,
       nodes, byClimb, stories: PLATE_STORIES, belts: BELTS,
-      layout: builtFor
+      layout: builtFor, theme: builtTheme
     };
     return true;
   }
@@ -1137,6 +1152,16 @@ function generateMountainPlate(seedKey) {
   }
 
   window.addEventListener('resize', onResize);
+
+  /* The interface re-themes itself through CSS variables, but the plate is
+     generated pixels — it has to be drawn again. */
+  window.addEventListener('mri-theme', function () {
+    const host = document.querySelector('svg[data-mri-plate="done"]');
+    if (host && build(window.innerWidth)) {
+      host.removeAttribute('data-mri-plate');
+      inject(host);
+    }
+  });
 
   /* Put the artwork into the page's mountain host, and keep the host's own
      attributes in step with the plate's geometry. Called once when the host

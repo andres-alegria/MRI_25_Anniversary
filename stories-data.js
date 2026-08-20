@@ -43,19 +43,24 @@ const TAG_VOCABULARY = [
 ];
 
 /* Colour per theme — adjust palette here */
+/* Theme colours are named, not valued: the page defines what each name means
+   in each theme. They have to invert — a selected chip's label is the panel
+   colour, so it is dark type at night (needing a light chip) and white type in
+   daylight (needing a dark one). The values live in tools/apply-content.py
+   alongside the rest of the palette. */
 const TAG_COLORS = {
-  'Glaciers & Ice':    '#6d9fb5',
-  'Snow & Permafrost': '#8fb2c4',
-  'Water':             '#7096b1',
-  'Climate':           '#c68268',
-  'Hazards':           '#c4817c',
-  'Ecosystems':        '#799d6a',
-  'Land Use':          '#9f9175',
-  'Livelihoods':       '#b28c42',
-  'Culture':           '#9a8eae',
-  'Governance':        '#81959f',
-  'Equity':            '#ba8499',
-  'Knowledge':         '#859679'
+  'Glaciers & Ice': 'var(--mri-tag-glaciers-ice)',
+  'Snow & Permafrost': 'var(--mri-tag-snow-permafrost)',
+  'Water': 'var(--mri-tag-water)',
+  'Climate': 'var(--mri-tag-climate)',
+  'Hazards': 'var(--mri-tag-hazards)',
+  'Ecosystems': 'var(--mri-tag-ecosystems)',
+  'Land Use': 'var(--mri-tag-land-use)',
+  'Livelihoods': 'var(--mri-tag-livelihoods)',
+  'Culture': 'var(--mri-tag-culture)',
+  'Governance': 'var(--mri-tag-governance)',
+  'Equity': 'var(--mri-tag-equity)',
+  'Knowledge': 'var(--mri-tag-knowledge)',
 };
 
 /* Shown in place of the body for stories not yet drafted. Adjust wording here. */
