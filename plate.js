@@ -59,6 +59,20 @@ const DEFAULT_ELEVATION = 2000;
 /* the smallest vertical separation allowed between two stories, in metres */
 const MIN_ELEV_GAP = 95;
 
+/* The band the 25 stories are spread across, once their relative order is
+   settled. The theme table above fixes the ORDER and the rough grouping; this
+   fixes how much of the mountain the climb actually occupies. `hi` sits above
+   the nival line (4550) so the top of the path is plainly in the cryosphere,
+   and `lo` sits down on the cultivated plain so it starts well below the
+   treeline. Widen or narrow this to spread or gather the numbers. */
+const PATH_SPAN = { lo: 430, hi: 4880 };
+
+/* Individual nudges, in plate units, keyed by position on the climb. The path
+   is drawn as a smooth curve through the nodes, so where it changes direction
+   sharply the line bows slightly away from the number sitting there; a small
+   push puts the circle back on the line. Positive is right. */
+const NODE_NUDGE = { 18: -16, 24: 18 };
+
 /* --- palette and belts, carried over from the Ascent study ---------------- */
 const MRI = {
   blue: "#0067B2", blue80: "#0F7BC4", blue60: "#4FA3D9", blue30: "#BFE0F5",
@@ -125,6 +139,17 @@ function buildStories() {
     if (placed[i].elevation - placed[i - 1].elevation < MIN_ELEV_GAP) {
       placed[i].elevation = placed[i - 1].elevation + MIN_ELEV_GAP;
     }
+  }
+  /* Rescale onto the band the path is meant to occupy. This keeps the order
+     and the relative gaps the theme table produced, and only changes how much
+     of the mountain they are spread over. */
+  const lo = placed[0].elevation, hi = placed[placed.length - 1].elevation;
+  if (hi > lo) {
+    const k = (PATH_SPAN.hi - PATH_SPAN.lo) / (hi - lo);
+    placed.forEach(s => {
+      s.themeElevation = s.elevation;          // what the tags alone implied
+      s.elevation = Math.round(PATH_SPAN.lo + (s.elevation - lo) * k);
+    });
   }
   placed.forEach((s, i) => { s.index = i; s.id = String(s.num).padStart(2, '0'); });
   return placed;
@@ -446,6 +471,20 @@ const plateCX = (e) => PLATE.cx + 70 * (e / 5200);
    of the cone's half-width at that height; `smoothing` is how many averaging
    passes run over it — more passes give a calmer, more natural ascent, fewer
    give a craggier one. `shoulder` sets how far the two shelves step out. */
+/* The two rivers. `source` is the altitude each rises at and `width` scales
+   its channel. The left one runs the length of the face; the right is a
+   shorter, slighter stream rising three quarters of the way down. */
+/* How far the drawn line runs past the first and last number, in plate units.
+   Fixed lengths rather than a multiple of the gap to the neighbouring node:
+   that gap grows towards the summit, so a multiple sent the line straight off
+   the top of the mountain. */
+const PATH_TAIL = { foot: 74, summit: 58 };
+
+const RIVERS = [
+  { source: 4400, width: 1.00 },
+  { source: 1300, width: 0.62 }
+];
+
 const SILHOUETTE = { roughness: 0.085, smoothing: 4, shoulder: 0.10 };   /* a slight lean, still centred */
 /* the ascent path: a serpentine that stays on the face and narrows with it */
 function plateNode(e) {
@@ -627,11 +666,30 @@ function generateMountainPlate(seedKey) {
       n.x = Math.max(PLATE.cx - 430, Math.min(PLATE.cx + 430, n.x));
     });
   }
+  /* the hand-set corrections, applied last so nothing can undo them */
+  raw.forEach((n, i) => {
+    const d = NODE_NUDGE[i + 1];
+    if (d) n.x += d;
+  });
+
   const nodes = raw.map(n => ({ ...n, xPct: (n.x / W) * 100, yPct: (n.y / H) * 100 }));
 
   /* the route runs from dispatch 01 to dispatch 25 and no further — a tail of
      path before the first number and after the last reads as unfinished */
+  /* The line runs a little past both ends: below the first number so the
+     climb reads as coming up out of the plain, and above the last so it
+     carries clearly into the snow rather than stopping at a circle. */
   const via = nodes.map(n => [n.x, n.y]);
+  const extend = (from, toward, len) => {
+    const dx = from[0] - toward[0], dy = from[1] - toward[1];
+    const m = Math.hypot(dx, dy) || 1;
+    return [from[0] + (dx / m) * len, from[1] + (dy / m) * len];
+  };
+  const first = via[0], second = via[1] || via[0];
+  const last = via[via.length - 1], penult = via[via.length - 2] || last;
+  via.unshift(extend(first, second, PATH_TAIL.foot));
+  via.push(extend(last, penult, PATH_TAIL.summit));
+
   let pathD = `M ${via[0][0].toFixed(1)} ${via[0][1].toFixed(1)}`;
   for (let i = 1; i < via.length - 1; i++) {
     const mx = (via[i][0] + via[i + 1][0]) / 2, my = (via[i][1] + via[i + 1][1]) / 2;
@@ -716,21 +774,21 @@ function generateMountainPlate(seedKey) {
   /* rivers as tapering channels; their mouths are recorded so the city can be
      placed clear of them rather than sitting in the water */
   const riverMouths = [];
-  for (let r = 0; r < 2; r++) {
+  RIVERS.forEach((cfg, r) => {
     const fbm = makeFbm(Math.floor(rand() * 1e6), 3);
-    let x = plateCX(4400) + (r ? 22 : -22);
+    let x = plateCX(cfg.source) + (r ? 22 : -22);
     const mid = [];
-    for (let e = 4400; e >= -120; e -= 60) {
+    for (let e = cfg.source; e >= -120; e -= 60) {
       const spread = 1 - e / 5200;
       x += (fbm(e * 0.0016) - 0.5) * 46 * spread + (r ? 1 : -1) * spread * 9.5;
-      mid.push([x, plateY(e), 0.8 + spread * spread * 7]);
+      mid.push([x, plateY(e), (0.8 + spread * spread * 7) * cfg.width]);
     }
     let d = `M ${(mid[0][0] - mid[0][2]).toFixed(1)} ${mid[0][1].toFixed(1)}`;
     for (let i = 1; i < mid.length; i++) d += ` L ${(mid[i][0] - mid[i][2]).toFixed(1)} ${mid[i][1].toFixed(1)}`;
     for (let i = mid.length - 1; i >= 0; i--) d += ` L ${(mid[i][0] + mid[i][2]).toFixed(1)} ${mid[i][1].toFixed(1)}`;
     svg += `<path d="${d} Z" fill="${beltC.crop.river}" opacity="0.45"/>`;
     mid.filter(m => m[1] > plateY(400)).forEach(m => riverMouths.push({ x: m[0], w: m[2] }));
-  }
+  });
   /* forest: the tiling texture carries the belt, drawn stands carry the
      treeline — which is the most legible feature on any real mountain */
   for (let i = 0; i < 26; i++) {
