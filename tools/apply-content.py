@@ -756,6 +756,8 @@ __THEMES__
      will do rather than what is showing, which is the reading people expect
      from a switch. Adjust its size and placement here. */
   #mri-theme {
+    /* top and right are set from the navigation's measured box in the script
+       below; these are the fallback if that never runs */
     position: fixed; top: 14px; right: 16px; z-index: 9500;
     display: inline-flex; align-items: center; gap: 7px;
     padding: 7px 13px 7px 11px;
@@ -775,7 +777,7 @@ __THEMES__
   #mri-theme .mri-theme-label { display: inline-block; }
   @media (max-width: 720px) {
     /* on a phone the label would crowd the logo; the icon carries it */
-    #mri-theme { top: 10px; right: 10px; padding: 8px; gap: 0; }
+    #mri-theme { padding: 8px; gap: 0; }
     #mri-theme .mri-theme-label { display: none; }
 
     /* The logo hangs below the header by design — but that is a desktop
@@ -983,14 +985,48 @@ THEME_TOGGLE = """<script>
     b.type = 'button';
     document.body.appendChild(b);
     paint(b);
+    align(b);
+    watchReader(b);
+    window.addEventListener('resize', function () { align(b); });
     b.addEventListener('click', function () {
       var now = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
       document.documentElement.setAttribute('data-theme', now);
       try { localStorage.setItem(KEY, now); } catch (e) {}
       paint(b);
+      align(b);
       window.dispatchEvent(new CustomEvent('mri-theme', { detail: now }));
     });
     return true;
+  }
+
+  /* Sit on the menu's line. The header's height changes with the viewport and
+     the menu wraps on narrow screens, so this is measured rather than guessed:
+     the control is centred on the navigation and its right edge is brought to
+     the navigation's own, which is what puts it in the page's margin instead
+     of hard against the window. */
+  function align(b) {
+    var nav = document.querySelector('header nav');
+    if (!nav) return;
+    var n = nav.getBoundingClientRect(), r = b.getBoundingClientRect();
+    if (!n.height || !r.height) return;
+    var top = n.top + (n.height - r.height) / 2;
+    b.style.top = Math.max(6, Math.round(top)) + 'px';
+    b.style.right = Math.max(10, Math.round(window.innerWidth - n.right)) + 'px';
+  }
+
+  /* The story reader is a full-height panel over the page. The switch would
+     float on top of it, offering a choice about a page the reader can no
+     longer see — so it stands down while a story is open, and comes back when
+     the story closes. The overlay only exists in the DOM while open, which is
+     what this watches for. */
+  function watchReader(b) {
+    function apply() {
+      var open = !!document.querySelector('[data-screen-label="Story overlay"]');
+      b.style.display = open ? 'none' : '';
+    }
+    apply();
+    new MutationObserver(apply).observe(document.body,
+      { childList: true, subtree: true });
   }
 
   function paint(b) {
