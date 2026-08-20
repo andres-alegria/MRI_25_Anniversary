@@ -46,6 +46,27 @@ MERGE_CODE = """
       s.body = d.body || [];
       s.image = d.image || null;
     });
+    // The number a reader sees is the story's position on the climb, so the
+    // path reads 01 at the bottom to 25 at the summit. The editorial number
+    // from stories-data.js is kept as `storyNum`, because that is the key the
+    // plate's marker table is built on — and because it is what the print
+    // edition and any external reference use. The two are deliberately
+    // separate: renumbering the climb must never renumber the content.
+    const _plate = window.MRI_PLATE;
+    if (_plate && _plate.stories && _plate.stories.length) {
+      const _pos = {};
+      _plate.stories.forEach((st, i) => { _pos[st.num] = i + 1; });
+      this.stories.forEach(s => {
+        s.storyNum = s.num;
+        s.climbNum = _pos[s.num] || s.num;
+      });
+      // the index lists them in the same order the mountain does
+      this.stories.sort((a, b) => a.climbNum - b.climbNum);
+      this.stories.forEach(s => { s.num = s.climbNum; });
+    } else {
+      this.stories.forEach(s => { s.storyNum = s.num; });
+    }
+
     if (_c.TAG_VOCABULARY) this.allTags = ['All'].concat(_c.TAG_VOCABULARY);
     if (_c.TAG_COLORS) this.themeColors = _c.TAG_COLORS;
     this.pendingText = _c.PENDING_TEXT || 'This story is in development.';
@@ -129,6 +150,9 @@ FIGURES_SECTION = """
 
 """
 
+LABEL_OLD = ("white-space:nowrap;pointer-events:none;font:italic 600 15px 'Source Serif 4',Georgia,serif;color:#134e7f;background:rgba(250,246,236,.88);padding:1px 7px;border-bottom:1px solid #134e7f")
+LABEL_NEW = ("white-space:nowrap;pointer-events:none;font:600 15px 'Source Serif 4',Georgia,serif;color:#DCE8F1;background:rgba(6,26,41,.92);padding:2px 9px;border-radius:2px;border-bottom:1px solid #4FA3D9")
+
 REPLACEMENTS = [
     # a slot in component state for which figure is on stage
     (
@@ -160,10 +184,10 @@ REPLACEMENTS = [
     # fall back onto the old artwork's coordinates rather than stacking at 0.
     (
         "        px: +(mx / 12).toFixed(2),\n        py: +(s.y / 6).toFixed(2),",
-        "        px: (window.MRI_PLATE && window.MRI_PLATE.nodes[s.num])\n"
-        "          ? window.MRI_PLATE.nodes[s.num].px : +(mx / 12).toFixed(2),\n"
-        "        py: (window.MRI_PLATE && window.MRI_PLATE.nodes[s.num])\n"
-        "          ? window.MRI_PLATE.nodes[s.num].py : +(s.y / 6.75).toFixed(2),",
+        "        px: (window.MRI_PLATE && window.MRI_PLATE.nodes[s.storyNum])\n"
+        "          ? window.MRI_PLATE.nodes[s.storyNum].px : +(mx / 12).toFixed(2),\n"
+        "        py: (window.MRI_PLATE && window.MRI_PLATE.nodes[s.storyNum])\n"
+        "          ? window.MRI_PLATE.nodes[s.storyNum].py : +(s.y / 6.75).toFixed(2),",
     ),
     # The colour-coded dot on each filter chip. The twelve-colour theme
     # palette is no longer used to carry meaning — selection is carried by the
@@ -172,6 +196,24 @@ REPLACEMENTS = [
         '<span style="width:7px;height:7px;border-radius:50%;'
         'background:{{ t.dot }};display:{{ t.dotDisplay }}"></span>',
         '',
+    ),
+    # --- the hover label on the mountain ---------------------------------
+    # Upright, not italic. Its cream ground also had to go: on the night plate
+    # it held a light blue on near-white, which was unreadable.
+    (
+        'position:absolute;left:38px;top:50%;transform:translateY(-50%);' + LABEL_OLD,
+        'position:absolute;left:38px;top:50%;transform:translateY(-50%);' + LABEL_NEW,
+    ),
+    (
+        'position:absolute;right:38px;top:50%;transform:translateY(-50%);' + LABEL_OLD,
+        'position:absolute;right:38px;top:50%;transform:translateY(-50%);' + LABEL_NEW,
+    ),
+    # The hotspot wrappers are siblings in document order, so a label belonging
+    # to an early marker was painted under every later marker's circle. Give
+    # the hovered one a stacking context above the rest.
+    (
+        'width:40px;height:40px;transform:translate(-50%,-50%);animation:mjPop',
+        'width:40px;height:40px;z-index:{{ s.zIdx }};transform:translate(-50%,-50%);animation:mjPop',
     ),
     # author byline: "Name, Institution", standard across all stories
     (
@@ -256,7 +298,8 @@ REPLACEMENTS = [
     ),
     (
         "markerColor: mc,",
-        "markerColor: _hi ? '#0067b2' : (_dim ? '#e2e2da' : '#15150f'),",
+        "markerColor: _hi ? '#0067b2' : (_dim ? '#e2e2da' : '#15150f'),\n"
+        "        zIdx: hoverId === s.id ? 60 : 1,",
     ),
     (
         "dotColor: hoverId === s.id ? '#ffffff' : '#3a3630'",
