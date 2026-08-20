@@ -341,6 +341,57 @@ function texturePatterns(uid, C, p, scale = 1) {
     taller blocks, a church spire, and a lane running out of it. `k` scales the
     whole thing, so the same routine draws a city on the plain and a hamlet on
     the terraces. Adjust the built silhouette here. */
+/* --- an environmental observatory -----------------------------------------
+   The mountain carries instruments as well as stories. Drawn small and flat,
+   in the same idiom as the city: a hut with a shallow roof, a lattice mast
+   beside it carrying two sensor booms and a radiation ball, and a short guy
+   line. It reads at plate scale as "there is a station here" rather than as a
+   detailed rendering of one.
+
+   `x`, `y` is the point it stands on; `k` scales the whole thing. Colours come
+   from the belt it sits in, so an observatory in the snow is drawn in the snow
+   belt's own values and the icon inverts with the theme along with everything
+   else. */
+/* Relative luminance, so a mark can be given a colour that survives the belt
+   it is drawn on. The nival belt is near-white in BOTH themes, so a highlight
+   that always tends toward white disappears there. */
+function relLum(hex) {
+  const m = /^#([0-9a-f]{6})$/i.exec(String(hex).trim());
+  if (!m) return 0.5;
+  const v = [0, 2, 4].map(i => parseInt(m[1].substr(i, 2), 16) / 255)
+    .map(c => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
+  return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+}
+
+function drawObservatory(x, y, k, C, p) {
+  const wall = MIX(C.built, p.ink, 0.18);
+  const roof = MIX(C.built, p.ink, 0.42);
+  const mast = MIX(C.built, p.text, 0.20);
+  /* the instrument highlight, pitched against the belt rather than always
+     toward white — on snow it goes dark, on rock and meadow it stays bright */
+  const onPale = relLum(C.built) > 0.42;
+  const lit = onPale ? MIX(p.ink, "#000000", 0.10)
+                     : MIX(p.accent2, "#FFFFFF", 0.35);
+  const u = (n) => (n * k).toFixed(1);
+  let g = `<g transform="translate(${x.toFixed(1)},${y.toFixed(1)})">`;
+
+  /* the hut: a low box under a shallow gable, sitting on the slope */
+  g += `<rect x="${u(-13)}" y="${u(-11)}" width="${u(20)}" height="${u(11)}" fill="${wall}"/>`;
+  g += `<path d="M ${u(-15)} ${u(-11)} L ${u(-3)} ${u(-17)} L ${u(9)} ${u(-11)} Z" fill="${roof}"/>`;
+  /* one lit window, so it reads as occupied */
+  g += `<rect x="${u(-9)}" y="${u(-8)}" width="${u(4)}" height="${u(4)}" fill="${lit}" opacity="0.75"/>`;
+
+  /* the mast: a plain shaft with two booms and a sensor ball on top */
+  g += `<rect x="${u(11)}" y="${u(-30)}" width="${u(1.6)}" height="${u(30)}" fill="${mast}"/>`;
+  g += `<rect x="${u(6)}" y="${u(-24)}" width="${u(12)}" height="${u(1.2)}" fill="${mast}"/>`;
+  g += `<rect x="${u(7)}" y="${u(-17)}" width="${u(10)}" height="${u(1.2)}" fill="${mast}"/>`;
+  g += `<circle cx="${u(11.8)}" cy="${u(-31.5)}" r="${u(2.2)}" fill="${lit}"/>`;
+  /* a guy line back to the ground, which is what makes a mast read as a mast */
+  g += `<path d="M ${u(11.8)} ${u(-28)} L ${u(19)} ${u(0)}" stroke="${mast}" stroke-width="${u(0.7)}" fill="none" opacity="0.7"/>`;
+
+  return g + `</g>`;
+}
+
 /* --- the city on the plain -------------------------------------------------
    Fewer buildings, each actually shaped, rather than a long run of random
    bars. A real skyline reads through a handful of recognisable silhouettes —
@@ -564,6 +615,15 @@ const PATH_TAIL = {
      across the flanks it may run there — the line is held inside all three */
   ceiling: 4960, floor: 240, inset: 0.68
 };
+
+/* Where the instrument stations stand, in metres. `belt` picks the palette
+   they are drawn in, and should match the belt the altitude falls in. */
+const OBSERVATORIES = [
+  { elev: 4650, belt: 'ice',    scale: 1.00 },   // in the snow, below the last station
+  /* the anchor is the point the hut stands on and the icon draws upward from
+     it, so the altitude is set a little below the band it should read in */
+  { elev: 2880, belt: 'meadow', scale: 0.92 }    // between the 19th and 20th
+];
 
 const RIVERS = [
   { source: 4400, width: 1.00, offset: 0 },
@@ -911,6 +971,23 @@ function generateMountainPlate(seedKey) {
   /* kept inside the crop-safe centre band, so the one city survives on a phone */
   svg += drawCity(rand, PLATE.cx - PLATE.base * 0.226, plateY(70),
                   PLATE.base * 0.74, beltC.urban, beltPal.urban, PLATE.base / 365);
+
+  /* Two observatories on the western flank: one up in the nival belt, one down
+     at the treeline. Their altitudes are chosen against the ascent — the high
+     one sits just below the last station, the low one between the nineteenth
+     and twentieth — so they read as part of the same climb. Each is set just
+     inside the flank at its own height rather than at a fixed x, so it stays
+     on the slope in either layout. */
+  OBSERVATORIES.forEach(o => {
+    const e = o.elev;
+    const k = (PLATE.base / 620) * o.scale;
+    /* Inset from the flank measured at the icon's TOP, not its base: the
+       mountain narrows over the mast's 32 units of height, and at the first
+       attempt the sensor ball ended up outside the silhouette and was clipped
+       away. */
+    const x = Math.max(flankAt(e, -1), flankAt(e + 190, -1)) + 30 * k;
+    svg += drawObservatory(x, plateY(e), k, beltC[o.belt], beltPal[o.belt]);
+  });
   svg += `<rect x="-200" y="0" width="${W + 400}" height="${H}" fill="url(#shade-${uid})"/>`;
   svg += `</g>`;
   /* the main peak's own shaded half and cap, over the belts. Kept light: the
