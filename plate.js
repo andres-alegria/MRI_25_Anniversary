@@ -71,7 +71,7 @@ const PATH_SPAN = { lo: 320, hi: 4880 };
    is drawn as a smooth curve through the nodes, so where it changes direction
    sharply the line bows slightly away from the number sitting there; a small
    push puts the circle back on the line. Positive is right. */
-const NODE_NUDGE = { 18: -16, 24: 18 };
+const NODE_NUDGE = { 18: -0.026, 24: 0.029 };   // as fractions of PLATE.base
 
 /* --- palette and belts, carried over from the Ascent study ---------------- */
 const MRI = {
@@ -449,9 +449,35 @@ function drawTrees(rand, x, y, spread, count, C, p, k) {
    cropped away as decoration. The mountain is centred at x = 1200, and the
    margins above the summit and below sea level absorb any vertical crop. */
 
-/* `base` is the massif's half-width at sea level, in plate units; lower it for
-   a taller, more slender mountain and more sky. */
-const PLATE = { w: 2400, h: 1000, seaY: 900, topY: 110, cx: 1200, base: 620 };
+/* Two plate shapes. A landscape plate is right on a desktop, but on a phone it
+   leaves the ascent only a couple of hundred pixels of height to hold 25
+   markers, so they overlap however thin their rings are made. The narrow
+   layout is a portrait plate: the same mountain, drawn tall, with the path
+   given room to climb.
+
+   `base` is the massif's half-width at sea level; everything else that is
+   measured across the plate is expressed as a multiple of it, so a layout only
+   has to state its own proportions. `band` is how far either side of the
+   centre line a marker may sit, and `marker` is the diameter of the numbered
+   circles in CSS pixels at that size. */
+const LAYOUTS = {
+  wide:   { w: 2400, h: 1000, seaY: 900,  topY: 110, base: 620, band: 430, marker: 24, sep: 78, frame: 16 / 9 },
+  /* The portrait plate is not just the landscape one turned on its side: a
+     mountain drawn 1500 units tall on a 500-unit base reads as a needle, so
+     the base is widened to keep it looking like a mountain, and there is more
+     sky above the summit so the peak is not flush against the sticky header. */
+  narrow: { w: 1000, h: 1900, seaY: 1780, topY: 300, base: 400, band: 178, marker: 18, sep: 62, frame: 1000 / 1900 }
+};
+
+/* the width at or below which the portrait plate is used */
+const NARROW_AT = 720;
+
+function layoutFor(width) {
+  return (width || 1280) <= NARROW_AT ? LAYOUTS.narrow : LAYOUTS.wide;
+}
+
+/* the live one; replaced when the viewport crosses the breakpoint */
+let PLATE = Object.assign({}, LAYOUTS.wide, { cx: LAYOUTS.wide.w / 2 });
 const plateY = (e) => PLATE.seaY - (e / 5200) * (PLATE.seaY - PLATE.topY);
 /* half-width of the massif at this altitude, and its leaning centre line */
 function plateHW(e) {
@@ -465,7 +491,7 @@ function plateHW(e) {
      carried on a smaller footprint and the sky opens out either side. */
   return 10 + PLATE.base * Math.pow((5200 - e) / 5200, 0.78);
 }
-const plateCX = (e) => PLATE.cx + 70 * (e / 5200);
+const plateCX = (e) => PLATE.cx + PLATE.base * 0.113 * (e / 5200);
 
 /* How the flanks are shaped. `roughness` is the raw displacement as a fraction
    of the cone's half-width at that height; `smoothing` is how many averaging
@@ -483,7 +509,7 @@ const plateCX = (e) => PLATE.cx + 70 * (e / 5200);
    that gap grows towards the summit, so a multiple sent the line straight off
    the top of the mountain. */
 const PATH_TAIL = {
-  foot: 0, summit: 58,
+  foot: 0, summitFrac: 0.094,
   /* the highest and lowest altitudes the drawn line may reach, and how far
      across the flanks it may run there — the line is held inside all three */
   ceiling: 4960, floor: 240, inset: 0.68
@@ -614,11 +640,11 @@ function generateMountainPlate(seedKey) {
      depth, and are flat, hazier and capped only. Draw order is back to front:
      the right peak sits behind the main massif, the left one in front of it. */
   const MASSIFS = {
-    far:  { summit: 4050, dx: 620, spread: 0.58, haze: 0.62 },
-    main: { summit: 5200, dx: 0,   spread: 1.00, haze: 0.00 },
+    far:  { summit: 4050, dx: PLATE.base * 1.00, spread: 0.58, haze: 0.62 },
+    main: { summit: 5200, dx: 0,                  spread: 1.00, haze: 0.00 },
     /* the foreground shoulder is kept small and pushed well left: any bigger
        and it covers the bottom of the ascent path */
-    near: { summit: 3180, dx: -690, spread: 0.56, haze: 0.26 }
+    near: { summit: 3180, dx: PLATE.base * -1.11, spread: 0.56, haze: 0.26 }
   };
   const mFar = buildMassif(MASSIFS.far);
   const mMain = buildMassif(MASSIFS.main);
@@ -650,8 +676,10 @@ function generateMountainPlate(seedKey) {
      staying on the face — and the path is then drawn THROUGH the final
      positions, so the line always connects the numbers it is meant to. */
   /* minimum spacing between consecutive markers, in plate units — raise this
-     if numbers crowd, but remember the band below limits how far they can go */
-  const MIN_SEP = 78;
+     if numbers crowd, but remember the band below limits how far they can go.
+     Set per layout: the portrait plate needs a larger floor because its
+     markers sit closer together in screen pixels. */
+  const MIN_SEP = PLATE.sep;
   const raw = PLATE_STORIES.map((st) => {
     const [x, y] = plateNode(st.elevation);
     return { index: st.index, id: st.id, elev: st.elevation, x, y };
@@ -673,13 +701,13 @@ function generateMountainPlate(seedKey) {
       n.x = Math.max(cx - face, Math.min(cx + face, n.x));
       /* the band either side of the centre line that a portrait phone still
          shows — widen with care, it is what keeps the path on a small screen */
-      n.x = Math.max(PLATE.cx - 430, Math.min(PLATE.cx + 430, n.x));
+      n.x = Math.max(PLATE.cx - PLATE.band, Math.min(PLATE.cx + PLATE.band, n.x));
     });
   }
   /* the hand-set corrections, applied last so nothing can undo them */
   raw.forEach((n, i) => {
     const d = NODE_NUDGE[i + 1];
-    if (d) n.x += d;
+    if (d) n.x += d * PLATE.base;
   });
 
   const nodes = raw.map(n => ({ ...n, xPct: (n.x / W) * 100, yPct: (n.y / H) * 100 }));
@@ -712,7 +740,7 @@ function generateMountainPlate(seedKey) {
   const first = via[0], second = via[1] || via[0];
   const last = via[via.length - 1], penult = via[via.length - 2] || last;
   via.unshift(onMassif(extend(first, second, PATH_TAIL.foot)));
-  via.push(onMassif(extend(last, penult, PATH_TAIL.summit)));
+  via.push(onMassif(extend(last, penult, PLATE.base * PATH_TAIL.summitFrac)));
 
   let pathD = `M ${via[0][0].toFixed(1)} ${via[0][1].toFixed(1)}`;
   for (let i = 1; i < via.length - 1; i++) {
@@ -831,7 +859,8 @@ function generateMountainPlate(seedKey) {
 
   /* one city, on the plain to the left of the massif */
   /* kept inside the crop-safe centre band, so the one city survives on a phone */
-  svg += drawCity(rand, PLATE.cx - 140, plateY(70), 460, beltC.urban, beltPal.urban, 1.7);
+  svg += drawCity(rand, PLATE.cx - PLATE.base * 0.226, plateY(70),
+                  PLATE.base * 0.74, beltC.urban, beltPal.urban, PLATE.base / 365);
   svg += `<rect x="-200" y="0" width="${W + 400}" height="${H}" fill="url(#shade-${uid})"/>`;
   svg += `</g>`;
   /* the main peak's own shaded half and cap, over the belts. Kept light: the
@@ -880,8 +909,14 @@ function generateMountainPlate(seedKey) {
 (function () {
   'use strict';
 
-  function build() {
+  /* which layout the current geometry was built for */
+  let builtFor = null;
+
+  function build(width) {
     if (typeof gsap === 'undefined' || !window.MRI_CONTENT) return false;
+    const L = layoutFor(width !== undefined ? width : window.innerWidth);
+    PLATE = Object.assign({}, L, { cx: L.w / 2 });
+    builtFor = L;
     PLATE_STORIES = buildStories();
     if (!PLATE_STORIES.length) return false;
 
@@ -901,7 +936,8 @@ function generateMountainPlate(seedKey) {
     });
     window.MRI_PLATE = {
       svg: plate.svg, pathD: plate.pathD, viewBox: plate.viewBox,
-      nodes, byClimb, stories: PLATE_STORIES, belts: BELTS
+      nodes, byClimb, stories: PLATE_STORIES, belts: BELTS,
+      layout: builtFor
     };
     return true;
   }
@@ -954,6 +990,12 @@ function generateMountainPlate(seedKey) {
       const py = oy + (node.py / 100) * VH * scale;
       wrap.style.left = px.toFixed(1) + 'px';
       wrap.style.top  = py.toFixed(1) + 'px';
+      /* the circles shrink with the plate, so 25 of them still fit the climb */
+      const dia = (plate.layout || LAYOUTS.wide).marker;
+      btn.style.width = dia + 'px';
+      btn.style.height = dia + 'px';
+      btn.style.inset = ((40 - dia) / 2) + 'px';
+      btn.style.fontSize = (dia <= 20 ? 8.5 : 10) + 'px';
       placed.push({ btn, px, py });
     });
 
@@ -974,7 +1016,8 @@ function generateMountainPlate(seedKey) {
     if (isFinite(nearest)) {
       /* adjust the crowding response here: at COMFORT apart the ring is full
          weight, at TIGHT apart it is at its thinnest */
-      const COMFORT = 46, TIGHT = 22;
+      const dia = (plate.layout || LAYOUTS.wide).marker;
+      const COMFORT = dia * 1.9, TIGHT = dia * 0.92;
       const t = Math.max(0, Math.min(1, (COMFORT - nearest) / (COMFORT - TIGHT)));
       const w = (RING.full + (RING.thin - RING.full) * t).toFixed(2) + 'px';
       placed.forEach(({ btn }) => { btn.style.borderWidth = w; });
@@ -1000,6 +1043,14 @@ function generateMountainPlate(seedKey) {
       frame.style.maxWidth = '100vw';
       frame.style.marginLeft = 'calc(50% - 50vw)';
       frame.style.marginRight = 'calc(50% - 50vw)';
+      /* Each layout states the shape of the box it wants. The wide one keeps
+         the page's 16:9 frame and lets the plate be cropped at the sides, which
+         is what makes the massif fill it. The portrait one asks for its own
+         proportions so nothing is cropped and the ascent gets its full height —
+         on a phone a 16:9 box leaves it nowhere to climb. */
+      const L = (window.MRI_PLATE && window.MRI_PLATE.layout) || LAYOUTS.wide;
+      frame.style.aspectRatio = String(L.frame);
+      frame.style.height = 'auto';
     }
     /* Clear the frame off every wrapper between the artwork and the section.
        Walking by computed style rather than by a fixed depth: the box that
@@ -1029,15 +1080,31 @@ function generateMountainPlate(seedKey) {
   /* ring weights for the story markers, in CSS pixels */
   const RING = { full: 1.5, thin: 0.6 };
 
-  window.addEventListener('resize', relayout);
+  /* Crossing the breakpoint means a different plate, not just a rescale: the
+     artwork, the node positions and the marker size all change, so the whole
+     thing is regenerated and re-injected. Within a layout, resizing only
+     re-runs the cheap placement pass. */
+  function onResize() {
+    const want = layoutFor(window.innerWidth);
+    if (window.MRI_PLATE && want !== window.MRI_PLATE.layout) {
+      const host = document.querySelector('svg[data-mri-plate="done"]');
+      if (host && build(window.innerWidth)) {
+        host.removeAttribute('data-mri-plate');
+        inject(host);
+        return;
+      }
+    }
+    relayout();
+  }
 
-  /* Inject the artwork into the page's mountain host once it exists, and keep
-     the host's own attributes in step with the plate's geometry. */
-  const t0 = Date.now();
-  (function place() {
-    const host = document.querySelector('svg[data-mri-plate]') ||
-                 document.querySelector('svg[viewBox="0 0 1200 675"]');
-    if (host && window.MRI_PLATE) {
+  window.addEventListener('resize', onResize);
+
+  /* Put the artwork into the page's mountain host, and keep the host's own
+     attributes in step with the plate's geometry. Called once when the host
+     first appears, and again whenever the layout changes under it. */
+  function inject(host) {
+    if (!host || !window.MRI_PLATE) return false;
+
       const outer = document.createElement('div');
       outer.innerHTML = window.MRI_PLATE.svg;
       const art = outer.firstElementChild;
@@ -1104,8 +1171,14 @@ function generateMountainPlate(seedKey) {
         relayout();
         if (++ticks > 12) clearInterval(settle);
       }, 250);
-      return;
-    }
+    return true;
+  }
+
+  const t0 = Date.now();
+  (function place() {
+    const host = document.querySelector('svg[data-mri-plate]') ||
+                 document.querySelector('svg[viewBox="0 0 1200 675"]');
+    if (inject(host)) return;
     if (Date.now() - t0 > 20000) return;
     setTimeout(place, 60);
   })();
