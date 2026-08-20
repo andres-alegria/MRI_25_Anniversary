@@ -478,11 +478,17 @@ const plateCX = (e) => PLATE.cx + 70 * (e / 5200);
    Fixed lengths rather than a multiple of the gap to the neighbouring node:
    that gap grows towards the summit, so a multiple sent the line straight off
    the top of the mountain. */
-const PATH_TAIL = { foot: 74, summit: 58 };
+const PATH_TAIL = {
+  foot: 74, summit: 58,
+  /* the highest and lowest altitudes the drawn line may reach, and how far
+     across the flanks it may run there — the line is held inside all three */
+  ceiling: 4960, floor: 240, inset: 0.68
+};
 
 const RIVERS = [
-  { source: 4400, width: 1.00 },
-  { source: 1300, width: 0.62 }
+  { source: 4400, width: 1.00, offset: 0 },
+  /* pushed east so its channel does not run under the ascent path */
+  { source: 1300, width: 0.62, offset: 210 }
 ];
 
 const SILHOUETTE = { roughness: 0.085, smoothing: 4, shoulder: 0.10 };   /* a slight lean, still centred */
@@ -685,10 +691,24 @@ function generateMountainPlate(seedKey) {
     const m = Math.hypot(dx, dy) || 1;
     return [from[0] + (dx / m) * len, from[1] + (dy / m) * len];
   };
+
+  /* Pull a point back onto the mountain. The tails are struck along the
+     direction of travel, and near the summit that direction runs straight out
+     of the peak — the line was ending above the apex, drawn in open sky. This
+     converts the point's height back to an altitude, holds it inside the
+     usable band, and then holds it inside the flanks at that altitude. */
+  const onMassif = ([x, y]) => {
+    const yTop = plateY(PATH_TAIL.ceiling), yFoot = plateY(PATH_TAIL.floor);
+    const cy = Math.max(yTop, Math.min(yFoot, y));
+    const e = 5200 * (PLATE.seaY - cy) / (PLATE.seaY - PLATE.topY);
+    const half = plateHW(e) * PATH_TAIL.inset, c = plateCX(e);
+    return [Math.max(c - half, Math.min(c + half, x)), cy];
+  };
+
   const first = via[0], second = via[1] || via[0];
   const last = via[via.length - 1], penult = via[via.length - 2] || last;
-  via.unshift(extend(first, second, PATH_TAIL.foot));
-  via.push(extend(last, penult, PATH_TAIL.summit));
+  via.unshift(onMassif(extend(first, second, PATH_TAIL.foot)));
+  via.push(onMassif(extend(last, penult, PATH_TAIL.summit)));
 
   let pathD = `M ${via[0][0].toFixed(1)} ${via[0][1].toFixed(1)}`;
   for (let i = 1; i < via.length - 1; i++) {
@@ -776,7 +796,7 @@ function generateMountainPlate(seedKey) {
   const riverMouths = [];
   RIVERS.forEach((cfg, r) => {
     const fbm = makeFbm(Math.floor(rand() * 1e6), 3);
-    let x = plateCX(cfg.source) + (r ? 22 : -22);
+    let x = plateCX(cfg.source) + (r ? 22 : -22) + (cfg.offset || 0);
     const mid = [];
     for (let e = cfg.source; e >= -120; e -= 60) {
       const spread = 1 - e / 5200;
