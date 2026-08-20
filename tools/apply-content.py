@@ -779,7 +779,6 @@ def patch_template(doc: str) -> str:
            # has to keep working long after any CDN we picked today.
            + asset('vendor/gsap.min.js')
            + asset('vendor/DrawSVGPlugin.min.js')
-           + asset('vendor/Flip.min.js')
            # plate.js must run before the component is constructed: it builds
            # the marker table the render reads. It needs gsap and the stories,
            # so it loads after both.

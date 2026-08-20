@@ -13,9 +13,8 @@
         page shows the finished mountain immediately.
 
      2. THE LINK — the numbered markers on the mountain and the numbered rows
-        in the index are treated as one object. Hovering either highlights
-        both, and a ghost numeral flies between them so the relationship is
-        seen rather than inferred.
+        in the index are treated as one object: hovering either highlights
+        both.
 
    Nothing here owns any state. Highlighting is done by dispatching the events
    the page already listens for, so the interface stays the single source of
@@ -41,17 +40,8 @@ const MOTION = {
   markerStagger: 0.028,
 
   /* ---- the link ---------------------------------------------------- */
-  link: true,
-  // accent used for the flying numeral — the interface's selection colour
-  accent: '#0067b2',
-  ghostFlight: 0.52,
-  ghostHold: 0.30,
-  ghostFade: 0.28,
-  // the ghost only flies when at least this fraction of the mountain is on
-  // screen; below that it would be flying somewhere the reader cannot see
-  minMountainVisible: 0.25,
-  // pause before a hover counts as intent, in ms
-  hoverIntent: 90
+  // hovering a marker lights its row in the index, and the other way round
+  link: true
 };
 
 (function () {
@@ -206,128 +196,55 @@ const MOTION = {
   /* --- 2. the link ------------------------------------------------------ */
 
   function link(svg, reduced) {
-    // The page already tracks what is hovered. Rather than run a competing
-    // highlight, forward the hover to the twin element and let the page's own
-    // state light it up — one source of truth, and it survives a re-render.
-    const forward = (el, type) =>
-      el.dispatchEvent(new MouseEvent(type, { bubbles: true, relatedTarget: document.body }));
+    /* The page already tracks what is hovered. Rather than run a competing
+       highlight, forward the hover to the twin element and let the page's own
+       state light it up — one source of truth, and it survives a re-render.
+
+       The forwarded event bubbles, so it reaches these same listeners: a
+       marker lit its row, the row lit the marker, and round it went until the
+       call stack gave out. That only happened once index rows existed, which
+       is to say as soon as any filter had been applied. The guard below stops
+       a forwarded event from being forwarded again — dispatchEvent is
+       synchronous, so the nested handler always sees the flag set. */
+    let forwarding = false;
+    const forward = (el, type) => {
+      if (forwarding) return;
+      forwarding = true;
+      try {
+        el.dispatchEvent(new MouseEvent(type, {
+          bubbles: true, relatedTarget: document.body
+        }));
+      } finally {
+        forwarding = false;
+      }
+    };
 
     const twinMarker = n => markers().find(m => numberOf(m) === n);
     const twinRow = n => rows().find(r => numberOf(r) === n);
 
-    let ghost = null;
-    let timer = null;
-
-    const clearGhost = () => {
-      if (!ghost) return;
-      const g = ghost;
-      ghost = null;
-      gsap.to(g, {
-        opacity: 0, duration: MOTION.ghostFade,
-        onComplete: () => g.remove()
-      });
+    /* Hovering either half lights both. Nothing moves and nothing is created:
+       an earlier version flew a numeral from the index up to its marker, which
+       read as a number coming up out of nowhere. */
+    const pair = (type) => (e) => {
+      const btn = e.target.closest && e.target.closest('button');
+      if (!btn) return;
+      const n = numberOf(btn);
+      if (!n) return;
+      const twin = isMarker(btn) ? twinRow(n) : twinMarker(n);
+      if (twin) forward(twin, type);
     };
 
-    const mountainVisible = () => {
-      const r = svg.getBoundingClientRect();
-      const shown = Math.min(r.bottom, innerHeight) - Math.max(r.top, 0);
-      return r.height > 0 && shown / r.height >= MOTION.minMountainVisible;
-    };
-
-    /* A numeral lifted off the index row and flown to its peak. Flip.fit
-       measures both positions and moves one onto the other, so the flight
-       lands exactly on the marker however the page has been resized. */
-    function fly(row, marker) {
-      clearGhost();
-
-      // Clone the numeral itself, not the whole row: the row is the full width
-      // of the page, and fitting that onto a 24px marker would shrink the
-      // digits to nothing.
-      const numeral = [...row.querySelectorAll('span')]
-        .find(s => !s.children.length && /^\d{2}$/.test(s.textContent.trim()));
-      if (!numeral) return;
-
-      const r = numeral.getBoundingClientRect();
-      const g = document.createElement('div');
-      g.textContent = numeral.textContent.trim();
-      g.setAttribute('data-motion', 'ghost');
-
-      const src = getComputedStyle(numeral);
-      Object.assign(g.style, {
-        position: 'fixed', margin: '0', zIndex: '60',
-        left: r.left + 'px', top: r.top + 'px',
-        width: r.width + 'px', height: r.height + 'px',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        font: src.font, fontVariantNumeric: 'tabular-nums',
-        lineHeight: '1', pointerEvents: 'none',
-        color: MOTION.accent          // adjust flying numeral colour here
-      });
-      document.body.appendChild(g);
-      ghost = g;
-
-      Flip.fit(g, marker, {
-        duration: MOTION.ghostFlight,
-        ease: 'power3.inOut',
-        scale: true,
-        onComplete() {
-          if (ghost !== g) return;
-          gsap.to(g, {
-            opacity: 0,
-            duration: MOTION.ghostFade,
-            delay: MOTION.ghostHold,
-            onComplete: () => { g.remove(); if (ghost === g) ghost = null; }
-          });
-        }
-      });
-    }
-
-    document.addEventListener('mouseover', e => {
-      const row = e.target.closest && e.target.closest('button');
-      if (!row || isMarker(row)) return;
-      const n = numberOf(row);
-      if (!n) return;
-      const marker = twinMarker(n);
-      if (!marker) return;
-
-      forward(marker, 'mouseover');
-      clearTimeout(timer);
-      if (!reduced && mountainVisible()) {
-        timer = setTimeout(() => fly(row, marker), MOTION.hoverIntent);
-      }
-    });
-
-    document.addEventListener('mouseout', e => {
-      const row = e.target.closest && e.target.closest('button');
-      if (!row || isMarker(row)) return;
-      const n = numberOf(row);
-      if (!n) return;
-      const marker = twinMarker(n);
-      if (marker) forward(marker, 'mouseout');
-      clearTimeout(timer);
-      clearGhost();
-    });
-
-    // and the other direction: a marker lights its row in the index
-    document.addEventListener('mouseover', e => {
-      const marker = e.target.closest && e.target.closest('button');
-      if (!marker || !isMarker(marker)) return;
-      const row = twinRow(numberOf(marker));
-      if (row) forward(row, 'mouseover');
-    });
-
-    document.addEventListener('mouseout', e => {
-      const marker = e.target.closest && e.target.closest('button');
-      if (!marker || !isMarker(marker)) return;
-      const row = twinRow(numberOf(marker));
-      if (row) forward(row, 'mouseout');
-    });
+    document.addEventListener('mouseover', pair('mouseover'));
+    document.addEventListener('mouseout', pair('mouseout'));
   }
 
   /* --- boot ------------------------------------------------------------- */
 
   whenReady(ready, svg => {
     if (typeof gsap === 'undefined') return;
-    gsap.registerPlugin(DrawSVGPlugin, Flip);
+    // DrawSVG is only needed if the overture is turned back on; register
+    // whatever is actually present rather than assuming.
+    if (typeof DrawSVGPlugin !== 'undefined') gsap.registerPlugin(DrawSVGPlugin);
 
     // A small handle on the drawing, so it can be watched again without a
     // reload — useful when tuning the timings in MOTION above.
