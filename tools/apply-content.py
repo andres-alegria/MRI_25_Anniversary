@@ -215,25 +215,35 @@ REPLACEMENTS = [
         'width:40px;height:40px;transform:translate(-50%,-50%);animation:mjPop',
         'width:40px;height:40px;z-index:{{ s.zIdx }};transform:translate(-50%,-50%);animation:mjPop',
     ),
-    # --- moving between stories ------------------------------------------
-    # A second pair of arrows at the top of the reader, so the next story is
-    # reachable without reading to the end of this one. They sit above the
-    # tags, as the first thing in the panel's body.
+    # the footer row no longer pushes them to opposite ends
     (
-        '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">\n'
-        '          <sc-for list="{{ open.tags }}"',
-        '<div style="display:flex;gap:8px;margin-bottom:18px">\n'
-        '          <sc-if value="{{ hasPrev }}" hint-placeholder-val="{{ false }}">\n'
-        '            <button sc-camel-on-click="{{ goPrev }}" aria-label="Previous story" '
+        '<div style="display:flex;justify-content:space-between;gap:12px;'
+        'border-top:1px solid rgba(58,54,48,.3);padding-top:22px;margin-top:34px">',
+        '<div style="display:flex;gap:9px;'
+        'border-top:1px solid rgba(58,54,48,.3);padding-top:22px;margin-top:34px">',
+    ),
+    # --- moving between stories ------------------------------------------
+    # The arrows share the reader's header row, on the close button's line:
+    # navigation on the left with the altitude, the way out on the right. The
+    # left side is its own group so the row still has exactly two children and
+    # space-between keeps doing the work.
+    (
+        '<div style="display:flex;justify-content:space-between;align-items:center;'
+        'gap:12px;margin-bottom:22px">\n'
+        '          <div style="font:500 11.5px Jost,sans-serif;letter-spacing:.18em;'
+        'color:#7d7666">~{{ open.elev }} M</div>\n',
+        '<div style="display:flex;justify-content:space-between;align-items:center;'
+        'gap:12px;margin-bottom:22px">\n'
+        '          <div style="display:flex;align-items:center;gap:9px">\n'
+        '            <sc-if value="{{ hasPrev }}" hint-placeholder-val="{{ false }}">\n'
+        '              <button sc-camel-on-click="{{ goPrev }}" aria-label="Previous story" '
         'style="__ARROW__" style-hover="__HOVER__">\u2190</button>\n'
-        '          </sc-if>\n'
-        '          <sc-if value="{{ hasNext }}" hint-placeholder-val="{{ true }}">\n'
-        '            <button sc-camel-on-click="{{ goNext }}" aria-label="Next story" '
+        '            </sc-if>\n'
+        '            <sc-if value="{{ hasNext }}" hint-placeholder-val="{{ true }}">\n'
+        '              <button sc-camel-on-click="{{ goNext }}" aria-label="Next story" '
         'style="__ARROW__" style-hover="__HOVER__">\u2192</button>\n'
-        '          </sc-if>\n'
-        '        </div>\n'
-        '        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">\n'
-        '          <sc-for list="{{ open.tags }}"',
+        '            </sc-if>\n'
+        '          </div>\n',
     ),
     # Both pairs are arrows alone. Carrying the neighbouring story's title made
     # the buttons wide and uneven, and repeated a title the reader is about to
@@ -251,7 +261,7 @@ REPLACEMENTS = [
         'background:transparent;border:1.5px solid #0067b2;border-radius:999px;'
         'padding:10px 20px" style-hover="background:#0067b2;color:#fff">'
         '{{ nextTitle }} \u2192</button>',
-        'aria-label="Next story" style="margin-left:auto;__ARROW__" '
+        'aria-label="Next story" style="__ARROW__" '
         'style-hover="__HOVER__">\u2192</button>',
     ),
     # author byline: "Name, Institution", standard across all stories
@@ -397,13 +407,6 @@ REPLACEMENTS = [
         '<span style="font:500 10.5px Jost,sans-serif;letter-spacing:.1em;'
         'color:#7d7666" data-comment-anchor="e84f3e2f9d-span">~{{ s.elev }} m</span>',
         "",
-    ),
-    # altitude readout at the top of the story panel; the empty div is kept so
-    # the close button stays where it is in the space-between row
-    (
-        '<div style="font:500 11.5px Jost,sans-serif;letter-spacing:.18em;'
-        'color:#7d7666">~{{ open.elev }} M</div>',
-        "<div></div>",
     ),
     # hide the pull-quote box when the story has no quote (e.g. not yet drafted)
     (
