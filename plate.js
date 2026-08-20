@@ -804,14 +804,22 @@ function generateMountainPlate(seedKey) {
     if (!PLATE_STORIES.length) return false;
 
     const plate = generateMountainPlate('mri-25');
-    const nodes = {};
+    /* Two ways in to the same node. `nodes` is keyed by the story's editorial
+       number from stories-data.js, which is what the page's own data uses.
+       `byClimb` is keyed by position on the ascent, 1 at the foot to 25 at the
+       summit — which is the number the reader actually sees on the marker, so
+       it is the one anything reading a marker's label must use. */
+    const nodes = {}, byClimb = {};
     plate.nodes.forEach(n => {
       const st = PLATE_STORIES[n.index];
-      nodes[st.num] = { px: n.xPct, py: n.yPct, elevation: st.elevation };
+      const node = { px: n.xPct, py: n.yPct, elevation: st.elevation,
+                     num: st.num, climb: n.index + 1 };
+      nodes[st.num] = node;
+      byClimb[n.index + 1] = node;
     });
     window.MRI_PLATE = {
       svg: plate.svg, pathD: plate.pathD, viewBox: plate.viewBox,
-      nodes, stories: PLATE_STORIES, belts: BELTS
+      nodes, byClimb, stories: PLATE_STORIES, belts: BELTS
     };
     return true;
   }
@@ -852,8 +860,12 @@ function generateMountainPlate(seedKey) {
     const placed = [];
     document.querySelectorAll('button').forEach(btn => {
       if (!/border-radius:\s*50%/.test(btn.getAttribute('style') || '')) return;
+      /* The label on a marker is its position on the climb, not its editorial
+         number, so look it up that way. Reading it as an editorial number put
+         every marker at the wrong altitude — the one labelled 01 went to the
+         summit, because story 1 happens to be Glaciers. */
       const num = parseInt(btn.textContent.trim(), 10);
-      const node = plate.nodes[num];
+      const node = (plate.byClimb && plate.byClimb[num]) || plate.nodes[num];
       const wrap = btn.parentElement;
       if (!node || !wrap) return;
       const px = ox + (node.px / 100) * VW * scale;
