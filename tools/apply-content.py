@@ -215,6 +215,45 @@ REPLACEMENTS = [
         'width:40px;height:40px;transform:translate(-50%,-50%);animation:mjPop',
         'width:40px;height:40px;z-index:{{ s.zIdx }};transform:translate(-50%,-50%);animation:mjPop',
     ),
+    # --- moving between stories ------------------------------------------
+    # A second pair of arrows at the top of the reader, so the next story is
+    # reachable without reading to the end of this one. They sit above the
+    # tags, as the first thing in the panel's body.
+    (
+        '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">\n'
+        '          <sc-for list="{{ open.tags }}"',
+        '<div style="display:flex;gap:8px;margin-bottom:18px">\n'
+        '          <sc-if value="{{ hasPrev }}" hint-placeholder-val="{{ false }}">\n'
+        '            <button sc-camel-on-click="{{ goPrev }}" aria-label="Previous story" '
+        'style="__ARROW__" style-hover="__HOVER__">\u2190</button>\n'
+        '          </sc-if>\n'
+        '          <sc-if value="{{ hasNext }}" hint-placeholder-val="{{ true }}">\n'
+        '            <button sc-camel-on-click="{{ goNext }}" aria-label="Next story" '
+        'style="__ARROW__" style-hover="__HOVER__">\u2192</button>\n'
+        '          </sc-if>\n'
+        '        </div>\n'
+        '        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">\n'
+        '          <sc-for list="{{ open.tags }}"',
+    ),
+    # Both pairs are arrows alone. Carrying the neighbouring story's title made
+    # the buttons wide and uneven, and repeated a title the reader is about to
+    # see anyway.
+    (
+        'style="cursor:pointer;font:500 13px Jost,sans-serif;color:#0067b2;'
+        'background:transparent;border:1.5px solid #0067b2;border-radius:999px;'
+        'padding:10px 20px" style-hover="background:#0067b2;color:#fff">'
+        '\u2190 {{ prevTitle }}</button>',
+        'aria-label="Previous story" style="__ARROW__" '
+        'style-hover="__HOVER__">\u2190</button>',
+    ),
+    (
+        'style="cursor:pointer;margin-left:auto;font:500 13px Jost,sans-serif;color:#0067b2;'
+        'background:transparent;border:1.5px solid #0067b2;border-radius:999px;'
+        'padding:10px 20px" style-hover="background:#0067b2;color:#fff">'
+        '{{ nextTitle }} \u2192</button>',
+        'aria-label="Next story" style="margin-left:auto;__ARROW__" '
+        'style-hover="__HOVER__">\u2192</button>',
+    ),
     # author byline: "Name, Institution", standard across all stories
     (
         ">A. Author &amp; B. Author — Placeholder Institution<",
@@ -838,6 +877,16 @@ def asset(name: str) -> str:
         import hashlib
         tag = "?v=" + hashlib.sha1(f.read_bytes()).hexdigest()[:10]
     return f'<script src="{name}{tag}"></script>'
+
+
+ARROW_STYLE = "cursor:pointer;width:38px;height:38px;border-radius:50%;border:1.5px solid var(--mri-accent);background:transparent;font:400 16px Jost,sans-serif;color:var(--mri-accent);display:flex;align-items:center;justify-content:center;padding:0"
+ARROW_HOVER = "background:var(--mri-accent);color:var(--mri-panel)"
+
+REPLACEMENTS = [
+    (o.replace('__ARROW__', ARROW_STYLE).replace('__HOVER__', ARROW_HOVER),
+     n.replace('__ARROW__', ARROW_STYLE).replace('__HOVER__', ARROW_HOVER))
+    for o, n in REPLACEMENTS
+]
 
 
 def restyle_ui(doc: str, rules=UI_RESTYLE) -> str:
