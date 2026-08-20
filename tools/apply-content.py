@@ -298,17 +298,17 @@ REPLACEMENTS = [
     ),
     (
         "markerColor: mc,",
-        "markerColor: _hi ? '#0067b2' : (_dim ? '#e2e2da' : '#15150f'),\n"
+        "markerColor: _hi ? mc : (_dim ? '#e2e2da' : '#15150f'),\n"
         "        zIdx: hoverId === s.id ? 60 : 1,",
     ),
     (
         "dotColor: hoverId === s.id ? '#ffffff' : '#3a3630'",
         "dotColor: hoverId === s.id ? '#ffffff'\n"
-        "          : (_hi ? '#0067b2' : (_dim ? '#b3b3aa' : '#15150f'))",
+        "          : (_hi ? '#0B2740' : (_dim ? '#b3b3aa' : '#15150f'))",
     ),
     (
         "dotBg: hoverId === s.id ? mc : '#fbf9f2'",
-        "dotBg: hoverId === s.id ? (_hi ? '#0067b2' : '#15150f') : '#ffffff'",
+        "dotBg: hoverId === s.id ? (_hi ? mc : '#15150f') : (_hi ? mc : '#ffffff')",
     ),
     # the prompt overlay covered a mountain that is now always populated
     ("showPrompt: !activeTag,", "showPrompt: false,"),

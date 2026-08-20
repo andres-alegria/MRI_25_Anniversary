@@ -46,16 +46,16 @@ const TAG_VOCABULARY = [
 const TAG_COLORS = {
   'Glaciers & Ice':    '#6d9fb5',
   'Snow & Permafrost': '#8fb2c4',
-  'Water':             '#33698f',
-  'Climate':           '#b45a38',
-  'Hazards':           '#a8453e',
-  'Ecosystems':        '#5f8a4e',
-  'Land Use':          '#7d6b45',
-  'Livelihoods':       '#b08a3e',
-  'Culture':           '#7a6a94',
-  'Governance':        '#55707d',
-  'Equity':            '#9c4f6d',
-  'Knowledge':         '#6a7f5c'
+  'Water':             '#7096b1',
+  'Climate':           '#c68268',
+  'Hazards':           '#c4817c',
+  'Ecosystems':        '#799d6a',
+  'Land Use':          '#9f9175',
+  'Livelihoods':       '#b28c42',
+  'Culture':           '#9a8eae',
+  'Governance':        '#81959f',
+  'Equity':            '#ba8499',
+  'Knowledge':         '#859679'
 };
 
 /* Shown in place of the body for stories not yet drafted. Adjust wording here. */
