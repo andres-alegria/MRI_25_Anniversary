@@ -80,14 +80,43 @@ const MRI = {
   grey: "#6E7275", greyLight: "#C8CACB"
 };
 
-/* The climb is one gradient: colour is interpolated continuously with height. */
-const PALETTE_STOPS = [
-  { elev: 0,    ink: "#05192A", inkSoft: "#0A2740", haze: "#124B75", accent: MRI.green,  accent2: MRI.teal,   text: "#DAE7F0" },
-  { elev: 1400, ink: "#062136", inkSoft: "#0C3052", haze: "#155C90", accent: MRI.teal,   accent2: MRI.blue60, text: "#DEEAF3" },
-  { elev: 2800, ink: "#082B45", inkSoft: "#0F3E65", haze: MRI.blue,   accent: MRI.blue60, accent2: "#8CC4E9",  text: "#E3EEF7" },
-  { elev: 4100, ink: "#0A3757", inkSoft: "#12507E", haze: MRI.blue80, accent: "#9CCBEA",  accent2: MRI.blue30, text: "#EAF3FA" },
-  { elev: 5200, ink: "#0C4370", inkSoft: "#175E96", haze: "#6FB4E2", accent: MRI.blue30, accent2: "#FFFFFF",  text: "#F2F8FC" }
-];
+/* The climb is one gradient: colour is interpolated continuously with height.
+
+   Two sets. Every colour in the drawing is derived from five roles, so a
+   theme only has to re-pitch those and the whole plate follows:
+
+     ink      the massif's structural dark — what belts are darkened toward
+     haze     the atmosphere; distance is a mix toward this, and so is the sky
+     accent   vegetation
+     accent2  ice and water
+     text     the drawn things that sit ON the terrain — buildings, cloud,
+              and the light side of scree
+
+   In daylight these are not the dark values lightened: `ink` has to stay a
+   true mid-tone or the mountain becomes a black wall against a white sky, and
+   `text` inverts outright, because buildings read dark on a pale ground and
+   light on a dark one. */
+const PALETTES = {
+  dark: [
+    { elev: 0,    ink: "#05192A", inkSoft: "#0A2740", haze: "#124B75", accent: MRI.green,  accent2: MRI.teal,   text: "#DAE7F0" },
+    { elev: 1400, ink: "#062136", inkSoft: "#0C3052", haze: "#155C90", accent: MRI.teal,   accent2: MRI.blue60, text: "#DEEAF3" },
+    { elev: 2800, ink: "#082B45", inkSoft: "#0F3E65", haze: MRI.blue,   accent: MRI.blue60, accent2: "#8CC4E9",  text: "#E3EEF7" },
+    { elev: 4100, ink: "#0A3757", inkSoft: "#12507E", haze: MRI.blue80, accent: "#9CCBEA",  accent2: MRI.blue30, text: "#EAF3FA" },
+    { elev: 5200, ink: "#0C4370", inkSoft: "#175E96", haze: "#6FB4E2", accent: MRI.blue30, accent2: "#FFFFFF",  text: "#F2F8FC" }
+  ],
+  light: [
+    { elev: 0,    sky: "#E4F0F8", ink: "#3F5260", inkSoft: "#E7EEF3", haze: "#DDEBF4", accent: "#4E8B4A", accent2: "#6FA9CE", text: "#22333F" },
+    { elev: 1400, sky: "#CFE4F3", ink: "#46596A", inkSoft: "#EAF1F5", haze: "#E3F0F8", accent: "#5F9A57", accent2: "#83BADB", text: "#2A3E4C" },
+    { elev: 2800, sky: "#B4D6EC", ink: "#4E6474", inkSoft: "#EDF4F8", haze: "#E9F4FA", accent: "#86B184", accent2: "#9ECDE8", text: "#33495A" },
+    { elev: 4100, sky: "#98C5E5", ink: "#57707F", inkSoft: "#F2F7FA", haze: "#F0F8FC", accent: "#A9C8DC", accent2: "#C4E0F0", text: "#3A5265" },
+    { elev: 5200, sky: "#7FB3DA", ink: "#62808F", inkSoft: "#F7FBFD", haze: "#F6FBFE", accent: "#C6DCEB", accent2: "#FFFFFF", text: "#425B70" }
+  ]
+};
+
+/* Which one the plate is drawn in. `window.MRI_THEME` lets it be set before
+   plate.js runs; nothing else reads this yet. */
+const THEME = (typeof window !== 'undefined' && window.MRI_THEME) || 'dark';
+const PALETTE_STOPS = PALETTES[THEME] || PALETTES.dark;
 
 /* the altitude belts, each with its own texture — adjust the bands here */
 const BELTS = [
@@ -101,6 +130,16 @@ const BELTS = [
 
 /* the inversion layer that hangs on the face */
 const CLOUD_SEA = { lo: 1750, hi: 2150 };
+
+/* The sky. By default it is derived from the massif's own colours, which is
+   what gives the dark plate its coherence. In daylight that derivation fails:
+   `ink` has to stay mid-dark or the mountain vanishes against the page, and a
+   sky made mostly of `ink` comes out grey. So a stop may name its own sky and
+   the derivation is only a fallback — the dark palette names none, and is
+   drawn exactly as before. */
+function skyOf(st) {
+  return st.sky || MIX(st.ink, st.haze, 0.42);
+}
 
 function paletteAt(elev) {
   const st = PALETTE_STOPS;
@@ -753,7 +792,7 @@ function generateMountainPlate(seedKey) {
   svg += `<defs>
     <linearGradient id="sky-${uid}" x1="0" y1="0" x2="0" y2="1">
       ${PALETTE_STOPS.slice().reverse().map((st) =>
-        `<stop offset="${((plateY(st.elev)) / H * 100).toFixed(1)}%" stop-color="${MIX(st.ink, st.haze, .42)}"/>`).join("")}
+        `<stop offset="${((plateY(st.elev)) / H * 100).toFixed(1)}%" stop-color="${skyOf(st)}"/>`).join("")}
       <stop offset="100%" stop-color="${MIX(paletteAt(0).haze, paletteAt(0).accent, .30)}"/>
     </linearGradient>
     <linearGradient id="mist-${uid}" x1="0" y1="0" x2="0" y2="1">
