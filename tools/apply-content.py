@@ -432,167 +432,15 @@ REPLACEMENTS = [
     ("num: s.num,", "num: s.num,\n        numLabel: String(s.num).padStart(2, '0'),"),
 ]
 
-# --- 2b. taller frame, five peaks, one plateau -----------------------------
-# The frame goes from 2:1 to 16:9. The viewBox grows 600 -> 675 while the
-# summit stays at y=80, so one viewBox unit still renders at the same size:
-# the sky band is untouched and the mountain simply gets taller. Every y below
-# the summit was scaled by (675-80)/(600-80).
-#
-# The old leftmost peak (x=170) is gone — the slope now climbs smoothly from
-# the left edge — leaving five peaks.
-TERRAIN = """<rect x="0" y="0" width="1200" height="446" fill="url(#mjSky)" filter="url(#mjWatercolorSoft)"></rect>
-          <ellipse cx="300" cy="400" rx="240" ry="20" fill="#eef2ea" opacity="0.7" filter="url(#mjWatercolorSoft)"></ellipse>
-          <ellipse cx="950" cy="373" rx="220" ry="18" fill="#eef2ea" opacity="0.6" filter="url(#mjWatercolorSoft)"></ellipse>
-          <g>
-            <polygon points="0,465 80,418 160,391 250,354 330,373 420,336 500,354 580,318 660,282 740,300 810,263 900,245 980,272 1060,290 1140,309 1200,336 1200,675 0,675" fill="#ede6d5" filter="url(#mjWatercolorSoft)"></polygon>
-            <polygon points="0,512 110,490 230,444 330,391 400,410 470,327 520,368 600,282 650,322 720,354 790,282 820,208 870,80 910,181 940,218 1000,282 1040,318 1100,272 1200,354 1200,675 0,675" fill="#e7e0cd" stroke="#3a3630" stroke-width="1.5" filter="url(#mjWatercolorSoft)"></polygon>
-            <rect x="0" y="364" width="1200" height="311" fill="url(#mjGreenFade)" clip-path="url(#mjMountainClip)" filter="url(#mjWatercolor)"></rect>
-            <rect x="0" y="80" width="1200" height="274" fill="url(#mjIceFade)" clip-path="url(#mjMountainClip)" filter="url(#mjWatercolor)"></rect>
-            <polygon points="820,208 870,80 910,181 940,218 918,210 895,240 872,222 848,246 826,225" fill="#fbf9f2" stroke="#3a3630" stroke-width="1.5" filter="url(#mjWatercolorSoft)"></polygon>
-            <polygon points="870,80 910,181 890,176 875,117" fill="#c9d3d6" opacity="0.55" filter="url(#mjWatercolorSoft)"></polygon>
-            <polygon points="1078,295 1100,272 1126,298 1112,290 1099,305 1087,291" fill="#fbf9f2" stroke="#3a3630" stroke-width="1" filter="url(#mjWatercolorSoft)"></polygon>
-            <polygon points="582,302 600,282 620,302 610,297 600,309 591,296" fill="#fbf9f2" stroke="#3a3630" stroke-width="1" filter="url(#mjWatercolorSoft)"></polygon>
-          </g>"""
-
-TERRAIN_RE = re.compile(
-    r'<rect x="0" y="0" width="1200" height="480".*?\n          </g>', re.S
+# --- 2b. the mountain host --------------------------------------------------
+# The export draws its own mountain into this <svg>. We do not use it: plate.js
+# generates the artwork at runtime, in the right theme and the right layout.
+# The host is therefore emptied at build time rather than drawn over, so the
+# file does not carry an artwork nobody sees and no reader can ever be shown
+# the wrong mountain if the script fails to run.
+MOUNTAIN_HOST_RE = re.compile(
+    r'<svg sc-camel-view-box="0 0 1200 600".*?</svg>', re.S
 )
-
-# The clip path has to follow the new ridge, and the gradients have to be
-# restretched over the taller frame.
-DEFS_FIXES = [
-    ('<polygon points="0,540 90,505 170,470 240,485 330,420 400,440 470,350 520,395 '
-     '600,300 650,345 720,380 790,300 820,220 870,80 910,190 940,230 1000,300 '
-     '1040,340 1100,290 1200,380 1200,600 0,600"></polygon>',
-     '<polygon points="0,512 110,490 230,444 330,391 400,410 470,327 520,368 600,282 '
-     '650,322 720,354 790,282 820,208 870,80 910,181 940,218 1000,282 '
-     '1040,318 1100,272 1200,354 1200,675 0,675"></polygon>'),
-    ('x1="0" y1="390" x2="0" y2="530"', 'x1="0" y1="364" x2="0" y2="492"'),
-    ('x1="0" y1="0" x2="0" y2="480"', 'x1="0" y1="0" x2="0" y2="446"'),
-    ('x1="0" y1="80" x2="0" y2="380"', 'x1="0" y1="80" x2="0" y2="354"'),
-    ('sc-camel-view-box="0 0 1200 600"', 'sc-camel-view-box="0 0 1200 675"'),
-]
-
-
-# --- 3. scenery: a river and a town painted into the mountain -------------
-# The bundled SVG passes camelCase attributes through as sc-camel-* , so any
-# new SVG has to follow that convention (gradientUnits -> sc-camel-gradient-units).
-# The icons are drawn in a 160x140 space and placed with translate()/scale(),
-# so the filters below use a displacement tuned for that size rather than the
-# scene-sized one used by the mountain itself.
-SCENERY_DEFS = """
-            <filter id="mjIco" x="-12%" y="-12%" width="124%" height="124%">
-              <feTurbulence type="fractalNoise" sc-camel-base-frequency="0.055" sc-camel-num-octaves="4" seed="7" result="ni"></feTurbulence>
-              <feColorMatrix in="ni" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.9 0.45" result="ai"></feColorMatrix>
-              <feComposite in="SourceGraphic" in2="ai" operator="in" result="ti"></feComposite>
-              <feDisplacementMap in="ti" in2="ni" scale="3.4"></feDisplacementMap>
-            </filter>
-            <filter id="mjIcoSoft" x="-16%" y="-16%" width="132%" height="132%">
-              <feTurbulence type="fractalNoise" sc-camel-base-frequency="0.04" sc-camel-num-octaves="3" seed="12" result="ni2"></feTurbulence>
-              <feColorMatrix in="ni2" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.9 0.35" result="ai2"></feColorMatrix>
-              <feComposite in="SourceGraphic" in2="ai2" operator="in" result="ti2"></feComposite>
-              <feDisplacementMap in="ti2" in2="ni2" scale="2.2"></feDisplacementMap>
-            </filter>
-            <linearGradient id="mjIcoTown" sc-camel-gradient-units="userSpaceOnUse" x1="0" y1="52" x2="0" y2="128">
-              <stop offset="0" stop-color="#b08a3e" stop-opacity="0"></stop>
-              <stop offset="1" stop-color="#b08a3e" stop-opacity="0.30"></stop>
-            </linearGradient>
-            <linearGradient id="mjIcoRiver" sc-camel-gradient-units="userSpaceOnUse" x1="0" y1="16" x2="0" y2="140">
-              <stop offset="0" stop-color="#9fc0d2" stop-opacity="0.55"></stop>
-              <stop offset="1" stop-color="#33698f" stop-opacity="0.78"></stop>
-            </linearGradient>
-"""
-
-# translate() sets where each icon sits in the 1200x600 scene; scale() sets how
-# big it reads. Both are safe to nudge — the story markers are HTML drawn on
-# top, so moving these cannot disturb them.
-SCENERY = """
-          <!-- town on the lower slopes, below the first peak (x=330) -->
-          <g transform="translate(285,416) scale(0.56)">
-            <ellipse cx="80" cy="122" rx="66" ry="9" fill="#eef2ea" opacity="0.85" filter="url(#mjIcoSoft)"></ellipse>
-            <g filter="url(#mjIcoSoft)">
-              <polygon points="18,120 18,78 34,68 50,78 50,120" fill="#ede6d5"></polygon>
-              <polygon points="104,120 104,62 120,52 136,62 136,120" fill="#ede6d5"></polygon>
-              <rect x="62" y="58" width="16" height="62" fill="#ede6d5"></rect>
-            </g>
-            <g filter="url(#mjIco)" stroke="#3a3630" stroke-width="1.5" stroke-linejoin="round">
-              <rect x="30" y="86" width="26" height="34" fill="#e7e0cd"></rect>
-              <polygon points="52,86 52,54 68,44 84,54 84,86" fill="#fbf9f2"></polygon>
-              <rect x="84" y="72" width="24" height="48" fill="#e7e0cd"></rect>
-              <polygon points="106,72 106,58 118,50 130,58 130,120 106,120" fill="#fbf9f2"></polygon>
-            </g>
-            <g fill="#c9d3d6" opacity="0.9" filter="url(#mjIcoSoft)">
-              <rect x="36" y="94" width="5" height="7"></rect><rect x="46" y="94" width="5" height="7"></rect>
-              <rect x="36" y="106" width="5" height="7"></rect>
-              <rect x="60" y="64" width="5" height="7"></rect><rect x="71" y="64" width="5" height="7"></rect>
-              <rect x="60" y="76" width="5" height="7"></rect><rect x="71" y="76" width="5" height="7"></rect>
-              <rect x="90" y="82" width="5" height="7"></rect><rect x="100" y="82" width="5" height="7"></rect>
-              <rect x="90" y="98" width="5" height="7"></rect>
-              <rect x="113" y="70" width="5" height="7"></rect><rect x="113" y="86" width="5" height="7"></rect>
-            </g>
-            <rect x="14" y="52" width="132" height="70" fill="url(#mjIcoTown)" filter="url(#mjIco)"></rect>
-            <path d="M12 120 H148" stroke="#3a3630" stroke-width="1.5" fill="none" stroke-linecap="round" filter="url(#mjIcoSoft)"></path>
-          </g>
-
-          <!-- distant town, high on the right-hand slope.
-               Smaller and without window marks: at this size they would only
-               read as mud, and dropping them reads as aerial perspective. -->
-          <g transform="translate(940,309) scale(0.46)">
-            <ellipse cx="80" cy="122" rx="60" ry="8" fill="#eef2ea" opacity="0.7" filter="url(#mjIcoSoft)"></ellipse>
-            <g filter="url(#mjIcoSoft)">
-              <polygon points="18,120 18,78 34,68 50,78 50,120" fill="#ede6d5"></polygon>
-              <polygon points="104,120 104,62 120,52 136,62 136,120" fill="#ede6d5"></polygon>
-            </g>
-            <g filter="url(#mjIco)" stroke="#3a3630" stroke-width="2" stroke-linejoin="round">
-              <rect x="30" y="86" width="26" height="34" fill="#e7e0cd"></rect>
-              <polygon points="52,86 52,54 68,44 84,54 84,86" fill="#fbf9f2"></polygon>
-              <rect x="84" y="72" width="24" height="48" fill="#e7e0cd"></rect>
-              <polygon points="106,72 106,58 118,50 130,58 130,120 106,120" fill="#fbf9f2"></polygon>
-            </g>
-            <rect x="14" y="52" width="132" height="70" fill="url(#mjIcoTown)" filter="url(#mjIco)"></rect>
-            <path d="M12 120 H148" stroke="#3a3630" stroke-width="2" fill="none" stroke-linecap="round" filter="url(#mjIcoSoft)"></path>
-          </g>
-
-          <!-- river, centre of the scene.
-               Its source (local 73,6) is placed on the valley notch at scene
-               520,440 — the low point between the peak at x=470 and the
-               plateau — so the water reads as issuing from that valley. Both
-               banks converge on that single point rather than meeting a flat
-               top edge, which is what gives the channel its recession. -->
-          <g transform="translate(424,360) scale(1.31)">
-            <path d="M73 6
-                     C 73 17, 75 29, 75 40 C 75 52, 54 63, 54 75
-                     C 54 87, 73 98, 73 110 C 73 122, 44 133, 44 145
-                     C 44 157, 69 168, 69 180 C 69 192, 43 203, 43 215
-                     C 43 225, 63 235, 63 245
-                     L 121 245
-                     C 121 235, 88 225, 88 215 C 88 203, 103 192, 103 180
-                     C 103 168, 72 157, 72 145 C 72 133, 95 122, 95 110
-                     C 95 98, 70 87, 70 75 C 70 63, 85 52, 85 40
-                     C 85 29, 73 17, 73 6 Z"
-                  fill="url(#mjIcoRiver)" stroke="#3a3630" stroke-width="1.5" stroke-linejoin="round" filter="url(#mjIco)"></path>
-            <path d="M76 26 C 76 42, 58 56, 58 76 C 58 94, 75 100, 75 112 C 75 126, 48 136, 48 146"
-                  fill="none" stroke="#fbf9f2" stroke-width="2" opacity="0.45" stroke-linecap="round" filter="url(#mjIcoSoft)"></path>
-            <!-- gravel bars on the inside of each bend -->
-            <g fill="#ede6d5" opacity="0.9" filter="url(#mjIcoSoft)">
-              <ellipse cx="59" cy="78" rx="5" ry="3" transform="rotate(18 59 78)"></ellipse>
-              <ellipse cx="90" cy="112" rx="6" ry="3.2" transform="rotate(-18 90 112)"></ellipse>
-              <ellipse cx="51" cy="147" rx="7" ry="3.6" transform="rotate(16 51 147)"></ellipse>
-              <ellipse cx="53" cy="216" rx="8" ry="4" transform="rotate(14 53 216)"></ellipse>
-            </g>
-          </g>
-"""
-
-
-# --- 5. interface register: neutral ground, contemporary sans ------------
-# The illustration keeps its warm, hand-made character; everything around it
-# becomes quiet and precise, so the contrast between the two carries the
-# identity. Adjust the palette here.
-#
-# These replacements are applied ONLY outside the mountain <svg>: several
-# colours (e.g. #fbf9f2 is snow inside the artwork and a card background
-# outside it) mean different things in the two contexts.
-MOUNTAIN_SVG_RE = re.compile(r'<svg sc-camel-view-box="0 0 1200 675".*?</svg>', re.S)
 
 UI_RESTYLE = [
     # typography — Jost is Futura-derived and reads period; Inter is neutral
@@ -893,15 +741,14 @@ REPLACEMENTS = [
 
 
 def restyle_ui(doc: str, rules=UI_RESTYLE) -> str:
-    """Apply an interface restyle everywhere except inside the mountain SVG."""
-    m = MOUNTAIN_SVG_RE.search(doc)
-    if not m:
-        sys.exit("Could not isolate the mountain SVG; refusing to restyle.")
-    head, art, tail = doc[:m.start()], m.group(0), doc[m.end():]
+    """Apply an interface restyle to the page.
+
+    This used to skip the mountain SVG, because several colours meant one
+    thing inside the artwork and another outside it. The host ships empty now
+    and the artwork is generated at runtime, so there is nothing to protect."""
     for old, new in rules:
-        head = head.replace(old, new)
-        tail = tail.replace(old, new)
-    return head + art + tail
+        doc = doc.replace(old, new)
+    return doc
 
 
 def patch_template(doc: str) -> str:
@@ -932,32 +779,28 @@ def patch_template(doc: str) -> str:
     if n != 1:
         sys.exit("Could not find the pull-quote block.")
 
-    # taller frame: new ridge, restretched gradients, new clip path
-    doc, n = TERRAIN_RE.subn(lambda m: TERRAIN, doc, count=1)
+    # The mountain host is shipped EMPTY. The artwork is generated by plate.js
+    # at runtime, and until this the export still carried the old five-peak
+    # watercolour underneath it — invisible, immediately overwritten, and the
+    # wrong mountain to fall back on if the script ever failed to run. The tag
+    # is marked so plate.js can find it by role rather than by a viewBox that
+    # no longer describes anything.
+    doc, n = MOUNTAIN_HOST_RE.subn(
+        '<svg data-mri-plate="" sc-camel-preserve-aspect-ratio="xMidYMid slice" '
+        'style="position:absolute;inset:0;width:100%;height:100%;display:block">'
+        '</svg>', doc, count=1)
     if n != 1:
-        sys.exit("Could not find the terrain block.")
-    for old, new in DEFS_FIXES:
-        if doc.count(old) != 1:
-            sys.exit(f"Expected one of:\n  {old[:70]}...\nfound {doc.count(old)}")
-        doc = doc.replace(old, new, 1)
+        sys.exit("Could not find the mountain <svg> to empty.")
 
-    # the altitude axis down the right-hand side of the map
+    # The altitude axis down the right-hand side. It is drawn in HTML beside
+    # the plate rather than inside it, so emptying the host does not remove it
+    # — and its readings came from the export's own invented elevations.
     scale_re = re.compile(
         r'\s*<sc-if value="\{\{ showScale \}\}".*?</sc-if>', re.S
     )
     doc, n = scale_re.subn("", doc, count=1)
     if n != 1:
         sys.exit("Could not find the elevation scale block.")
-
-    # scenery: filters/gradients into the mountain's <defs>, artwork before </svg>
-    if doc.count("</defs>") != 1:
-        sys.exit(f"Expected one </defs>, found {doc.count('</defs>')}")
-    doc = doc.replace("</defs>", SCENERY_DEFS + "          </defs>", 1)
-
-    svg_end = "          </g>\n\n        </svg>"
-    if doc.count(svg_end) != 1:
-        sys.exit(f"Expected one mountain <svg> tail, found {doc.count(svg_end)}")
-    doc = doc.replace(svg_end, "          </g>\n" + SCENERY + "\n        </svg>", 1)
 
     # the figures section, ahead of "About the Publication"
     about = "<!-- ============ ABOUT"
