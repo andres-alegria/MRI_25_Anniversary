@@ -777,6 +777,17 @@ __THEMES__
     /* on a phone the label would crowd the logo; the icon carries it */
     #mri-theme { top: 10px; right: 10px; padding: 8px; gap: 0; }
     #mri-theme .mri-theme-label { display: none; }
+
+    /* The logo hangs below the header by design — but that is a desktop
+       gesture. On a phone the header is short and the filter chips sit
+       directly under it, so the overhang lands on top of them. Here the mark
+       is smaller and sits inside its bar. The declarations carry !important
+       because the size and the negative margin are inline on the element. */
+    header img {
+      height: 62px !important;
+      margin: 0 !important;
+      box-shadow: none !important;
+    }
   }
 </style>"""
 
