@@ -832,6 +832,59 @@ def patch_template(doc: str) -> str:
     return doc
 
 
+# --- 7. the bundler's own splash -------------------------------------------
+# The export ships a full-screen holding screen that shows while the page
+# unpacks: a cream background and a little drawn mountain. That mountain was
+# from the original artwork, and on reload it flashed and vanished a beat
+# before the real one arrived — two mountains in a second.
+#
+# These act on the OUTER document rather than the bundled template, so they
+# run separately from the replacements above.
+
+SPLASH_FIXES = [
+    # the icon goes; the cover stays, so there is no flash of bare page
+    (
+        '<div id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" '
+        'viewBox="0 0 100 100"><rect width="100" height="100" fill="#d7e5ee"></rect>'
+        '<polygon points="15,72 30,50 42,25 50,12 58,25 65,40 72,50 85,72" '
+        'fill="#e7e0cd" stroke="#3a3630" stroke-width="1.2"></polygon>'
+        '<polygon points="42,25 50,12 58,25 53,32 47,32" fill="#fbf9f2" '
+        'stroke="#3a3630" stroke-width="1"></polygon></svg></div>',
+        '<div id="__bundler_thumbnail"></div>',
+    ),
+    # and the holding screen takes the page's own ground, so the page does not
+    # open on a bright cream rectangle before turning dark
+    (
+        'body { background: #faf9f5;',
+        'body { background: ' + BRAND['ink'] + ';',
+    ),
+    (
+        '#__bundler_thumbnail { position: fixed; inset: 0; width: 100%; '
+        'height: 100%; display: flex; align-items: center; justify-content: '
+        'center; background: #faf9f5; z-index: 9999; }',
+        '#__bundler_thumbnail { position: fixed; inset: 0; width: 100%; '
+        'height: 100%; background: ' + BRAND['ink'] + '; z-index: 9999; }',
+    ),
+    # the "Unpacking..." pill, restyled to sit on that ground rather than
+    # glare off it
+    (
+        'color: #666; background: #fff;',
+        'color: ' + BRAND['text_dim'] + '; background: ' + BRAND['ink_soft'] + ';',
+    ),
+]
+
+
+def fix_splash(html: str) -> str:
+    """Quiet the bundler's holding screen. Missing pieces are not fatal: a
+    future export may word them differently, and the page still works."""
+    for old, new in SPLASH_FIXES:
+        if old in html:
+            html = html.replace(old, new, 1)
+        else:
+            print(f"  note: splash fragment not found, skipped: {old[:44]}...")
+    return html
+
+
 def main() -> int:
     html = INDEX.read_text(encoding="utf-8")
     m = TEMPLATE_RE.search(html)
@@ -847,10 +900,9 @@ def main() -> int:
     # "</script>" inside the string would close the surrounding <script> tag
     enc = enc.replace("</", "<\\u002F")
 
-    INDEX.write_text(
-        html[: m.start(2)] + "\n" + enc + "\n" + html[m.end(2):],
-        encoding="utf-8",
-    )
+    out = html[: m.start(2)] + "\n" + enc + "\n" + html[m.end(2):]
+    out = fix_splash(out)
+    INDEX.write_text(out, encoding="utf-8")
     print("Wired stories-data.js into index.html.")
     return 0
 
