@@ -65,7 +65,7 @@ const MIN_ELEV_GAP = 95;
    the nival line (4550) so the top of the path is plainly in the cryosphere,
    and `lo` sits down on the cultivated plain so it starts well below the
    treeline. Widen or narrow this to spread or gather the numbers. */
-const PATH_SPAN = { lo: 430, hi: 4880 };
+const PATH_SPAN = { lo: 320, hi: 4880 };
 
 /* Individual nudges, in plate units, keyed by position on the climb. The path
    is drawn as a smooth curve through the nodes, so where it changes direction
@@ -475,11 +475,15 @@ const plateCX = (e) => PLATE.cx + 70 * (e / 5200);
    its channel. The left one runs the length of the face; the right is a
    shorter, slighter stream rising three quarters of the way down. */
 /* How far the drawn line runs past the first and last number, in plate units.
+   `foot` is 0: the line begins exactly at circle 01, so the first number is
+   the start of the climb rather than a stop along it. The summit keeps a short
+   tail so the route carries into the snow instead of ending on a circle.
+
    Fixed lengths rather than a multiple of the gap to the neighbouring node:
    that gap grows towards the summit, so a multiple sent the line straight off
    the top of the mountain. */
 const PATH_TAIL = {
-  foot: 74, summit: 58,
+  foot: 0, summit: 58,
   /* the highest and lowest altitudes the drawn line may reach, and how far
      across the flanks it may run there — the line is held inside all three */
   ceiling: 4960, floor: 240, inset: 0.68

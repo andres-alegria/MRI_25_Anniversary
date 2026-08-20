@@ -319,7 +319,7 @@ REPLACEMENTS = [
     ),
     (
         "'\\u201D. Other stories remain hidden on the mountain.'",
-        "'\\u201D. The rest stay on the mountain, dimmed.'",
+        "'\\u201D.'",
     ),
     # map frame: 2:1 -> 16:9
     ("aspect-ratio:2/1", "aspect-ratio:16/9"),
