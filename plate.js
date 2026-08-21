@@ -129,6 +129,21 @@ function currentTheme() {
 
 let PALETTE_STOPS = PALETTES[currentTheme()] || PALETTES.dark;
 
+/* 'classic' is the flat-vector plate; 'survey' is the scientific-illustration
+   rendering. Set window.MRI_PLATE_STYLE before plate.js loads to choose.
+   window.MRI_SURVEY_DECOR additionally draws the sheet frame, cartouche and
+   the annotated story layer INTO the artwork — used by the offline renderer
+   for print-style plates; the website keeps its own HTML markers. */
+function urlParam(name) {
+  if (typeof location === 'undefined' || !location.search) return null;
+  const m = new RegExp('[?&]' + name + '=([^&]+)').exec(location.search);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+const PLATE_STYLE = urlParam('style') ||
+  (typeof window !== 'undefined' && window.MRI_PLATE_STYLE) || 'classic';
+const SURVEY_DECOR = urlParam('decor') === '1' ||
+  !!(typeof window !== 'undefined' && window.MRI_SURVEY_DECOR);
+
 /* the altitude belts, each with its own texture — adjust the bands here */
 const BELTS = [
   { key: "urban",  label: "SETTLED PLAIN",       lo: 0,    hi: 420  },
@@ -638,6 +653,753 @@ function plateNode(e) {
   return [plateCX(e) + Math.sin(t * Math.PI * 5.0 - 0.15) * plateHW(e) * 0.56, plateY(e)];
 }
 
+
+/* ===========================================================================
+   THE SURVEY RENDERER
+   ---------------------------------------------------------------------------
+   Draws the plate the way the historical glacier surveys were drawn: ink
+   linework on paper, with colour reserved for water, ice and the red of the
+   surveyor's measurements. Everything here is placed individually — trees,
+   hachure strokes, crevasses, moraine stones — with the randomness seeded, so
+   the drawing is identical on every load.
+
+   The palette is the sheet's own and does NOT follow the site theme: this is
+   the "map sheet" model, a paper document that keeps its own light and is
+   framed by whichever interface surrounds it. Adjust the inks here.
+   ======================================================================== */
+const SURVEY = {
+  paper:     '#f2eddf',   // the sheet
+  paperHigh: '#f7f4ea',   // paper toward the top of the sheet
+  ink:       '#3d3a31',   // the drawing ink
+  inkSoft:   '#6b665a',   // secondary linework
+  wash:      '#e7e2cf',   // the massif's base wash
+  washHigh:  '#efece0',   // the wash near the snow
+  stone:     '#b5ab93',   // bare-rock tint
+  sage:      '#a9b08d',   // vegetation tint, kept grey-green like old plates
+  sageDeep:  '#8b9878',
+  ice:       '#eef3f2',   // glacier body
+  iceLine:   '#94b0bc',   // crevasse ink
+  water:     '#5f89a6',   // rivers
+  waterPale: '#cfdfe6',
+  moraine:   '#8a7f68',   // rubble
+  red:       '#a83e35',   // the surveyor's red — traverse, stations, notes
+  hazeFar:   '#dfe0d6',   // the far range
+  hazeNear:  '#d8d4bf'    // the foreground shoulder
+};
+
+/* text destined for SVG markup — ampersands in the belt names and story
+   titles are entity errors in a standalone .svg file */
+function esc(t) {
+  return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/* interpolate x on one flank of any massif at a given y */
+function xAtY(list, y) {
+  for (let i = 1; i < list.length; i++) {
+    const a = list[i - 1], b = list[i];
+    if ((y >= a[1] && y <= b[1]) || (y <= a[1] && y >= b[1])) {
+      const f = b[1] === a[1] ? 0 : (y - a[1]) / (b[1] - a[1]);
+      return a[0] + (b[0] - a[0]) * f;
+    }
+  }
+  return list[list.length - 1][0];
+}
+
+/* Roughen a flank polyline: subdivide and displace perpendicular to the local
+   direction, so the drawn silhouette is a serrated, observed-looking ridge
+   while the LOGICAL flanks (marker placement, path clamps) stay smooth. The
+   displacement is damped near the summit so the apex stays a single point,
+   and its amplitude is far smaller than the path's clearance to the flank. */
+function roughen(pts, seedKey, amp) {
+  const f = makeFbm(hashString(seedKey), 3);
+  const f2 = makeFbm(hashString(seedKey + 'x'), 2);
+  const out = [pts[0].slice()];
+  let t = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, ay] = pts[i - 1], [bx, by] = pts[i];
+    const len = Math.hypot(bx - ax, by - ay) || 1;
+    const n = Math.max(2, Math.round(len / 22));
+    const nx = -(by - ay) / len, ny = (bx - ax) / len;
+    for (let k = 1; k <= n; k++) {
+      const u = k / n; t += len / n;
+      const px = ax + (bx - ax) * u, py = ay + (by - ay) * u;
+      const fromTop = Math.hypot(px - pts[0][0], py - pts[0][1]);
+      const damp = Math.min(1, fromTop / 130);
+      /* two scales: a slow swell and a fine serration */
+      const d = ((f(t * 0.006) - 0.5) * 2 * amp + (f2(t * 0.045) - 0.5) * amp * 0.8) * damp;
+      out.push([px + nx * d, py + ny * d]);
+    }
+  }
+  return out;
+}
+
+function flankPathD(left, right, W, H) {
+  let d = `M ${right[0][0].toFixed(1)} ${right[0][1].toFixed(1)}`;
+  right.forEach(pt => { d += ` L ${pt[0].toFixed(1)} ${pt[1].toFixed(1)}`; });
+  d += ` L ${W + 200} ${H + 60} L ${-200} ${H + 60}`;
+  for (let i = left.length - 1; i >= 0; i--) d += ` L ${left[i][0].toFixed(1)} ${left[i][1].toFixed(1)}`;
+  return d + ' Z';
+}
+
+function renderSurveyPlate(ctx) {
+  const { W, H, rand, mFar, mMain, mNear, flankAt, nodes, pathD } = ctx;
+  const S = SURVEY;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">`;
+
+  /* --- observed silhouettes ---------------------------------------------- */
+  const dispL = roughen(mMain.left, 'main-L', 9);
+  const dispR = roughen(mMain.right, 'main-R', 9);
+  const mainD = flankPathD(dispL, dispR, W, H);
+  const farD  = flankPathD(roughen(mFar.left, 'far-L', 6), roughen(mFar.right, 'far-R', 7), W, H);
+  const nearL = roughen(mNear.left, 'near-L', 7), nearR = roughen(mNear.right, 'near-R', 6);
+  const nearD = flankPathD(nearL, nearR, W, H);
+
+  svg += `<defs>
+    <linearGradient id="sv-wash" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${S.paperHigh}"/>
+      <stop offset="0.18" stop-color="${MIX(S.washHigh, S.stone, 0.18)}"/>
+      <stop offset="0.42" stop-color="${MIX(S.wash, S.stone, 0.12)}"/>
+      <stop offset="0.62" stop-color="${MIX(S.wash, S.sage, 0.30)}"/>
+      <stop offset="0.85" stop-color="${MIX(S.wash, S.sage, 0.44)}"/>
+      <stop offset="1" stop-color="${MIX(S.wash, S.sage, 0.30)}"/>
+    </linearGradient>
+    <linearGradient id="sv-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${MIX(S.paperHigh, '#dfe7e6', 0.55)}"/>
+      <stop offset="1" stop-color="${S.paper}"/>
+    </linearGradient>
+    <clipPath id="sv-main"><path d="${mainD}"/></clipPath>
+    <clipPath id="sv-near"><path d="${nearD}"/></clipPath>
+  </defs>`;
+
+  /* --- the sheet ---------------------------------------------------------- */
+  svg += `<rect width="${W}" height="${H}" fill="${S.paper}"/>`;
+  svg += `<rect width="${W}" height="${plateY(0).toFixed(1)}" fill="url(#sv-sky)" opacity="0.7"/>`;
+
+  /* altitude rules live on the paper; the mountains will occlude them, and
+     dashed tie-stubs re-enter the silhouette afterwards */
+  for (let e = 1000; e <= 5000; e += 1000) {
+    const y = plateY(e).toFixed(1);
+    svg += `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="${S.ink}" stroke-width="0.6" opacity="0.14"/>`;
+  }
+  for (let e = 500; e <= 5000; e += 1000) {
+    const y = plateY(e).toFixed(1);
+    svg += `<line x1="0" y1="${y}" x2="12" y2="${y}" stroke="${S.ink}" stroke-width="0.6" opacity="0.25"/>`;
+    svg += `<line x1="${W - 12}" y1="${y}" x2="${W}" y2="${y}" stroke="${S.ink}" stroke-width="0.6" opacity="0.25"/>`;
+  }
+
+  /* --- a distant range on the horizon ------------------------------------- */
+  {
+    const hf = makeFbm(hashString('horizon'), 3);
+    const base = plateY(650);
+    let d = `M -40 ${H}`;
+    for (let x = -40; x <= W + 40; x += 22) {
+      d += ` L ${x} ${(base - hf(x * 0.004) * 150 - hf(x * 0.03) * 18).toFixed(1)}`;
+    }
+    d += ` L ${W + 40} ${H} Z`;
+    svg += `<path d="${d}" fill="${MIX(S.paper, S.hazeFar, 0.5)}" opacity="0.7"/>`;
+    svg += `<path d="${d}" fill="none" stroke="${S.inkSoft}" stroke-width="0.5" opacity="0.25"/>`;
+  }
+
+  /* --- the far massif ----------------------------------------------------- */
+  svg += `<path d="${farD}" fill="${S.hazeFar}"/>`;
+  svg += `<path d="${farD}" fill="none" stroke="${S.ink}" stroke-width="0.7" opacity="0.5"/>`;
+  {
+    const top = mFar.summit[1], bottom = plateY(300);
+    for (let i = 1; i <= 7; i++) {
+      const y = top + (bottom - top) * (i / 8) + 6;
+      const xl = xAtY(mFar.left, y), xr = xAtY(mFar.right, y);
+      if (xr - xl < 12) continue;
+      /* broken, wandering form lines even on the far peak */
+      for (let x = xl + 6; x < xr - 20; x += 30 + rand() * 30) {
+        const seg = 14 + rand() * 22;
+        svg += `<path d="M ${x.toFixed(1)} ${(y + (rand() - 0.5) * 5).toFixed(1)} q ${(seg / 2).toFixed(1)} ${(1 + rand() * 2).toFixed(1)} ${seg.toFixed(1)} 0" fill="none" stroke="${S.ink}" stroke-width="0.45" opacity="0.10"/>`;
+      }
+    }
+    const capY = top + (bottom - top) * 0.14;
+    const cf = makeFbm(hashString('farcap'), 2);
+    const xl = xAtY(mFar.left, capY), xr = xAtY(mFar.right, capY);
+    let cap = `M ${xl.toFixed(1)} ${capY.toFixed(1)} L ${mFar.summit[0].toFixed(1)} ${top.toFixed(1)} L ${xr.toFixed(1)} ${capY.toFixed(1)}`;
+    for (let i = 12; i >= 0; i--) {
+      const x = xl + (xr - xl) * (i / 12);
+      cap += ` L ${x.toFixed(1)} ${(capY - 3 - cf(x * 0.02) * 22).toFixed(1)}`;
+    }
+    svg += `<path d="${cap} Z" fill="${S.paperHigh}" opacity="0.9"/>`;
+    /* hachures on its shaded eastern face */
+    for (let i = 0; i < 60; i++) {
+      const y = top + rand() * (bottom - top) * 0.55;
+      const xl2 = xAtY(mFar.left, y), xr2 = xAtY(mFar.right, y);
+      if (xr2 - xl2 < 16) continue;
+      const x = xl2 + (xr2 - xl2) * (0.55 + rand() * 0.4);
+      svg += `<line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${(x + 2 + rand() * 3).toFixed(1)}" y2="${(y + 6 + rand() * 9).toFixed(1)}" stroke="${S.ink}" stroke-width="0.45" opacity="${(0.08 + rand() * 0.1).toFixed(2)}"/>`;
+    }
+  }
+
+  /* ======================================================================
+     THE MAIN MASSIF
+     =================================================================== */
+  svg += `<path d="${mainD}" fill="url(#sv-wash)"/>`;
+  svg += `<g clip-path="url(#sv-main)">`;
+
+  const summitX = mMain.summit[0], summitY = mMain.summit[1];
+  const snowE = 4390;
+  const lineNoise = makeFbm(hashString('formlines'), 2);
+  const gapNoise = makeFbm(hashString('gaps'), 2);
+
+  /* --- the ridge-and-gully skeleton: structure before texture ------------- */
+  const gullies = [];
+  for (let g = 0; g < 7; g++) {
+    const gf = makeFbm(hashString('gully' + g), 3);
+    const startE = 5060 - g * 30 - rand() * 120;
+    const endE = 2400 + rand() * 900;
+    const spread = (g - 3) / 3;                    /* -1 .. 1 across the face */
+    const pts = [];
+    for (let e = startE; e > endE; e -= 70) {
+      const t = (startE - e) / (startE - endE);
+      const xl = flankAt(e, -1), xr = flankAt(e, 1);
+      const cx2 = (xl + xr) / 2;
+      const x = cx2 + spread * (xr - xl) * 0.5 * Math.pow(t, 0.8)
+              + (gf(e * 0.003) - 0.5) * 46 * t;
+      pts.push([x, plateY(e), e]);
+    }
+    if (pts.length > 3) gullies.push(pts);
+  }
+  /* shadow: light falls from the upper left, so each gully's eastern side
+     carries a soft tone — two nested translucent strips */
+  gullies.forEach(gu => {
+    [14, 30].forEach((off, oi) => {
+      let d = `M ${gu[0][0].toFixed(1)} ${gu[0][1].toFixed(1)}`;
+      gu.forEach(pt => { d += ` L ${pt[0].toFixed(1)} ${pt[1].toFixed(1)}`; });
+      for (let i = gu.length - 1; i >= 0; i--) {
+        d += ` L ${(gu[i][0] + off * (0.4 + 0.6 * (i / gu.length))).toFixed(1)} ${gu[i][1].toFixed(1)}`;
+      }
+      svg += `<path d="${d} Z" fill="${S.ink}" opacity="${oi ? 0.025 : 0.045}"/>`;
+    });
+    /* the gully line itself */
+    let d = `M ${gu[0][0].toFixed(1)} ${gu[0][1].toFixed(1)}`;
+    gu.forEach(pt => { d += ` L ${(pt[0] + (rand() - 0.5) * 2).toFixed(1)} ${pt[1].toFixed(1)}`; });
+    svg += `<path d="${d}" fill="none" stroke="${S.ink}" stroke-width="0.5" opacity="0.22"/>`;
+  });
+
+  /* --- form lines: undulating, broken, spacing tightening with height ----- */
+  for (let e = 260; e < snowE - 40; e += 70 + (1 - e / 5200) * 110) {
+    const y0 = plateY(e);
+    const xl = flankAt(e, -1), xr = flankAt(e, 1);
+    if (xr - xl < 40) continue;
+    const sag = (xr - xl) * 0.035;
+    const lw = (0.4 + rand() * 0.45).toFixed(2);
+    const lo = (0.06 + rand() * 0.13).toFixed(2);
+    let d = '', drawing = false;
+    for (let x = xl + 6; x < xr - 6; x += 14) {
+      const u = (x - xl) / (xr - xl);
+      const y = y0 + sag * 4 * u * (1 - u) + (lineNoise(x * 0.008 + e * 0.11) - 0.5) * 9;
+      if (gapNoise(x * 0.02 + e * 0.37) < 0.34) { drawing = false; continue; }
+      d += (drawing ? ` L` : ` M`) + ` ${x.toFixed(1)} ${y.toFixed(1)}`;
+      drawing = true;
+    }
+    if (d) svg += `<path d="${d}" fill="none" stroke="${S.ink}" stroke-width="${lw}" opacity="${lo}"/>`;
+  }
+
+  /* --- the glacier: the most worked surface on the sheet ------------------- */
+  const glacier = [];
+  {
+    const gf = makeFbm(hashString('glacier'), 3);
+    for (let e = snowE + 170; e >= 3450; e -= 26) {
+      const t = (snowE + 170 - e) / (snowE + 170 - 3450);
+      const x = plateCX(e) - 26 - t * 150 + (gf(e * 0.002) - 0.5) * 30;
+      let w = 26 + t * 44;
+      if (t > 0.88) w *= (1 - (t - 0.88) / 0.12) * 0.8 + 0.2;
+      glacier.push([x, plateY(e), w, e, t]);
+    }
+    let d = `M ${(glacier[0][0] - glacier[0][2] / 2).toFixed(1)} ${glacier[0][1].toFixed(1)}`;
+    glacier.forEach(g => { d += ` L ${(g[0] - g[2] / 2 + (rand() - 0.5) * 3).toFixed(1)} ${g[1].toFixed(1)}`; });
+    for (let i = glacier.length - 1; i >= 0; i--) {
+      const g = glacier[i]; d += ` L ${(g[0] + g[2] / 2 + (rand() - 0.5) * 3).toFixed(1)} ${g[1].toFixed(1)}`;
+    }
+    svg += `<path d="${d} Z" fill="${MIX(S.ice, '#cfe0e8', 0.45)}"/>`;
+    svg += `<path d="${d} Z" fill="none" stroke="${S.iceLine}" stroke-width="0.6" opacity="0.7"/>`;
+
+    /* transverse crevasse arcs: bowed down-glacier, tighter mid-tongue,
+       fainter at the head, strong at the snout — never touching both edges */
+    glacier.forEach((g, i) => {
+      if (g[2] < 12) return;
+      const steep = (i > glacier.length * 0.35 && i < glacier.length * 0.6);
+      if (!steep && i % 2) return;
+      const inset = g[2] * (0.12 + rand() * 0.1);
+      const x0 = g[0] - g[2] / 2 + inset, x1 = g[0] + g[2] / 2 - inset;
+      const bow = g[2] * (0.14 + rand() * 0.08);
+      svg += `<path d="M ${x0.toFixed(1)} ${(g[1] + (rand() - 0.5) * 3).toFixed(1)} Q ${g[0].toFixed(1)} ${(g[1] + bow).toFixed(1)} ${x1.toFixed(1)} ${(g[1] + (rand() - 0.5) * 3).toFixed(1)}" fill="none" stroke="${S.iceLine}" stroke-width="${(0.4 + g[4] * 0.3).toFixed(2)}" opacity="${(0.3 + g[4] * 0.45).toFixed(2)}"/>`;
+      /* marginal crevasses: short ticks angled up-glacier at the edges */
+      if (i % 3 === 0) {
+        [-1, 1].forEach(sd => {
+          const mx = g[0] + sd * (g[2] / 2 - 3);
+          svg += `<line x1="${mx.toFixed(1)}" y1="${g[1].toFixed(1)}" x2="${(mx - sd * 5).toFixed(1)}" y2="${(g[1] - 5).toFixed(1)}" stroke="${S.iceLine}" stroke-width="0.45" opacity="0.5"/>`;
+        });
+      }
+    });
+    /* medial moraine: a wandering dashed dark line down the lower tongue */
+    {
+      const half = glacier.filter((g, i) => i > glacier.length * 0.42);
+      let d2 = '';
+      half.forEach((g, i) => {
+        d2 += (i ? ' L' : 'M') + ` ${(g[0] + (rand() - 0.5) * 4).toFixed(1)} ${g[1].toFixed(1)}`;
+      });
+      svg += `<path d="${d2}" fill="none" stroke="${S.moraine}" stroke-width="1" stroke-dasharray="2.5 3" opacity="0.65"/>`;
+    }
+    /* lateral moraines */
+    glacier.forEach((g, i) => {
+      if (i < 3 || i % 2) return;
+      [-1, 1].forEach(sd => {
+        svg += `<circle cx="${(g[0] + sd * (g[2] / 2 + 3.5) + (rand() - 0.5) * 2.5).toFixed(1)}" cy="${(g[1] + (rand() - 0.5) * 3).toFixed(1)}" r="${(0.7 + rand() * 0.8).toFixed(2)}" fill="${S.moraine}" opacity="0.55"/>`;
+      });
+    });
+    /* the snout: terminal moraine arcs, rubble, and the meltwater stream */
+    const tm = glacier[glacier.length - 1];
+    for (let a = 0; a < 3; a++) {
+      svg += `<path d="M ${(tm[0] - 18 - a * 5).toFixed(1)} ${(tm[1] + 6 + a * 6).toFixed(1)} q ${18 + a * 5} ${9 + a * 2} ${(18 + a * 5) * 2} 0" fill="none" stroke="${S.moraine}" stroke-width="0.7" opacity="${0.5 - a * 0.12}" stroke-dasharray="1.5 2.5"/>`;
+    }
+    for (let i = 0; i < 26; i++) {
+      svg += `<circle cx="${(tm[0] + (rand() - 0.5) * 56).toFixed(1)}" cy="${(tm[1] + 4 + rand() * 26).toFixed(1)}" r="${(0.6 + rand() * 0.9).toFixed(2)}" fill="${S.moraine}" opacity="${(0.3 + rand() * 0.3).toFixed(2)}"/>`;
+    }
+    const sf2 = makeFbm(hashString('stream'), 3);
+    let sd2 = `M ${tm[0].toFixed(1)} ${tm[1].toFixed(1)}`;
+    for (let e = 3400; e >= 180; e -= 50) {
+      sd2 += ` L ${(tm[0] - (3400 - e) * 0.02 + (sf2(e * 0.003) - 0.5) * 30 * (1 + (3400 - e) / 3200)).toFixed(1)} ${plateY(e).toFixed(1)}`;
+    }
+    svg += `<path d="${sd2}" fill="none" stroke="${S.water}" stroke-width="1.1" opacity="0.8"/>`;
+  }
+  const nearGlacier = (x, y) => glacier.some(g => Math.abs(g[1] - y) < 30 && Math.abs(g[0] - x) < g[2] / 2 + 10);
+
+  /* --- hachures: seeded off the skeleton, following the fall line ---------- */
+  gullies.forEach((gu, gi) => {
+    gu.forEach((pt, i2) => {
+      if (pt[2] < 2600) return;
+      const y = pt[1];
+      const xl = flankAt(pt[2], -1), xr = flankAt(pt[2], 1);
+      const steep = Math.min(1, (pt[2] - 2400) / 2400);
+      /* shaded (east) side dense, lit side sparse */
+      [[1, 3], [-1, 1]].forEach(([sd, count]) => {
+        for (let k = 0; k < count; k++) {
+          const off = sd * (6 + k * 9 + rand() * 6);
+          const x = pt[0] + off;
+          if (x < xl + 8 || x > xr - 8 || nearGlacier(x, y)) continue;
+          if (pt[2] > snowE && rand() < 0.7) continue;
+          const lean = (x - (xl + xr) / 2) * 0.055 + (rand() - 0.5) * 2;
+          const len = (8 + steep * 14) * (0.7 + rand() * 0.6);
+          svg += `<line x1="${x.toFixed(1)}" y1="${(y + (rand() - 0.5) * 20).toFixed(1)}" x2="${(x + lean).toFixed(1)}" y2="${(y + len).toFixed(1)}" stroke="${S.ink}" stroke-width="${(0.4 + steep * 0.35 + rand() * 0.2).toFixed(2)}" opacity="${((sd > 0 ? 0.16 : 0.09) + rand() * 0.12).toFixed(2)}"/>`;
+        }
+      });
+    });
+  });
+  /* free-standing outcrops between the gullies */
+  for (let i = 0; i < 30; i++) {
+    const e = 1600 + rand() * 2500;
+    const y0 = plateY(e);
+    const xl = flankAt(e, -1), xr = flankAt(e, 1);
+    if (xr - xl < 40) continue;
+    const x0 = xl + 10 + rand() * (xr - xl - 20);
+    if (nearGlacier(x0, y0)) continue;
+    let d = `M ${x0.toFixed(1)} ${y0.toFixed(1)}`;
+    let x = x0, y = y0;
+    for (let k = 0; k < 4 + Math.floor(rand() * 5); k++) {
+      x += 2.5 + rand() * 5; y += (rand() - 0.62) * 5;
+      d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
+    }
+    svg += `<path d="${d}" fill="none" stroke="${S.ink}" stroke-width="0.55" opacity="0.3"/>`;
+    for (let k = 0; k < 3; k++) {
+      const hx = x0 + rand() * (x - x0);
+      svg += `<line x1="${hx.toFixed(1)}" y1="${(y0 + 2).toFixed(1)}" x2="${(hx + 1 + rand() * 2).toFixed(1)}" y2="${(y0 + 6 + rand() * 6).toFixed(1)}" stroke="${S.ink}" stroke-width="0.45" opacity="0.18"/>`;
+    }
+  }
+
+  /* --- the permanent snow -------------------------------------------------
+     Drawn as the region above a wandering snowline, clipped to the massif —
+     so the cap's upper edge IS the serrated silhouette, and its lower edge is
+     an uneven line that drops tongues down the gullies. */
+  {
+    const sf = makeFbm(hashString('snowline'), 3);
+    const yS = plateY(snowE);
+    const xl = flankAt(snowE, -1), xr = flankAt(snowE, 1);
+    const linePts = [];
+    for (let x = xl - 60; x <= xr + 60; x += 9) {
+      let y = yS + (sf(x * 0.012) - 0.5) * 44 + (sf(x * 0.05) - 0.5) * 14;
+      /* tongues of snow running down the gullies */
+      gullies.forEach(gu => {
+        gu.forEach(pt => {
+          if (pt[1] < yS - 20 || pt[1] > yS + 130) return;
+          const dx = Math.abs(pt[0] - x);
+          if (dx < 24) y = Math.max(y, yS + (1 - dx / 24) * (40 + (pt[0] * 7 % 41)));
+        });
+      });
+      linePts.push([x, y]);
+    }
+    let d = `M ${linePts[0][0].toFixed(1)} ${linePts[0][1].toFixed(1)}`;
+    linePts.forEach(pt => { d += ` L ${pt[0].toFixed(1)} ${pt[1].toFixed(1)}`; });
+    d += ` L ${(xr + 60).toFixed(1)} -60 L ${(xl - 60).toFixed(1)} -60 Z`;
+    svg += `<path d="${d}" fill="${S.paperHigh}" opacity="0.96"/>`;
+    /* the snowline itself, inked lightly */
+    let ld = `M ${linePts[0][0].toFixed(1)} ${linePts[0][1].toFixed(1)}`;
+    linePts.forEach(pt => { ld += ` L ${pt[0].toFixed(1)} ${pt[1].toFixed(1)}`; });
+    svg += `<path d="${ld}" fill="none" stroke="${S.iceLine}" stroke-width="0.5" opacity="0.45"/>`;
+
+    /* faint hand-traced contour lines inside the snow */
+    for (let e = snowE + 90; e < 5150; e += 95) {
+      const y0 = plateY(e);
+      const l2 = flankAt(e, -1), r2 = flankAt(e, 1);
+      if (r2 - l2 < 26) continue;
+      let dd = '', drawing = false;
+      for (let x = l2 + 5; x < r2 - 5; x += 12) {
+        const y = y0 + (sf(x * 0.02 + e) - 0.5) * 6;
+        if (gapNoise(x * 0.03 + e * 0.7) < 0.3) { drawing = false; continue; }
+        dd += (drawing ? ' L' : ' M') + ` ${x.toFixed(1)} ${y.toFixed(1)}`;
+        drawing = true;
+      }
+      if (dd) svg += `<path d="${dd}" fill="none" stroke="${S.iceLine}" stroke-width="0.45" opacity="0.35"/>`;
+    }
+    /* exposed rock windows above the snowline */
+    for (let i = 0; i < 3; i++) {
+      const e = snowE + 160 + rand() * 380;
+      const l2 = flankAt(e, -1), r2 = flankAt(e, 1);
+      if (r2 - l2 < 40) continue;
+      const x = l2 + (r2 - l2) * (0.2 + rand() * 0.6);
+      for (let k = 0; k < 8; k++) {
+        svg += `<line x1="${(x + (rand() - 0.5) * 16).toFixed(1)}" y1="${(plateY(e) + (rand() - 0.5) * 10).toFixed(1)}" x2="${(x + (rand() - 0.5) * 16 + 2).toFixed(1)}" y2="${(plateY(e) + 8 + rand() * 6).toFixed(1)}" stroke="${S.ink}" stroke-width="0.5" opacity="0.3"/>`;
+      }
+    }
+    /* snow patches below the line, thinning downhill */
+    for (let i = 0; i < 30; i++) {
+      const e = snowE - 40 - Math.pow(rand(), 1.6) * 520;
+      const y = plateY(e);
+      const l2 = flankAt(e, -1), r2 = flankAt(e, 1);
+      if (r2 - l2 < 30) continue;
+      const x = l2 + 10 + rand() * (r2 - l2 - 20);
+      if (nearGlacier(x, y)) continue;
+      const w2 = 7 + rand() * 14;
+      svg += `<path d="M ${(x - w2 / 2).toFixed(1)} ${y.toFixed(1)} Q ${x.toFixed(1)} ${(y - 4 - rand() * 3).toFixed(1)} ${(x + w2 / 2).toFixed(1)} ${y.toFixed(1)} Q ${x.toFixed(1)} ${(y + 2.5).toFixed(1)} ${(x - w2 / 2).toFixed(1)} ${y.toFixed(1)} Z" fill="${S.paperHigh}" stroke="${S.iceLine}" stroke-width="0.35" opacity="0.85"/>`;
+    }
+    svg += `<path d="M ${(summitX - 34).toFixed(1)} ${(summitY + 46).toFixed(1)} q 18 7 40 3" fill="none" stroke="${S.iceLine}" stroke-width="0.8" opacity="0.55"/>`;
+  }
+
+  /* --- forest in stands, with a ragged treeline ---------------------------- */
+  const TREE_INKS = [S.sageDeep, MIX(S.sageDeep, S.ink, 0.35), MIX(S.sageDeep, S.sage, 0.4)];
+  const treeGlyph = (x, y, h, v, inkc) => {
+    if (v === 0)      /* two-tier spruce */
+      return `<path d="M ${x.toFixed(1)} ${(y - h).toFixed(1)} l ${(h * 0.3).toFixed(1)} ${(h * 0.45).toFixed(1)} l ${(-h * 0.14).toFixed(1)} 0 l ${(h * 0.26).toFixed(1)} ${(h * 0.55).toFixed(1)} l ${(-h * 0.84).toFixed(1)} 0 l ${(h * 0.26).toFixed(1)} ${(-h * 0.55).toFixed(1)} l ${(-h * 0.14).toFixed(1)} 0 Z" fill="none" stroke="${inkc}" stroke-width="0.55" opacity="0.8"/>`;
+    if (v === 1)      /* plain conifer */
+      return `<path d="M ${x.toFixed(1)} ${(y - h).toFixed(1)} l ${(h * 0.36).toFixed(1)} ${h.toFixed(1)} h ${(-h * 0.72).toFixed(1)} Z" fill="none" stroke="${inkc}" stroke-width="0.55" opacity="0.75"/>`;
+    return `<g opacity="0.7"><line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${x.toFixed(1)}" y2="${(y - h * 0.5).toFixed(1)}" stroke="${inkc}" stroke-width="0.5"/><circle cx="${x.toFixed(1)}" cy="${(y - h * 0.72).toFixed(1)}" r="${(h * 0.3).toFixed(1)}" fill="none" stroke="${inkc}" stroke-width="0.5"/></g>`;
+  };
+  const tf = makeFbm(hashString('treeline'), 2);
+  const treelineAt = x => 2520 + (tf(x * 0.006) - 0.5) * 300;
+  {
+    /* clump centres, biased toward the lower forest */
+    const clumps = [];
+    for (let i = 0; i < 34; i++) {
+      const e = 600 + Math.pow(rand(), 1.3) * 1900;
+      const xl = flankAt(e, -1), xr = flankAt(e, 1);
+      if (xr - xl < 60) continue;
+      clumps.push({ x: xl + 20 + rand() * (xr - xl - 40), e, n: 6 + Math.floor(rand() * 13) });
+    }
+    clumps.forEach(c => {
+      /* a dark understorey blob beneath the bigger stands */
+      if (c.n > 11) {
+        svg += `<ellipse cx="${c.x.toFixed(1)}" cy="${plateY(c.e).toFixed(1)}" rx="${(c.n * 2.6).toFixed(1)}" ry="${(c.n * 1.1).toFixed(1)}" fill="${S.sageDeep}" opacity="0.10"/>`;
+      }
+      for (let k = 0; k < c.n; k++) {
+        const gx = c.x + (rand() + rand() + rand() - 1.5) * 30;
+        const ge = c.e + (rand() + rand() - 1) * 130;
+        if (ge > treelineAt(gx)) continue;
+        const y = plateY(ge);
+        const xl = flankAt(ge, -1), xr = flankAt(ge, 1);
+        if (gx < xl + 8 || gx > xr - 8 || nearGlacier(gx, y)) continue;
+        const near2 = 1 - Math.min(1, Math.max(0, (treelineAt(gx) - ge)) / 500);
+        const h = (7 + rand() * 6) * (1 - near2 * 0.5);
+        svg += treeGlyph(gx, y + rand() * 12, h, rand() < 0.62 ? (rand() < 0.5 ? 0 : 1) : 2, TREE_INKS[Math.floor(rand() * 3)]);
+      }
+    });
+    /* krummholz: dwarf stragglers above the treeline */
+    for (let i = 0; i < 14; i++) {
+      const x = flankAt(2600, -1) + rand() * (flankAt(2600, 1) - flankAt(2600, -1));
+      const e = treelineAt(x) + rand() * 160;
+      const y = plateY(e);
+      if (nearGlacier(x, y)) continue;
+      svg += treeGlyph(x, y, 3 + rand() * 2.5, 1, TREE_INKS[1]);
+    }
+  }
+  /* alpine meadow ticks */
+  for (let e = 2750; e < 3550; e += 60) {
+    const y = plateY(e);
+    const xl = flankAt(e, -1), xr = flankAt(e, 1);
+    const n = Math.round((xr - xl) / 90);
+    for (let i = 0; i < n; i++) {
+      const x = xl + 10 + rand() * (xr - xl - 20);
+      if (nearGlacier(x, y)) continue;
+      svg += `<path d="M ${x.toFixed(1)} ${(y + rand() * 24).toFixed(1)} l 1.4 -3.4 m 1.2 3.4 l 1.4 -3.0" fill="none" stroke="${S.sageDeep}" stroke-width="0.5" opacity="0.5"/>`;
+    }
+  }
+  /* cultivated terraces */
+  for (let i = 0; i < 22; i++) {
+    const e = 420 + rand() * 800;
+    const side = rand() < 0.55 ? -1 : 1;
+    const y = plateY(e);
+    const x0 = flankAt(e, side) - side * (30 + rand() * 130);
+    const wT = 34 + rand() * 46;
+    for (let k = 0; k < 3 + Math.floor(rand() * 3); k++) {
+      svg += `<line x1="${(x0 - wT / 2).toFixed(1)}" y1="${(y + k * 3.4).toFixed(1)}" x2="${(x0 + wT / 2).toFixed(1)}" y2="${(y + k * 3.4 - side * 1.4).toFixed(1)}" stroke="${S.sageDeep}" stroke-width="0.5" opacity="0.45"/>`;
+    }
+  }
+
+  svg += `</g>`;   /* end main massif clip */
+  svg += `<path d="${mainD}" fill="none" stroke="${S.ink}" stroke-width="1.3" opacity="0.75"/>`;
+
+  /* dashed tie-stubs where the altitude rules meet the silhouette */
+  for (let e = 1000; e <= 5000; e += 1000) {
+    const y = plateY(e).toFixed(1);
+    const xl = flankAt(e, -1), xr = flankAt(e, 1);
+    if (xr - xl < 30) continue;
+    svg += `<line x1="${xl.toFixed(1)}" y1="${y}" x2="${(xl + 18).toFixed(1)}" y2="${y}" stroke="${S.ink}" stroke-width="0.5" stroke-dasharray="2 2.5" opacity="0.35"/>`;
+    svg += `<line x1="${(xr - 18).toFixed(1)}" y1="${y}" x2="${xr.toFixed(1)}" y2="${y}" stroke="${S.ink}" stroke-width="0.5" stroke-dasharray="2 2.5" opacity="0.35"/>`;
+  }
+
+  /* --- rivers: widening, meandering harder as they descend, one tributary -- */
+  RIVERS.forEach((cfg, r) => {
+    const rf = makeFbm(hashString('sv-river-' + r), 3);
+    let x = plateCX(cfg.source) + (r ? 22 : -22) + (cfg.offset || 0);
+    const pts = [];
+    for (let e = cfg.source; e >= -40; e -= 50) {
+      const spread = 1 - e / 5200;
+      x += (rf(e * 0.0016) - 0.5) * 50 * spread * spread * 2 + (r ? 1 : -1) * spread * 8;
+      pts.push([x, plateY(e), e]);
+    }
+    for (let i = 1; i < pts.length; i++) {
+      const t = i / pts.length;
+      const w = (0.55 + t * 1.9) * cfg.width;
+      svg += `<line x1="${pts[i - 1][0].toFixed(1)}" y1="${pts[i - 1][1].toFixed(1)}" x2="${pts[i][0].toFixed(1)}" y2="${pts[i][1].toFixed(1)}" stroke="${S.waterPale}" stroke-width="${(w * 2.4).toFixed(2)}" opacity="0.7"/>`;
+      svg += `<line x1="${pts[i - 1][0].toFixed(1)}" y1="${pts[i - 1][1].toFixed(1)}" x2="${pts[i][0].toFixed(1)}" y2="${pts[i][1].toFixed(1)}" stroke="${S.water}" stroke-width="${w.toFixed(2)}" opacity="0.85"/>`;
+    }
+    /* a tributary joining at an acute upslope angle */
+    const joinIdx = Math.floor(pts.length * (0.55 + rand() * 0.2));
+    const join = pts[joinIdx];
+    const side = r ? -1 : 1;
+    let tx = join[0] + side * (70 + rand() * 60), te = join[2] + 420 + rand() * 260;
+    let td = `M ${tx.toFixed(1)} ${plateY(te).toFixed(1)}`;
+    for (let e = te - 40; e > join[2]; e -= 40) {
+      const u = (te - e) / (te - join[2]);
+      tx = tx + (join[0] - tx) * u * 0.5 + (rf(e * 0.01) - 0.5) * 10;
+      td += ` L ${tx.toFixed(1)} ${plateY(e).toFixed(1)}`;
+    }
+    td += ` L ${join[0].toFixed(1)} ${join[1].toFixed(1)}`;
+    svg += `<path d="${td}" fill="none" stroke="${S.water}" stroke-width="0.6" opacity="0.6"/>`;
+    /* braids on the plain */
+    pts.filter(pt => pt[2] < 420 && pt[2] > 60).forEach((pt, i2) => {
+      if (i2 % 2) return;
+      svg += `<path d="M ${pt[0].toFixed(1)} ${pt[1].toFixed(1)} q ${8 + rand() * 6} 9 ${(rand() - 0.3) * 10} 20" fill="none" stroke="${S.water}" stroke-width="0.55" opacity="0.5"/>`;
+    });
+  });
+
+  /* --- the foreground shoulder --------------------------------------------- */
+  svg += `<path d="${nearD}" fill="${S.hazeNear}"/>`;
+  svg += `<g clip-path="url(#sv-near)">`;
+  {
+    const top = mNear.summit[1], bottom = plateY(200);
+    for (let i = 1; i <= 9; i++) {
+      const y = top + (bottom - top) * (i / 10) + 4;
+      const xl = xAtY(nearL, y), xr = xAtY(nearR, y);
+      if (xr - xl < 14) continue;
+      for (let x = xl + 5; x < xr - 18; x += 26 + rand() * 26) {
+        const seg = 12 + rand() * 20;
+        svg += `<path d="M ${x.toFixed(1)} ${(y + (rand() - 0.5) * 6).toFixed(1)} q ${(seg / 2).toFixed(1)} ${(1.5 + rand() * 2).toFixed(1)} ${seg.toFixed(1)} 0" fill="none" stroke="${S.ink}" stroke-width="0.5" opacity="0.13"/>`;
+      }
+    }
+    for (let i = 0; i < 60; i++) {
+      const y = top + rand() * (bottom - top) * 0.45;
+      const xl = xAtY(nearL, y), xr = xAtY(nearR, y);
+      if (xr - xl < 12) continue;
+      const x = xl + (xr - xl) * (0.45 + rand() * 0.5);
+      svg += `<line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${(x + (x - (xl + xr) / 2) * 0.06).toFixed(1)}" y2="${(y + 7 + rand() * 8).toFixed(1)}" stroke="${S.ink}" stroke-width="0.5" opacity="${(0.09 + rand() * 0.12).toFixed(2)}"/>`;
+    }
+    const capY = top + (bottom - top) * 0.1;
+    const cf2 = makeFbm(hashString('nearcap'), 2);
+    const xl = xAtY(nearL, capY), xr = xAtY(nearR, capY);
+    let cap = `M ${xl.toFixed(1)} ${capY.toFixed(1)} L ${mNear.summit[0].toFixed(1)} ${top.toFixed(1)} L ${xr.toFixed(1)} ${capY.toFixed(1)}`;
+    for (let i = 10; i >= 0; i--) {
+      const x = xl + (xr - xl) * (i / 10);
+      cap += ` L ${x.toFixed(1)} ${(capY - 2 - cf2(x * 0.03) * 14).toFixed(1)}`;
+    }
+    svg += `<path d="${cap} Z" fill="${S.paperHigh}" opacity="0.9"/>`;
+  }
+  svg += `</g>`;
+  svg += `<path d="${nearD}" fill="none" stroke="${S.ink}" stroke-width="0.9" opacity="0.6"/>`;
+
+  /* --- the town: clustered around its church, not a bar chart -------------- */
+  {
+    const cx0 = PLATE.cx - PLATE.base * 0.226, cy0 = plateY(70);
+    const k = PLATE.base / 620;
+    svg += `<g stroke="${S.ink}" stroke-width="0.55" fill="${MIX(S.paper, S.ink, 0.05)}">`;
+    /* the church at the centre */
+    svg += `<rect x="${(cx0 - 4 * k).toFixed(1)}" y="${(cy0 - 26 * k).toFixed(1)}" width="${(8 * k).toFixed(1)}" height="${(26 * k).toFixed(1)}"/>`;
+    svg += `<path d="M ${(cx0 - 6 * k).toFixed(1)} ${(cy0 - 26 * k).toFixed(1)} L ${cx0.toFixed(1)} ${(cy0 - 40 * k).toFixed(1)} L ${(cx0 + 6 * k).toFixed(1)} ${(cy0 - 26 * k).toFixed(1)}" fill="none"/>`;
+    /* houses scattered around it, denser near the centre */
+    for (let i = 0; i < 26; i++) {
+      const ang = rand() * Math.PI * 2;
+      const dist = (10 + Math.pow(rand(), 0.7) * 150) * k;
+      const bx = cx0 + Math.cos(ang) * dist;
+      const by = cy0 + (rand() - 0.5) * 6 - 0.5;
+      const bw = (7 + rand() * 9) * k, bh = (5 + rand() * 7) * k;
+      svg += `<rect x="${(bx - bw / 2).toFixed(1)}" y="${(by - bh).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}"/>`;
+      if (rand() < 0.65) {
+        svg += `<path d="M ${(bx - bw / 2 - 1).toFixed(1)} ${(by - bh).toFixed(1)} L ${bx.toFixed(1)} ${(by - bh - (2.5 + rand() * 2.5) * k).toFixed(1)} L ${(bx + bw / 2 + 1).toFixed(1)} ${(by - bh).toFixed(1)}" fill="none"/>`;
+      }
+    }
+    svg += `</g>`;
+    /* the old-town hatch */
+    for (let i = 0; i < 4; i++) {
+      svg += `<line x1="${(cx0 - 30 * k).toFixed(1)}" y1="${(cy0 - 4 - i * 3).toFixed(1)}" x2="${(cx0 + 30 * k).toFixed(1)}" y2="${(cy0 - 5.5 - i * 3).toFixed(1)}" stroke="${S.ink}" stroke-width="0.3" opacity="0.35"/>`;
+    }
+    /* fields: an irregular lattice on the plain */
+    svg += `<g stroke="${S.sageDeep}" stroke-width="0.45" opacity="0.6">`;
+    for (let i = 0; i < 12; i++) {
+      const fx = cx0 + PLATE.base * 0.36 + i * 24 * k + rand() * 10;
+      const fy = cy0 - 2 - (i % 3) * 8;
+      const fw = 18 + rand() * 18, fh = 7 + rand() * 7;
+      svg += `<rect x="${fx.toFixed(1)}" y="${(fy - fh).toFixed(1)}" width="${fw.toFixed(1)}" height="${fh.toFixed(1)}" fill="${i % 2 ? MIX(S.paper, S.sage, 0.25) : 'none'}" transform="rotate(${((rand() - 0.5) * 5).toFixed(1)} ${fx.toFixed(1)} ${fy.toFixed(1)})"/>`;
+    }
+    svg += `</g>`;
+    svg += `<path d="M ${(cx0 - PLATE.base * 0.4).toFixed(1)} ${(cy0 + 6).toFixed(1)} L ${(cx0 + PLATE.base * 0.9).toFixed(1)} ${(cy0 - 2).toFixed(1)}" fill="none" stroke="${S.ink}" stroke-width="0.6" stroke-dasharray="4 3" opacity="0.4"/>`;
+  }
+
+  /* --- the observatories --------------------------------------------------- */
+  OBSERVATORIES.forEach(o => {
+    const k = (PLATE.base / 620) * o.scale;
+    const x = Math.max(flankAt(o.elev, -1), flankAt(o.elev + 190, -1)) + 30 * k;
+    svg += drawObservatory(x, plateY(o.elev), k,
+      { built: S.inkSoft }, { ink: S.ink, accent2: S.iceLine, text: S.ink });
+  });
+
+  /* --- spot heights: the sheet finally carries measurements ----------------- */
+  {
+    const spots = [
+      [summitX, summitY, 5200, 0, -8],
+      [mFar.summit[0], mFar.summit[1], 4050, 0, -8],
+      [mNear.summit[0], mNear.summit[1], 3180, 0, -8],
+      [glacier[glacier.length - 1][0], glacier[glacier.length - 1][1], 3450, 14, 4]
+    ];
+    OBSERVATORIES.forEach(o => {
+      const k = (PLATE.base / 620) * o.scale;
+      const x = Math.max(flankAt(o.elev, -1), flankAt(o.elev + 190, -1)) + 30 * k;
+      spots.push([x + 14, plateY(o.elev), o.elev, 12, 2]);
+    });
+    svg += `<g font-family="'Source Serif 4', Georgia, serif" font-style="italic" font-size="11.5" fill="${S.ink}" opacity="0.75" style="paint-order:stroke" stroke="${S.paper}" stroke-width="2.4">`;
+    spots.forEach(([x, y, e, dx, dy]) => {
+      svg += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.1" fill="${S.ink}" stroke="none"/>`;
+      svg += `<text x="${(x + 5 + dx).toFixed(1)}" y="${(y + dy).toFixed(1)}">${e.toLocaleString('en-CH').replace(/,/g, ' ')}</text>`;
+    });
+    svg += `</g>`;
+  }
+
+  /* --- the surveyor's red: traverse and stations ---------------------------- */
+  const placedBoxes = [];
+  /* the drawn instruments claim their space before any note is placed */
+  OBSERVATORIES.forEach(o => {
+    const k = (PLATE.base / 620) * o.scale;
+    const x = Math.max(flankAt(o.elev, -1), flankAt(o.elev + 190, -1)) + 30 * k;
+    const y = plateY(o.elev);
+    placedBoxes.push({ x0: x - 20 * k, x1: x + 70 * k, y0: y - 36 * k, y1: y + 8 });
+  });
+  const collide = (bx) => placedBoxes.some(o =>
+    !(bx.x1 < o.x0 || bx.x0 > o.x1 || bx.y1 < o.y0 || bx.y0 > o.y1));
+
+  if (SURVEY_DECOR) {
+    svg += `<path d="${pathD}" fill="none" stroke="${S.red}" stroke-width="0.9" stroke-dasharray="5 4" opacity="0.75"/>`;
+    svg += `<g font-family="ui-monospace, Menlo, monospace" style="paint-order:stroke" stroke="${S.paper}" stroke-width="2.6">`;
+    nodes.forEach((n, i) => {
+      const st = PLATE_STORIES[n.index];
+      svg += `<circle cx="${n.x.toFixed(1)}" cy="${n.y.toFixed(1)}" r="2.6" fill="${S.paper}" stroke="${S.red}" stroke-width="0.9"/>`;
+      const title = (st ? st.title.replace(/’/g, "'") : '').toUpperCase();
+      let lines = [title];
+      if (title.length > 20) {
+        const mid = Math.floor(title.length / 2);
+        let cut = title.lastIndexOf(' ', 26);
+        if (cut < 6) cut = title.indexOf(' ', mid);
+        if (cut > 0) lines = [title.slice(0, cut), title.slice(cut + 1)];
+      }
+      lines = lines.map(l2 => l2.length > 26 ? l2.slice(0, 24).replace(/\s+\S*$/, '') + '…' : l2);
+      const wEst = Math.max(...lines.map(l2 => l2.length)) * 5.2 + 8;
+      const hEst = lines.length * 9.5 + 14;
+
+      /* try sides and rungs until the note finds clear paper */
+      let left = i % 2 === 0, ex = 0, ey = 0, ok = false;
+      outer: for (let attempt = 0; attempt < 2 && !ok; attempt++) {
+        for (let rung = 0; rung < 4; rung++) {
+          const L = 52 + rung * 24;
+          ex = n.x + (left ? -L : L);
+          ey = n.y - (8 + rung * 15);
+          const x0 = left ? ex - 16 - wEst : ex + 16;
+          const box = { x0, x1: x0 + wEst, y0: ey - hEst + 6, y1: ey + 10 };
+          if (!collide(box)) { placedBoxes.push(box); ok = true; break outer; }
+        }
+        left = !left;
+      }
+      svg += `<path d="M ${n.x.toFixed(1)} ${n.y.toFixed(1)} L ${ex.toFixed(1)} ${ey.toFixed(1)} l ${left ? -12 : 12} 0" fill="none" stroke="${S.inkSoft}" stroke-width="0.5" opacity="0.75" style="paint-order:normal"/>`;
+      const tx = (ex + (left ? -16 : 16)).toFixed(1);
+      const anchor = left ? 'end' : 'start';
+      lines.forEach((l2, li) => {
+        svg += `<text x="${tx}" y="${(ey - 3 - (lines.length - 1 - li) * 9.5).toFixed(1)}" text-anchor="${anchor}" font-size="8.5" letter-spacing="1" fill="${S.ink}" opacity="0.9">${esc(l2)}</text>`;
+      });
+      svg += `<text x="${tx}" y="${(ey + 7).toFixed(1)}" text-anchor="${anchor}" font-size="7.5" letter-spacing="1.5" fill="${S.red}">Nº ${String(i + 1).padStart(2, '0')}</text>`;
+    });
+    svg += `</g>`;
+  }
+
+  /* --- zone names, written on the terrain ----------------------------------- */
+  svg += `<g font-family="'Source Serif 4', Georgia, serif" font-style="italic" font-size="17" fill="${S.ink}" opacity="0.78" letter-spacing="2.5" style="paint-order:stroke" stroke="${S.paper}" stroke-width="3.2">`;
+  BELTS.forEach((b, i) => {
+    if (b.key === 'urban') return;
+    const e = (b.lo + b.hi) / 2;
+    const y = plateY(e);
+    const node = nodes.reduce((best, n) => Math.abs(n.y - y) < Math.abs(best.y - y) ? n : best, nodes[0]);
+    const xl = flankAt(e, -1), xr = flankAt(e, 1);
+    const leftRoom = node.x - xl, rightRoom = xr - node.x;
+    const left = leftRoom > rightRoom;
+    const x = left ? xl + leftRoom * 0.42 : node.x + rightRoom * 0.55;
+    const label = b.label.charAt(0) + b.label.slice(1).toLowerCase().replace(' - ', ' — ');
+    const wEst = label.length * 9.5;
+    const box = { x0: x - wEst / 2, x1: x + wEst / 2, y0: y - 12, y1: y + 8 };
+    let yy = y;
+    for (let t = 0; t < 3 && collide({ ...box, y0: yy - 12, y1: yy + 8 }); t++) yy += 22;
+    placedBoxes.push({ x0: box.x0, x1: box.x1, y0: yy - 12, y1: yy + 8 });
+    svg += `<text x="${x.toFixed(1)}" y="${(yy + 5).toFixed(1)}" text-anchor="middle">${esc(label)}</text>`;
+  });
+  svg += `</g>`;
+
+  /* margin altitude labels, consistent on both sides, over everything */
+  svg += `<g font-family="ui-monospace, Menlo, monospace" font-size="11" fill="${S.inkSoft}" style="paint-order:stroke" stroke="${S.paper}" stroke-width="2.4">`;
+  for (let e = 1000; e <= 5000; e += 1000) {
+    const y = (plateY(e) - 5).toFixed(1);
+    svg += `<text x="18" y="${y}" opacity="0.75">${e} m</text>`;
+    svg += `<text x="${W - 18}" y="${y}" text-anchor="end" opacity="0.75">${e} m</text>`;
+  }
+  svg += `</g>`;
+
+  /* --- sheet frame and cartouche -------------------------------------------- */
+  if (SURVEY_DECOR) {
+    svg += `<rect x="10" y="10" width="${W - 20}" height="${H - 20}" fill="none" stroke="${S.ink}" stroke-width="2.2" opacity="0.8"/>`;
+    svg += `<rect x="17" y="17" width="${W - 34}" height="${H - 34}" fill="none" stroke="${S.ink}" stroke-width="0.6" opacity="0.6"/>`;
+    svg += `<g transform="translate(${W - 470}, 52)">`;
+    svg += `<rect x="-24" y="-24" width="440" height="132" fill="${S.paper}" stroke="${S.ink}" stroke-width="0.7" opacity="0.94"/>`;
+    svg += `<text x="196" y="8" text-anchor="middle" font-family="Jost, 'Century Gothic', sans-serif" font-size="27" letter-spacing="7" fill="${S.ink}">THE MOUNTAIN JOURNEY</text>`;
+    svg += `<text x="196" y="36" text-anchor="middle" font-family="'Source Serif 4', Georgia, serif" font-style="italic" font-size="13.5" fill="${S.inkSoft}">Twenty-five stories from a quarter-century of mountain research</text>`;
+    svg += `<g font-family="ui-monospace, Menlo, monospace" font-size="9.5" fill="${S.inkSoft}">`;
+    svg += `<line x1="60" y1="58" x2="104" y2="58" stroke="${S.red}" stroke-width="0.9" stroke-dasharray="5 4"/><circle cx="82" cy="58" r="2.4" fill="${S.paper}" stroke="${S.red}" stroke-width="0.9"/>`;
+    svg += `<text x="112" y="61.5">THE JOURNEY, STATIONS 01–25</text>`;
+    svg += `</g>`;
+    svg += `<text x="196" y="88" text-anchor="middle" font-family="ui-monospace, Menlo, monospace" font-size="9.5" letter-spacing="3" fill="${S.red}">MOUNTAIN RESEARCH INITIATIVE · MMXXVI</text>`;
+    svg += `</g>`;
+  }
+
+  svg += `</svg>`;
+  return { svg, nodes, pathD, viewBox: `0 0 ${W} ${H}` };
+}
+
 function generateMountainPlate(seedKey) {
   const rand = makeRandom(hashString(seedKey));
   const uid = "plate";
@@ -858,6 +1620,20 @@ function generateMountainPlate(seedKey) {
     pathD += ` Q ${via[i][0].toFixed(1)} ${via[i][1].toFixed(1)} ${mx.toFixed(1)} ${my.toFixed(1)}`;
   }
   pathD += ` L ${via[via.length - 1][0].toFixed(1)} ${via[via.length - 1][1].toFixed(1)}`;
+
+  /* --- the survey style ---------------------------------------------------
+     A second rendering of the SAME geometry, in the idiom of the historical
+     glacier survey plates: fine ink linework on paper, form lines, hachured
+     rock, a drawn glacier with moraines, vegetation placed stem by stem, and
+     the ascent as a red surveyor's traverse. The classic flat-vector style
+     below is untouched; which one draws is chosen by window.MRI_PLATE_STYLE.
+     Geometry, nodes and the path are shared, so the interaction layer cannot
+     tell the difference. */
+  if (PLATE_STYLE === 'survey') {
+    return renderSurveyPlate({
+      W, H, rand, mFar, mMain, mNear, flankAt, nodes, pathD
+    });
+  }
 
   let svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">`;
   svg += `<defs>
