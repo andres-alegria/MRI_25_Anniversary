@@ -667,25 +667,54 @@ function plateNode(e) {
    the "map sheet" model, a paper document that keeps its own light and is
    framed by whichever interface surrounds it. Adjust the inks here.
    ======================================================================== */
-const SURVEY = {
-  paper:     '#f2eddf',   // the sheet
-  paperHigh: '#f7f4ea',   // paper toward the top of the sheet
-  ink:       '#3d3a31',   // the drawing ink
-  inkSoft:   '#6b665a',   // secondary linework
-  wash:      '#e7e2cf',   // the massif's base wash
-  washHigh:  '#efece0',   // the wash near the snow
-  stone:     '#b5ab93',   // bare-rock tint
-  sage:      '#a9b08d',   // vegetation tint, kept grey-green like old plates
-  sageDeep:  '#8b9878',
-  ice:       '#eef3f2',   // glacier body
-  iceLine:   '#94b0bc',   // crevasse ink
-  water:     '#5f89a6',   // rivers
-  waterPale: '#cfdfe6',
-  moraine:   '#8a7f68',   // rubble
-  red:       '#a83e35',   // the surveyor's red — traverse, stations, notes
-  hazeFar:   '#dfe0d6',   // the far range
-  hazeNear:  '#d8d4bf'    // the foreground shoulder
+/* The survey sheet in two printings. The day sheet is the historical idiom:
+   ink on paper. The night sheet is the same drawing struck on a dark ground —
+   light linework on deep navy, snow and ice luminous, the surveyor's red
+   lifted so it carries. MRI's identity sits in both: the water and ice family
+   is pitched around MRI blue, the vegetation leans toward MRI green, and the
+   imprint line in the cartouche is set in the corporate blue.
+
+   Adjust either printing here; the drawing code is identical for both. */
+const SURVEYS = {
+  light: {
+    paper:     '#f2eddf', paperHigh: '#f7f4ea',
+    sky0:      '#e3eae9', sky1:      '#f2eddf',
+    ink:       '#3d3a31', inkSoft:   '#6b665a',
+    shade:     '#3d3a31',
+    wash:      '#e7e2cf', washHigh:  '#efece0',
+    stone:     '#b5ab93',
+    sage:      '#a4b18e', sageDeep:  '#7f9878',   // leaning toward MRI green
+    ice:       '#e9f1f2', iceLine:   '#7fa3c0',   // MRI blue, weathered
+    water:     '#4f83a8', waterPale: '#cfdfe6',   // MRI blue, toned to paper
+    moraine:   '#8a7f68',
+    red:       '#a83e35',
+    blue:      '#0067B2',                          // the identity itself
+    hazeFar:   '#dfe0d6', hazeNear:  '#d8d4bf'
+  },
+  dark: {
+    paper:     '#0B1F2E', paperHigh: '#E6EFF5',
+    sky0:      '#12303F', sky1:      '#0B1F2E',
+    ink:       '#C3D3DD', inkSoft:   '#8AA2B2',
+    shade:     '#000000',
+    wash:      '#14293A', washHigh:  '#1B3448',
+    stone:     '#3C5266',
+    sage:      '#2E4A3C', sageDeep:  '#6D9179',
+    ice:       '#A9C6DA', iceLine:   '#7FAcca',
+    water:     '#5FA8D8', waterPale: '#2C4A63',
+    moraine:   '#8B94A0',
+    red:       '#E07A66',
+    blue:      '#4FA3D9',
+    hazeFar:   '#16293A', hazeNear:  '#1C3348'
+  }
 };
+
+/* type sizes for the sheet — raised from the first draft, which read small
+   at page scale. One set serves both printings. */
+const SURVEY_TYPE = {
+  note: 10.5, noteLead: 12, num: 9, zone: 21, spot: 13.5,
+  margin: 13, cartTitle: 30, cartSub: 15, cartMono: 10.5
+};
+
 
 /* text destined for SVG markup — ampersands in the belt names and story
    titles are entity errors in a standalone .svg file */
@@ -743,7 +772,14 @@ function flankPathD(left, right, W, H) {
 
 function renderSurveyPlate(ctx) {
   const { W, H, rand, mFar, mMain, mNear, flankAt, nodes, pathD } = ctx;
-  const S = SURVEY;
+  const S = SURVEYS[currentTheme()] || SURVEYS.light;
+  const T = SURVEY_TYPE;
+  /* text that lands on the snow needs the opposite pairing from text on the
+     terrain — on the night sheet especially, light ink on the luminous cap
+     ghosts. The snow is always paperHigh, so the pair is derivable. */
+  const inkOn = overSnow => overSnow
+    ? { fill: MIX(S.paper, '#10293c', 0.5), halo: S.paperHigh }
+    : { fill: S.ink, halo: S.paper };
   let svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">`;
 
   /* --- observed silhouettes ---------------------------------------------- */
@@ -764,8 +800,8 @@ function renderSurveyPlate(ctx) {
       <stop offset="1" stop-color="${MIX(S.wash, S.sage, 0.30)}"/>
     </linearGradient>
     <linearGradient id="sv-sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="${MIX(S.paperHigh, '#dfe7e6', 0.55)}"/>
-      <stop offset="1" stop-color="${S.paper}"/>
+      <stop offset="0" stop-color="${S.sky0}"/>
+      <stop offset="1" stop-color="${S.sky1}"/>
     </linearGradient>
     <clipPath id="sv-main"><path d="${mainD}"/></clipPath>
     <clipPath id="sv-near"><path d="${nearD}"/></clipPath>
@@ -872,7 +908,7 @@ function renderSurveyPlate(ctx) {
       for (let i = gu.length - 1; i >= 0; i--) {
         d += ` L ${(gu[i][0] + off * (0.4 + 0.6 * (i / gu.length))).toFixed(1)} ${gu[i][1].toFixed(1)}`;
       }
-      svg += `<path d="${d} Z" fill="${S.ink}" opacity="${oi ? 0.025 : 0.045}"/>`;
+      svg += `<path d="${d} Z" fill="${S.shade}" opacity="${oi ? 0.03 : 0.055}"/>`;
     });
     /* the gully line itself */
     let d = `M ${gu[0][0].toFixed(1)} ${gu[0][1].toFixed(1)}`;
@@ -1288,7 +1324,7 @@ function renderSurveyPlate(ctx) {
       const x = Math.max(flankAt(o.elev, -1), flankAt(o.elev + 190, -1)) + 30 * k;
       spots.push([x + 14, plateY(o.elev), o.elev, 12, 2]);
     });
-    svg += `<g font-family="'Source Serif 4', Georgia, serif" font-style="italic" font-size="11.5" fill="${S.ink}" opacity="0.75" style="paint-order:stroke" stroke="${S.paper}" stroke-width="2.4">`;
+    svg += `<g font-family="'Source Serif 4', Georgia, serif" font-style="italic" font-size="${T.spot}" fill="${S.ink}" opacity="0.8" style="paint-order:stroke" stroke="${S.paper}" stroke-width="2.8">`;
     spots.forEach(([x, y, e, dx, dy]) => {
       svg += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.1" fill="${S.ink}" stroke="none"/>`;
       svg += `<text x="${(x + 5 + dx).toFixed(1)}" y="${(y + dy).toFixed(1)}">${e.toLocaleString('en-CH').replace(/,/g, ' ')}</text>`;
@@ -1310,7 +1346,7 @@ function renderSurveyPlate(ctx) {
 
   if (SURVEY_DECOR) {
     svg += `<path d="${pathD}" fill="none" stroke="${S.red}" stroke-width="0.9" stroke-dasharray="5 4" opacity="0.75"/>`;
-    svg += `<g font-family="ui-monospace, Menlo, monospace" style="paint-order:stroke" stroke="${S.paper}" stroke-width="2.6">`;
+    svg += `<g font-family="ui-monospace, Menlo, monospace" style="paint-order:stroke" stroke="${S.paper}" stroke-width="3">`;
     nodes.forEach((n, i) => {
       const st = PLATE_STORIES[n.index];
       svg += `<circle cx="${n.x.toFixed(1)}" cy="${n.y.toFixed(1)}" r="2.6" fill="${S.paper}" stroke="${S.red}" stroke-width="0.9"/>`;
@@ -1323,8 +1359,8 @@ function renderSurveyPlate(ctx) {
         if (cut > 0) lines = [title.slice(0, cut), title.slice(cut + 1)];
       }
       lines = lines.map(l2 => l2.length > 26 ? l2.slice(0, 24).replace(/\s+\S*$/, '') + '…' : l2);
-      const wEst = Math.max(...lines.map(l2 => l2.length)) * 5.2 + 8;
-      const hEst = lines.length * 9.5 + 14;
+      const wEst = Math.max(...lines.map(l2 => l2.length)) * T.note * 0.62 + 8;
+      const hEst = lines.length * (T.note + 3) + 16;
 
       /* try sides and rungs until the note finds clear paper */
       let left = i % 2 === 0, ex = 0, ey = 0, ok = false;
@@ -1332,7 +1368,7 @@ function renderSurveyPlate(ctx) {
         for (let rung = 0; rung < 4; rung++) {
           const L = 52 + rung * 24;
           ex = n.x + (left ? -L : L);
-          ey = n.y - (8 + rung * 15);
+          ey = n.y - (10 + rung * 19);
           const x0 = left ? ex - 16 - wEst : ex + 16;
           const box = { x0, x1: x0 + wEst, y0: ey - hEst + 6, y1: ey + 10 };
           if (!collide(box)) { placedBoxes.push(box); ok = true; break outer; }
@@ -1342,19 +1378,21 @@ function renderSurveyPlate(ctx) {
       svg += `<path d="M ${n.x.toFixed(1)} ${n.y.toFixed(1)} L ${ex.toFixed(1)} ${ey.toFixed(1)} l ${left ? -12 : 12} 0" fill="none" stroke="${S.inkSoft}" stroke-width="0.5" opacity="0.75" style="paint-order:normal"/>`;
       const tx = (ex + (left ? -16 : 16)).toFixed(1);
       const anchor = left ? 'end' : 'start';
+      const pair = inkOn(n.y < plateY(snowE) + 6);
       lines.forEach((l2, li) => {
-        svg += `<text x="${tx}" y="${(ey - 3 - (lines.length - 1 - li) * 9.5).toFixed(1)}" text-anchor="${anchor}" font-size="8.5" letter-spacing="1" fill="${S.ink}" opacity="0.9">${esc(l2)}</text>`;
+        svg += `<text x="${tx}" y="${(ey - 4 - (lines.length - 1 - li) * (T.note + 3)).toFixed(1)}" text-anchor="${anchor}" font-size="${T.note}" letter-spacing="1" fill="${pair.fill}" stroke="${pair.halo}" opacity="0.92">${esc(l2)}</text>`;
       });
-      svg += `<text x="${tx}" y="${(ey + 7).toFixed(1)}" text-anchor="${anchor}" font-size="7.5" letter-spacing="1.5" fill="${S.red}">Nº ${String(i + 1).padStart(2, '0')}</text>`;
+      svg += `<text x="${tx}" y="${(ey + T.num + 1).toFixed(1)}" text-anchor="${anchor}" font-size="${T.num}" letter-spacing="1.5" fill="${S.red}">Nº ${String(i + 1).padStart(2, '0')}</text>`;
     });
     svg += `</g>`;
   }
 
   /* --- zone names, written on the terrain ----------------------------------- */
-  svg += `<g font-family="'Source Serif 4', Georgia, serif" font-style="italic" font-size="17" fill="${S.ink}" opacity="0.78" letter-spacing="2.5" style="paint-order:stroke" stroke="${S.paper}" stroke-width="3.2">`;
+  svg += `<g font-family="'Source Serif 4', Georgia, serif" font-style="italic" font-size="${T.zone}" fill="${S.ink}" opacity="0.82" letter-spacing="3" style="paint-order:stroke" stroke="${S.paper}" stroke-width="4">`;
   BELTS.forEach((b, i) => {
     if (b.key === 'urban') return;
-    const e = (b.lo + b.hi) / 2;
+    const overSnow = b.key === 'ice';
+    const e = (b.lo + b.hi) / 2 - (b.key === 'scree' ? 260 : 0);   /* scree name sits below the snow teeth */
     const y = plateY(e);
     const node = nodes.reduce((best, n) => Math.abs(n.y - y) < Math.abs(best.y - y) ? n : best, nodes[0]);
     const xl = flankAt(e, -1), xr = flankAt(e, 1);
@@ -1362,17 +1400,18 @@ function renderSurveyPlate(ctx) {
     const left = leftRoom > rightRoom;
     const x = left ? xl + leftRoom * 0.42 : node.x + rightRoom * 0.55;
     const label = b.label.charAt(0) + b.label.slice(1).toLowerCase().replace(' - ', ' — ');
-    const wEst = label.length * 9.5;
+    const wEst = label.length * T.zone * 0.58;
     const box = { x0: x - wEst / 2, x1: x + wEst / 2, y0: y - 12, y1: y + 8 };
     let yy = y;
     for (let t = 0; t < 3 && collide({ ...box, y0: yy - 12, y1: yy + 8 }); t++) yy += 22;
     placedBoxes.push({ x0: box.x0, x1: box.x1, y0: yy - 12, y1: yy + 8 });
-    svg += `<text x="${x.toFixed(1)}" y="${(yy + 5).toFixed(1)}" text-anchor="middle">${esc(label)}</text>`;
+    const pair = inkOn(overSnow);
+    svg += `<text x="${x.toFixed(1)}" y="${(yy + 5).toFixed(1)}" text-anchor="middle" fill="${pair.fill}" stroke="${pair.halo}">${esc(label)}</text>`;
   });
   svg += `</g>`;
 
   /* margin altitude labels, consistent on both sides, over everything */
-  svg += `<g font-family="ui-monospace, Menlo, monospace" font-size="11" fill="${S.inkSoft}" style="paint-order:stroke" stroke="${S.paper}" stroke-width="2.4">`;
+  svg += `<g font-family="ui-monospace, Menlo, monospace" font-size="${T.margin}" fill="${S.inkSoft}" style="paint-order:stroke" stroke="${S.paper}" stroke-width="2.8">`;
   for (let e = 1000; e <= 5000; e += 1000) {
     const y = (plateY(e) - 5).toFixed(1);
     svg += `<text x="18" y="${y}" opacity="0.75">${e} m</text>`;
@@ -1386,13 +1425,13 @@ function renderSurveyPlate(ctx) {
     svg += `<rect x="17" y="17" width="${W - 34}" height="${H - 34}" fill="none" stroke="${S.ink}" stroke-width="0.6" opacity="0.6"/>`;
     svg += `<g transform="translate(${W - 470}, 52)">`;
     svg += `<rect x="-24" y="-24" width="440" height="132" fill="${S.paper}" stroke="${S.ink}" stroke-width="0.7" opacity="0.94"/>`;
-    svg += `<text x="196" y="8" text-anchor="middle" font-family="Jost, 'Century Gothic', sans-serif" font-size="27" letter-spacing="7" fill="${S.ink}">THE MOUNTAIN JOURNEY</text>`;
-    svg += `<text x="196" y="36" text-anchor="middle" font-family="'Source Serif 4', Georgia, serif" font-style="italic" font-size="13.5" fill="${S.inkSoft}">Twenty-five stories from a quarter-century of mountain research</text>`;
-    svg += `<g font-family="ui-monospace, Menlo, monospace" font-size="9.5" fill="${S.inkSoft}">`;
+    svg += `<text x="196" y="8" text-anchor="middle" font-family="Jost, 'Century Gothic', sans-serif" font-size="${T.cartTitle}" letter-spacing="7" fill="${S.ink}">THE MOUNTAIN JOURNEY</text>`;
+    svg += `<line x1="96" y1="17" x2="296" y2="17" stroke="${S.blue}" stroke-width="1.2"/><text x="196" y="40" text-anchor="middle" font-family="'Source Serif 4', Georgia, serif" font-style="italic" font-size="${T.cartSub}" fill="${S.inkSoft}">Twenty-five stories from a quarter-century of mountain research</text>`;
+    svg += `<g font-family="ui-monospace, Menlo, monospace" font-size="${T.cartMono}" fill="${S.inkSoft}">`;
     svg += `<line x1="60" y1="58" x2="104" y2="58" stroke="${S.red}" stroke-width="0.9" stroke-dasharray="5 4"/><circle cx="82" cy="58" r="2.4" fill="${S.paper}" stroke="${S.red}" stroke-width="0.9"/>`;
     svg += `<text x="112" y="61.5">THE JOURNEY, STATIONS 01–25</text>`;
     svg += `</g>`;
-    svg += `<text x="196" y="88" text-anchor="middle" font-family="ui-monospace, Menlo, monospace" font-size="9.5" letter-spacing="3" fill="${S.red}">MOUNTAIN RESEARCH INITIATIVE · MMXXVI</text>`;
+    svg += `<text x="196" y="88" text-anchor="middle" font-family="ui-monospace, Menlo, monospace" font-size="${T.cartMono}" letter-spacing="3" fill="${S.blue}">MOUNTAIN RESEARCH INITIATIVE · MMXXVI</text>`;
     svg += `</g>`;
   }
 
