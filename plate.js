@@ -144,6 +144,18 @@ const PLATE_STYLE = urlParam('style') ||
 const SURVEY_DECOR = urlParam('decor') === '1' ||
   !!(typeof window !== 'undefined' && window.MRI_SURVEY_DECOR);
 
+/* A close-up of one story: the survey sheet windowed around that station at
+   three times the scale, with the story's own motifs drawn in. Set to the
+   story's editorial number (the `num` in stories-data.js). The sheet's
+   furniture — frame, margins, zone names, other notes — is left off, since
+   the window is the story's featured image and a print extract. */
+const SURVEY_FOCUS = (() => {
+  const v = urlParam('focus') || (typeof window !== 'undefined' && window.MRI_SURVEY_FOCUS);
+  return v ? parseInt(v, 10) : null;
+})();
+/* the window, in plate units — 3:2, the featured-image proportion */
+const FOCUS_WINDOW = { w: 660, h: 440 };
+
 /* the altitude belts, each with its own texture — adjust the bands here */
 const BELTS = [
   { key: "urban",  label: "SETTLED PLAIN",       lo: 0,    hi: 420  },
@@ -997,9 +1009,14 @@ function renderSurveyPlate(ctx) {
     }
     const sf2 = makeFbm(hashString('stream'), 3);
     let sd2 = `M ${tm[0].toFixed(1)} ${tm[1].toFixed(1)}`;
+    const meltPts = [[tm[0], tm[1], 3450]];
     for (let e = 3400; e >= 180; e -= 50) {
-      sd2 += ` L ${(tm[0] - (3400 - e) * 0.02 + (sf2(e * 0.003) - 0.5) * 30 * (1 + (3400 - e) / 3200)).toFixed(1)} ${plateY(e).toFixed(1)}`;
+      const mx = tm[0] - (3400 - e) * 0.02 + (sf2(e * 0.003) - 0.5) * 30 * (1 + (3400 - e) / 3200);
+      sd2 += ` L ${mx.toFixed(1)} ${plateY(e).toFixed(1)}`;
+      meltPts.push([mx, plateY(e), e]);
     }
+    svg += '';   /* (the stream is drawn just below) */
+    var glacierStream = meltPts;
     svg += `<path d="${sd2}" fill="none" stroke="${S.water}" stroke-width="1.1" opacity="0.8"/>`;
   }
   const nearGlacier = (x, y) => glacier.some(g => Math.abs(g[1] - y) < 30 && Math.abs(g[0] - x) < g[2] / 2 + 10);
@@ -1196,6 +1213,7 @@ function renderSurveyPlate(ctx) {
   }
 
   /* --- rivers: widening, meandering harder as they descend, one tributary -- */
+  const riverPts = [];   /* every drawn watercourse, for the composer to snap to */
   RIVERS.forEach((cfg, r) => {
     const rf = makeFbm(hashString('sv-river-' + r), 3);
     let x = plateCX(cfg.source) + (r ? 22 : -22) + (cfg.offset || 0);
@@ -1205,6 +1223,7 @@ function renderSurveyPlate(ctx) {
       x += (rf(e * 0.0016) - 0.5) * 50 * spread * spread * 2 + (r ? 1 : -1) * spread * 8;
       pts.push([x, plateY(e), e]);
     }
+    riverPts.push(pts);
     for (let i = 1; i < pts.length; i++) {
       const t = i / pts.length;
       const w = (0.55 + t * 1.9) * cfg.width;
@@ -1345,10 +1364,17 @@ function renderSurveyPlate(ctx) {
 
   if (SURVEY_DECOR) {
     svg += `<path d="${pathD}" fill="none" stroke="${S.red}" stroke-width="0.9" stroke-dasharray="5 4" opacity="0.75"/>`;
+    /* In a close-up the story's own scene is drawn after the notes, so the
+       focus note is held back and laid over the scene at the end — otherwise
+       a monastery lands on top of its own caption. */
+    let focusNote = '';
+    const emit = (markup, isFocus) => { if (isFocus) focusNote += markup; else svg += markup; };
     svg += `<g font-family="ui-monospace, Menlo, monospace" style="paint-order:stroke" stroke="${S.paper}" stroke-width="3">`;
     nodes.forEach((n, i) => {
       const st = PLATE_STORIES[n.index];
       svg += `<circle cx="${n.x.toFixed(1)}" cy="${n.y.toFixed(1)}" r="2.6" fill="${S.paper}" stroke="${S.red}" stroke-width="0.9"/>`;
+      if (SURVEY_FOCUS && st.num !== SURVEY_FOCUS) return;
+      const isFocus = !!SURVEY_FOCUS;
       /* the note is the story's TOPIC — the short label from stories-data.js,
          falling back to the full topic, then the title */
       const src = window.MRI_CONTENT && window.MRI_CONTENT.STORIES.find(x => x.num === st.num);
@@ -1368,31 +1394,32 @@ function renderSurveyPlate(ctx) {
       let left = i % 2 === 0, ex = 0, ey = 0, ok = false;
       outer: for (let attempt = 0; attempt < 2 && !ok; attempt++) {
         for (let rung = 0; rung < 4; rung++) {
-          const L = 58 + rung * 28;
+          const L = (SURVEY_FOCUS ? 118 : 58) + rung * 28;
           ex = n.x + (left ? -L : L);
-          ey = n.y - (12 + rung * 22);
+          ey = n.y - ((SURVEY_FOCUS ? 58 : 12) + rung * 22);
           const x0 = left ? ex - 16 - wEst : ex + 16;
           const box = { x0, x1: x0 + wEst, y0: ey - hEst + 6, y1: ey + 10 };
           if (!collide(box)) { placedBoxes.push(box); ok = true; break outer; }
         }
         left = !left;
       }
-      svg += `<path d="M ${n.x.toFixed(1)} ${n.y.toFixed(1)} L ${ex.toFixed(1)} ${ey.toFixed(1)} l ${left ? -12 : 12} 0" fill="none" stroke="${S.inkSoft}" stroke-width="0.5" opacity="0.75" style="paint-order:normal"/>`;
+      emit(`<path d="M ${n.x.toFixed(1)} ${n.y.toFixed(1)} L ${ex.toFixed(1)} ${ey.toFixed(1)} l ${left ? -12 : 12} 0" fill="none" stroke="${S.inkSoft}" stroke-width="0.5" opacity="0.75" style="paint-order:normal"/>`, isFocus);
       const tx = (ex + (left ? -16 : 16)).toFixed(1);
       const anchor = left ? 'end' : 'start';
       const pair = inkOn(n.y < plateY(snowE) + 6);
       lines.forEach((l2, li) => {
-        svg += `<text x="${tx}" y="${(ey - 4 - (lines.length - 1 - li) * (T.note + 3)).toFixed(1)}" text-anchor="${anchor}" font-size="${T.note}" letter-spacing="1" fill="${pair.fill}" stroke="${pair.halo}" opacity="0.92">${esc(l2)}</text>`;
+        emit(`<text x="${tx}" y="${(ey - 4 - (lines.length - 1 - li) * (T.note + 3)).toFixed(1)}" text-anchor="${anchor}" font-size="${T.note}" letter-spacing="1" fill="${pair.fill}" stroke="${pair.halo}" opacity="0.92">${esc(l2)}</text>`, isFocus);
       });
-      svg += `<text x="${tx}" y="${(ey + T.num + 1).toFixed(1)}" text-anchor="${anchor}" font-size="${T.num}" letter-spacing="1.5" fill="${S.red}">Nº ${String(i + 1).padStart(2, '0')}</text>`;
+      emit(`<text x="${tx}" y="${(ey + T.num + 1).toFixed(1)}" text-anchor="${anchor}" font-size="${T.num}" letter-spacing="1.5" fill="${S.red}">Nº ${String(i + 1).padStart(2, '0')}</text>`, isFocus);
     });
     svg += `</g>`;
+    var heldNote = SURVEY_FOCUS ? focusNote : '';
   }
 
   /* --- zone names, written on the terrain ----------------------------------- */
-  svg += `<g font-family="'Source Serif 4', Georgia, serif" font-style="italic" font-size="${T.zone}" fill="${S.ink}" opacity="0.82" letter-spacing="3" style="paint-order:stroke" stroke="${S.paper}" stroke-width="4">`;
+  if (!SURVEY_FOCUS) svg += `<g font-family="'Source Serif 4', Georgia, serif" font-style="italic" font-size="${T.zone}" fill="${S.ink}" opacity="0.82" letter-spacing="3" style="paint-order:stroke" stroke="${S.paper}" stroke-width="4">`;
   BELTS.forEach((b, i) => {
-    if (b.key === 'urban') return;
+    if (b.key === 'urban' || SURVEY_FOCUS) return;
     const overSnow = b.key === 'ice';
     const e = (b.lo + b.hi) / 2 - (b.key === 'scree' ? 260 : 0);   /* scree name sits below the snow teeth */
     const y = plateY(e);
@@ -1410,24 +1437,96 @@ function renderSurveyPlate(ctx) {
     const pair = inkOn(overSnow);
     svg += `<text x="${x.toFixed(1)}" y="${(yy + 5).toFixed(1)}" text-anchor="middle" fill="${pair.fill}" stroke="${pair.halo}">${esc(label)}</text>`;
   });
-  svg += `</g>`;
+  if (!SURVEY_FOCUS) svg += `</g>`;
 
   /* margin altitude labels, consistent on both sides, over everything */
-  svg += `<g font-family="ui-monospace, Menlo, monospace" font-size="${T.margin}" fill="${S.inkSoft}" style="paint-order:stroke" stroke="${S.paper}" stroke-width="2.8">`;
-  for (let e = 1000; e <= 5000; e += 1000) {
+  if (!SURVEY_FOCUS) svg += `<g font-family="ui-monospace, Menlo, monospace" font-size="${T.margin}" fill="${S.inkSoft}" style="paint-order:stroke" stroke="${S.paper}" stroke-width="2.8">`;
+  for (let e = 1000; e <= 5000 && !SURVEY_FOCUS; e += 1000) {
     const y = (plateY(e) - 5).toFixed(1);
     svg += `<text x="18" y="${y}" opacity="0.75">${e} m</text>`;
     svg += `<text x="${W - 18}" y="${y}" text-anchor="end" opacity="0.75">${e} m</text>`;
   }
-  svg += `</g>`;
+  if (!SURVEY_FOCUS) svg += `</g>`;
+
+  /* the close-up window, computed once so both the note and the viewBox agree */
+  var focusX0, focusY0;
+  if (SURVEY_FOCUS) {
+    const node = nodes.find(n => PLATE_STORIES[n.index].num === SURVEY_FOCUS);
+    const comp = (typeof window !== 'undefined' && window.MRI_VIGNETTES_DATA && window.MRI_VIGNETTES_DATA[SURVEY_FOCUS]) || {};
+    if (node) {
+      const fw = FOCUS_WINDOW.w, fh = FOCUS_WINDOW.h, win = comp.win || {};
+      const spread = (window.MRI_VIGNETTES && window.MRI_VIGNETTES.SPREAD) || 0.72;
+      let cx = node.x, cy = node.y, nC = 1;
+      (comp.items || []).forEach(it => { cx += node.x + it.dx * spread; cy += node.y + it.dy * spread; nC++; });
+      cx /= nC; cy /= nC;
+      cx = Math.max(node.x - fw * 0.3, Math.min(node.x + fw * 0.3, cx));
+      cy = Math.max(node.y - fh * 0.25, Math.min(node.y + fh * 0.25, cy));
+      focusX0 = Math.max(16, Math.min(W - fw - 16, cx - fw / 2 + (win.dx || 0)));
+      focusY0 = Math.max(16, Math.min(H - fh - 16, cy - fh * 0.5 + (win.dy || 0)));
+    }
+  }
+
+  /* --- the story's own motifs, when this is a close-up ----------------------- */
+  if (SURVEY_FOCUS && typeof window !== 'undefined' && window.MRI_VIGNETTES) {
+    const node = nodes.find(n => PLATE_STORIES[n.index].num === SURVEY_FOCUS);
+    if (node) {
+      svg += window.MRI_VIGNETTES.draw(SURVEY_FOCUS, {
+        S, rand, MIX, esc, node, flankAt, plateY, plateCX, PLATE, snowE,
+        glacier, nearGlacier,
+        rivers: riverPts.concat(typeof glacierStream !== 'undefined' ? [glacierStream] : [])
+      });
+    }
+  }
+
+  if (SURVEY_FOCUS && typeof heldNote !== 'undefined') {
+    /* In a close-up the caption is a surveyor's note pinned in the clearest
+       corner of the window, with a short leader to the station — never over
+       the scene. The corner is the one away from where the motifs sit. */
+    const node = nodes.find(n => PLATE_STORIES[n.index].num === SURVEY_FOCUS);
+    const comp = (typeof window !== 'undefined' && window.MRI_VIGNETTES_DATA && window.MRI_VIGNETTES_DATA[SURVEY_FOCUS]) || { items: [] };
+    const meanDx = comp.items.length ? comp.items.reduce((a, it) => a + it.dx, 0) / comp.items.length : 0;
+    const fw = FOCUS_WINDOW.w, fh = FOCUS_WINDOW.h;
+    const fx0 = (typeof focusX0 !== 'undefined') ? focusX0 : node.x - fw / 2;
+    const fy0 = (typeof focusY0 !== 'undefined') ? focusY0 : node.y - fh * 0.5;
+    const left = meanDx > 0;
+    const st = PLATE_STORIES[node.index];
+    const src = window.MRI_CONTENT && window.MRI_CONTENT.STORIES.find(x => x.num === st.num);
+    const title = ((src && (src.label || src.topic)) || st.title).replace(/’/g, "'").toUpperCase();
+    let lines = [title];
+    if (title.length > 22) { let cut = title.lastIndexOf(' ', 24); if (cut < 6) cut = title.indexOf(' ', 11); if (cut > 0) lines = [title.slice(0, cut), title.slice(cut + 1)]; }
+    const fs = T.note * 1.05, lh = fs + 4;
+    const wEst = Math.max(...lines.map(l => l.length)) * fs * 0.62 + 22;
+    const hEst = lines.length * lh + T.num + 26;
+    const bx = left ? fx0 + 26 : fx0 + fw - 26 - wEst;
+    const by = fy0 + 24;
+    /* the note box, in the sheet's own tone with a hairline rule */
+    svg += `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${wEst.toFixed(1)}" height="${hEst.toFixed(1)}" fill="${S.paper}" stroke="${S.ink}" stroke-width="0.6" opacity="0.94"/>`;
+    /* leader from the box's near edge to the station */
+    const lx = left ? bx + wEst : bx, ly = by + hEst / 2;
+    svg += `<path d="M ${lx.toFixed(1)} ${ly.toFixed(1)} L ${node.x.toFixed(1)} ${node.y.toFixed(1)}" fill="none" stroke="${S.inkSoft}" stroke-width="0.55" stroke-dasharray="3 2.5" opacity="0.8"/>`;
+    svg += `<g font-family="ui-monospace, Menlo, monospace">`;
+    lines.forEach((l, i) => {
+      svg += `<text x="${(bx + 11).toFixed(1)}" y="${(by + 10 + lh * (i + 1) - 4).toFixed(1)}" font-size="${fs}" letter-spacing="1" fill="${S.ink}">${esc(l)}</text>`;
+    });
+    svg += `<text x="${(bx + wEst - 11).toFixed(1)}" y="${(by + hEst - 8).toFixed(1)}" text-anchor="end" font-size="${T.num}" letter-spacing="1.5" fill="${S.red}">Nº ${String(node.index + 1).padStart(2, '0')}</text>`;
+    svg += `</g>`;
+  }
 
   /* --- sheet frame ---------------------------------------------------------- */
-  if (SURVEY_DECOR) {
+  if (SURVEY_DECOR && !SURVEY_FOCUS) {
     svg += `<rect x="10" y="10" width="${W - 20}" height="${H - 20}" fill="none" stroke="${S.ink}" stroke-width="2.2" opacity="0.8"/>`;
     svg += `<rect x="17" y="17" width="${W - 34}" height="${H - 34}" fill="none" stroke="${S.ink}" stroke-width="0.6" opacity="0.6"/>`;
   }
 
   svg += `</svg>`;
+
+  if (SURVEY_FOCUS && typeof focusX0 !== 'undefined') {
+    const node = nodes.find(n => PLATE_STORIES[n.index].num === SURVEY_FOCUS);
+    const fw = FOCUS_WINDOW.w, fh = FOCUS_WINDOW.h;
+    const vb = `${focusX0.toFixed(1)} ${focusY0.toFixed(1)} ${fw} ${fh}`;
+    svg = svg.replace(/viewBox="[^"]+" preserveAspectRatio="[^"]+"/, `viewBox="${vb}" preserveAspectRatio="xMidYMid meet"`);
+    return { svg, nodes, pathD, viewBox: vb, focus: { num: SURVEY_FOCUS, x0: focusX0, y0: focusY0, w: fw, h: fh, node } };
+  }
   return { svg, nodes, pathD, viewBox: `0 0 ${W} ${H}` };
 }
 
@@ -1875,7 +1974,7 @@ function generateMountainPlate(seedKey) {
     window.MRI_PLATE = {
       svg: plate.svg, pathD: plate.pathD, viewBox: plate.viewBox,
       nodes, byClimb, stories: PLATE_STORIES, belts: BELTS,
-      layout: builtFor, theme: builtTheme
+      layout: builtFor, theme: builtTheme, focus: plate.focus || null
     };
     return true;
   }
