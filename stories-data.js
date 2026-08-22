@@ -71,6 +71,7 @@ const STORIES = [
     num: 1,
     title: 'Glaciers',
     topic: 'Glaciers',
+    label: 'Glaciers',
     tags: ['Glaciers & Ice', 'Climate'],
     authors: [{ name: 'Shawn Marshall', institution: 'University of Calgary' }],
     status: 'pending'
@@ -79,6 +80,7 @@ const STORIES = [
     num: 2,
     title: 'Mountain Observation Systems',
     topic: '(High-elevation) Mountain observation systems',
+    label: 'Mountain observation systems',
     tags: ['Climate', 'Knowledge'],
     authors: [{ name: 'Maria Shahgedanova', institution: 'University of Reading' }],
     status: 'pending'
@@ -87,6 +89,7 @@ const STORIES = [
     num: 3,
     title: 'Elevation-Dependent Climate Change',
     topic: 'Climate dynamics in mountain regions / elevation-dependent warming',
+    label: 'Elevation-dependent warming',
     tags: ['Climate', 'Knowledge'],
     authors: [{ name: 'Nick Pepin', institution: 'University of Portsmouth' }],
     status: 'draft',
@@ -112,6 +115,7 @@ const STORIES = [
     num: 4,
     title: 'Welcoming the Social Dimensions of Glacier Loss',
     topic: 'Social dimensions of glacier loss',
+    label: 'Social dimensions of glacier loss',
     tags: ['Glaciers & Ice', 'Equity', 'Knowledge'],
     authors: [
       { name: 'Ignacio Palomo', institution: 'Institut de Recherche pour le Développement' },
@@ -140,6 +144,7 @@ const STORIES = [
     num: 5,
     title: 'The Fruits of Everyday Women’s Work with Mountain Water',
     topic: 'Mountain water towers & downstream dependencies; water scarcity, quality & security beyond mountains',
+    label: 'Water towers & downstream dependencies',
     tags: ['Water', 'Livelihoods', 'Equity'],
     authors: [
       { name: 'Mark Carey', institution: 'University of Oregon' },
@@ -167,12 +172,13 @@ const STORIES = [
       { t: 'p', x: 'It is true that nearly 50 percent of Cordillera Blanca glacial ice has disappeared in the last 50 years, causing hydrologic decline particularly in the dry season. Yet putting women into a larger context of growth in crop production and agricultural exports reframes accounts of impending hydrological catastrophe. <strong>Even as glaciers shrink, there are still many mountain stories of inspiration and possibility.</strong>' }
     ]
   },
-  { num: 6,  title: 'Mountain Ecosystems and Nature-Based Solutions', topic: 'Mountain ecosystems & Ecosystem Services & Nature Based Solutions', tags: ['Ecosystems', 'Land Use'], authors: [{ name: 'Christian Rixen', institution: 'WSL Institute for Snow and Avalanche Research SLF' }], status: 'pending' },
-  { num: 7,  title: 'Forests, Soils and Carbon Dynamics', topic: 'Forests, soils & carbon dynamics', tags: ['Ecosystems', 'Climate'], authors: [{ name: 'Harald Bugmann', institution: 'ETH Zürich' }], status: 'pending' },
+  { num: 6,  title: 'Mountain Ecosystems and Nature-Based Solutions', topic: 'Mountain ecosystems & Ecosystem Services & Nature Based Solutions', label: 'Ecosystems & nature-based solutions', tags: ['Ecosystems', 'Land Use'], authors: [{ name: 'Christian Rixen', institution: 'WSL Institute for Snow and Avalanche Research SLF' }], status: 'pending' },
+  { num: 7,  title: 'Forests, Soils and Carbon Dynamics', topic: 'Forests, soils & carbon dynamics', label: 'Forests, soils & carbon dynamics', tags: ['Ecosystems', 'Climate'], authors: [{ name: 'Harald Bugmann', institution: 'ETH Zürich' }], status: 'pending' },
   {
     num: 8,
     title: '“This Doesn’t Work Here”',
     topic: 'Adaptation & resilience: Communities responding to change',
+    label: 'Adaptation & resilience',
     tags: ['Livelihoods', 'Equity', 'Knowledge'],
     authors: [
       { name: 'Aida Cuni-Sanchez', institution: 'Norwegian University of Life Sciences' },
@@ -199,12 +205,13 @@ const STORIES = [
       { t: 'p', x: '<strong>Most Batwa remain landless.</strong>' }
     ]
   },
-  { num: 9,  title: 'Cascading Hazards and Risks', topic: 'Impacts (e.g. cascading hazards & risks)', tags: ['Hazards', 'Climate'], authors: [{ name: 'Joyce Kimutai', institution: 'Imperial College London' }], status: 'pending' },
-  { num: 10, title: 'Agriculture and Food Systems', topic: 'Agriculture & food systems', tags: ['Livelihoods', 'Land Use'], authors: [{ name: 'Theresa Tribaldos', institution: 'University of Bern' }], status: 'pending' },
+  { num: 9,  title: 'Cascading Hazards and Risks', topic: 'Impacts (e.g. cascading hazards & risks)', label: 'Cascading hazards & risks', tags: ['Hazards', 'Climate'], authors: [{ name: 'Joyce Kimutai', institution: 'Imperial College London' }], status: 'pending' },
+  { num: 10, title: 'Agriculture and Food Systems', topic: 'Agriculture & food systems', label: 'Agriculture & food systems', tags: ['Livelihoods', 'Land Use'], authors: [{ name: 'Theresa Tribaldos', institution: 'University of Bern' }], status: 'pending' },
   {
     num: 11,
     title: 'Walking Mount Sinai',
     topic: 'Cultural landscapes & heritage',
+    label: 'Cultural landscapes & heritage',
     tags: ['Culture', 'Land Use', 'Knowledge'],
     authors: [{ name: 'Ahmed Shams', institution: 'Sinai Peninsula Research' }],
     status: 'draft',
@@ -230,12 +237,13 @@ const STORIES = [
       { t: 'p', x: 'The untraditional small dams are characterised by high elevation, solar exposure and silting — short-lived seasonal successes with long-lasting effects on water resources and on the look of the landscape. A local Bedouin once told me: <em>“But the seasonal lakes behind the water dams look good in the photographs.”</em> An unexpected win for the online promotion of the landscape. Not for the landscape.' }
     ]
   },
-  { num: 12, title: 'Gender and Social Equity', topic: 'Gender & social equity', tags: ['Equity', 'Livelihoods'], authors: [{ name: 'Léa Sallenave', institution: 'University of Geneva' }, { name: 'Marie Oiry Varacca', institution: 'Université Gustave Eiffel' }], status: 'pending' },
-  { num: 13, title: 'Tourism', topic: 'Tourism', tags: ['Livelihoods', 'Culture'], authors: [{ name: 'Emmanuel Salim', institution: 'University of Lausanne' }], status: 'pending' },
+  { num: 12, title: 'Gender and Social Equity', topic: 'Gender & social equity', label: 'Gender & social equity', tags: ['Equity', 'Livelihoods'], authors: [{ name: 'Léa Sallenave', institution: 'University of Geneva' }, { name: 'Marie Oiry Varacca', institution: 'Université Gustave Eiffel' }], status: 'pending' },
+  { num: 13, title: 'Tourism', topic: 'Tourism', label: 'Tourism', tags: ['Livelihoods', 'Culture'], authors: [{ name: 'Emmanuel Salim', institution: 'University of Lausanne' }], status: 'pending' },
   {
     num: 14,
     title: 'Changing Migration Dynamics in the Hindu Kush Himalaya',
     topic: 'Demographic change & migration',
+    label: 'Demographic change & migration',
     tags: ['Livelihoods', 'Equity', 'Hazards'],
     authors: [{ name: 'Amina Maharjan', institution: 'ICIMOD' }],
     status: 'draft',
@@ -262,13 +270,14 @@ const STORIES = [
       { t: 'p', x: 'And people are returning. Return migration follows new opportunities in tourism, economic crises such as COVID-19, health, retirement or simple preference — made possible by the same improved infrastructure. Alongside it comes a newer trend: second homes in the mountains, bought to escape pollution and heat stress in the cities, and as investment. It is visible in the Uttarakhand mountains, within reach of Delhi.' }
     ]
   },
-  { num: 15, title: 'Conflict, Peacebuilding and Transboundary Cooperation', topic: 'Conflict, peacebuilding & transboundary cooperation', tags: ['Governance', 'Equity'], authors: [{ name: 'Mariana Melnykovych', institution: 'WSL Swiss Federal Institute for Forest, Snow and Landscape Research' }], status: 'pending' },
-  { num: 16, title: 'Urbanisation and Infrastructure', topic: 'Urbanisation & infrastructure challenges', tags: ['Land Use', 'Governance'], authors: [{ name: 'Karen Seto', institution: 'Yale University' }], status: 'pending' },
-  { num: 17, title: 'Indigenous and Local Knowledge', topic: 'Indigenous & local knowledge', tags: ['Knowledge', 'Culture'], authors: [{ name: 'Nand Kishor', institution: '' }], status: 'pending' },
+  { num: 15, title: 'Conflict, Peacebuilding and Transboundary Cooperation', topic: 'Conflict, peacebuilding & transboundary cooperation', label: 'Peacebuilding & transboundary cooperation', tags: ['Governance', 'Equity'], authors: [{ name: 'Mariana Melnykovych', institution: 'WSL Swiss Federal Institute for Forest, Snow and Landscape Research' }], status: 'pending' },
+  { num: 16, title: 'Urbanisation and Infrastructure', topic: 'Urbanisation & infrastructure challenges', label: 'Urbanisation & infrastructure', tags: ['Land Use', 'Governance'], authors: [{ name: 'Karen Seto', institution: 'Yale University' }], status: 'pending' },
+  { num: 17, title: 'Indigenous and Local Knowledge', topic: 'Indigenous & local knowledge', label: 'Indigenous & local knowledge', tags: ['Knowledge', 'Culture'], authors: [{ name: 'Nand Kishor', institution: '' }], status: 'pending' },
   {
     num: 18,
     title: 'Who Owns the Fallow?',
     topic: 'Land tenure and Mountain Governance',
+    label: 'Land tenure & mountain governance',
     tags: ['Governance', 'Land Use', 'Knowledge'],
     // Institutions not stated in the draft — to be confirmed with the authors
     authors: [{ name: 'Glenn Hunt', institution: '' }, { name: 'Athong Makury', institution: '' }],
@@ -294,16 +303,17 @@ const STORIES = [
       { t: 'p', x: 'Once commons are enclosed and fallows disappear, rebuilding these systems becomes extraordinarily difficult. <strong>Resilient mountain futures depend not only on what land produces, but on who governs it, and how its complexity is allowed to endure.</strong>' }
     ]
   },
-  { num: 19, title: 'Hydropower and Energy Transitions', topic: 'Energy security: Hydropower & energy transitions', tags: ['Water', 'Governance'], authors: [{ name: 'Marc Landry', institution: 'Tulane University' }, { name: 'Yan Zhong', institution: '' }], status: 'pending' },
-  { num: 20, title: 'Mountains in Global Frameworks', topic: 'Mountains in global frameworks: From UNFCCC/IPCC to SDGs', tags: ['Governance', 'Knowledge'], authors: [{ name: 'Amlan Mishra', institution: '' }], status: 'pending' },
-  { num: 21, title: 'Legal Action and Mountain Justice', topic: 'Legal Action (rights of nature, legal advocacy and mountain justice)', tags: ['Governance', 'Equity'], authors: [], status: 'pending' },
-  { num: 22, title: 'Mountains and the Arts', topic: 'Mountains and Arts: connecting and dealing with change', tags: ['Culture', 'Knowledge'], authors: [{ name: 'Olivier Dangles', institution: 'Institut de Recherche pour le Développement' }], status: 'pending' },
-  { num: 23, title: 'Future Scenarios for Mountain Regions', topic: 'Future scenarios for mountain regions', tags: ['Climate', 'Governance'], authors: [{ name: 'Rob Marchant', institution: 'University of York' }], status: 'pending' },
-  { num: 24, title: 'Snow Dynamics', topic: 'Snow dynamics', tags: ['Snow & Permafrost', 'Water'], authors: [], status: 'pending' },
+  { num: 19, title: 'Hydropower and Energy Transitions', topic: 'Energy security: Hydropower & energy transitions', label: 'Hydropower & energy transitions', tags: ['Water', 'Governance'], authors: [{ name: 'Marc Landry', institution: 'Tulane University' }, { name: 'Yan Zhong', institution: '' }], status: 'pending' },
+  { num: 20, title: 'Mountains in Global Frameworks', topic: 'Mountains in global frameworks: From UNFCCC/IPCC to SDGs', label: 'Mountains in global frameworks', tags: ['Governance', 'Knowledge'], authors: [{ name: 'Amlan Mishra', institution: '' }], status: 'pending' },
+  { num: 21, title: 'Legal Action and Mountain Justice', topic: 'Legal Action (rights of nature, legal advocacy and mountain justice)', label: 'Legal action & mountain justice', tags: ['Governance', 'Equity'], authors: [], status: 'pending' },
+  { num: 22, title: 'Mountains and the Arts', topic: 'Mountains and Arts: connecting and dealing with change', label: 'Mountains & the arts', tags: ['Culture', 'Knowledge'], authors: [{ name: 'Olivier Dangles', institution: 'Institut de Recherche pour le Développement' }], status: 'pending' },
+  { num: 23, title: 'Future Scenarios for Mountain Regions', topic: 'Future scenarios for mountain regions', label: 'Future scenarios for mountain regions', tags: ['Climate', 'Governance'], authors: [{ name: 'Rob Marchant', institution: 'University of York' }], status: 'pending' },
+  { num: 24, title: 'Snow Dynamics', topic: 'Snow dynamics', label: 'Snow dynamics', tags: ['Snow & Permafrost', 'Water'], authors: [], status: 'pending' },
   {
     num: 25,
     title: 'Mountain Permafrost and the Blatten Catastrophe',
     topic: 'Permafrost',
+    label: 'Permafrost',
     tags: ['Snow & Permafrost', 'Hazards', 'Knowledge'],
     authors: [
       { name: 'Wilfried Haeberli', institution: 'University of Zurich' },

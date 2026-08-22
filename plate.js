@@ -711,8 +711,7 @@ const SURVEYS = {
 /* type sizes for the sheet — raised from the first draft, which read small
    at page scale. One set serves both printings. */
 const SURVEY_TYPE = {
-  note: 10.5, noteLead: 12, num: 9, zone: 21, spot: 13.5,
-  margin: 13, cartTitle: 30, cartSub: 15, cartMono: 10.5
+  note: 12.5, num: 10.5, zone: 24, spot: 15, margin: 14
 };
 
 
@@ -1350,15 +1349,18 @@ function renderSurveyPlate(ctx) {
     nodes.forEach((n, i) => {
       const st = PLATE_STORIES[n.index];
       svg += `<circle cx="${n.x.toFixed(1)}" cy="${n.y.toFixed(1)}" r="2.6" fill="${S.paper}" stroke="${S.red}" stroke-width="0.9"/>`;
-      const title = (st ? st.title.replace(/’/g, "'") : '').toUpperCase();
+      /* the note is the story's TOPIC — the short label from stories-data.js,
+         falling back to the full topic, then the title */
+      const src = window.MRI_CONTENT && window.MRI_CONTENT.STORIES.find(x => x.num === st.num);
+      const title = ((src && (src.label || src.topic)) || (st ? st.title : '')).replace(/’/g, "'").toUpperCase();
       let lines = [title];
-      if (title.length > 20) {
+      if (title.length > 22) {
         const mid = Math.floor(title.length / 2);
-        let cut = title.lastIndexOf(' ', 26);
+        let cut = title.lastIndexOf(' ', 24);
         if (cut < 6) cut = title.indexOf(' ', mid);
         if (cut > 0) lines = [title.slice(0, cut), title.slice(cut + 1)];
       }
-      lines = lines.map(l2 => l2.length > 26 ? l2.slice(0, 24).replace(/\s+\S*$/, '') + '…' : l2);
+      lines = lines.map(l2 => l2.length > 27 ? l2.slice(0, 25).replace(/\s+\S*$/, '') + '…' : l2);
       const wEst = Math.max(...lines.map(l2 => l2.length)) * T.note * 0.62 + 8;
       const hEst = lines.length * (T.note + 3) + 16;
 
@@ -1366,9 +1368,9 @@ function renderSurveyPlate(ctx) {
       let left = i % 2 === 0, ex = 0, ey = 0, ok = false;
       outer: for (let attempt = 0; attempt < 2 && !ok; attempt++) {
         for (let rung = 0; rung < 4; rung++) {
-          const L = 52 + rung * 24;
+          const L = 58 + rung * 28;
           ex = n.x + (left ? -L : L);
-          ey = n.y - (10 + rung * 19);
+          ey = n.y - (12 + rung * 22);
           const x0 = left ? ex - 16 - wEst : ex + 16;
           const box = { x0, x1: x0 + wEst, y0: ey - hEst + 6, y1: ey + 10 };
           if (!collide(box)) { placedBoxes.push(box); ok = true; break outer; }
@@ -1403,7 +1405,7 @@ function renderSurveyPlate(ctx) {
     const wEst = label.length * T.zone * 0.58;
     const box = { x0: x - wEst / 2, x1: x + wEst / 2, y0: y - 12, y1: y + 8 };
     let yy = y;
-    for (let t = 0; t < 3 && collide({ ...box, y0: yy - 12, y1: yy + 8 }); t++) yy += 22;
+    for (let t = 0; t < 3 && collide({ ...box, y0: yy - 14, y1: yy + 9 }); t++) yy += 26;
     placedBoxes.push({ x0: box.x0, x1: box.x1, y0: yy - 12, y1: yy + 8 });
     const pair = inkOn(overSnow);
     svg += `<text x="${x.toFixed(1)}" y="${(yy + 5).toFixed(1)}" text-anchor="middle" fill="${pair.fill}" stroke="${pair.halo}">${esc(label)}</text>`;
@@ -1419,20 +1421,10 @@ function renderSurveyPlate(ctx) {
   }
   svg += `</g>`;
 
-  /* --- sheet frame and cartouche -------------------------------------------- */
+  /* --- sheet frame ---------------------------------------------------------- */
   if (SURVEY_DECOR) {
     svg += `<rect x="10" y="10" width="${W - 20}" height="${H - 20}" fill="none" stroke="${S.ink}" stroke-width="2.2" opacity="0.8"/>`;
     svg += `<rect x="17" y="17" width="${W - 34}" height="${H - 34}" fill="none" stroke="${S.ink}" stroke-width="0.6" opacity="0.6"/>`;
-    svg += `<g transform="translate(${W - 470}, 52)">`;
-    svg += `<rect x="-24" y="-24" width="440" height="132" fill="${S.paper}" stroke="${S.ink}" stroke-width="0.7" opacity="0.94"/>`;
-    svg += `<text x="196" y="8" text-anchor="middle" font-family="Jost, 'Century Gothic', sans-serif" font-size="${T.cartTitle}" letter-spacing="7" fill="${S.ink}">THE MOUNTAIN JOURNEY</text>`;
-    svg += `<line x1="96" y1="17" x2="296" y2="17" stroke="${S.blue}" stroke-width="1.2"/><text x="196" y="40" text-anchor="middle" font-family="'Source Serif 4', Georgia, serif" font-style="italic" font-size="${T.cartSub}" fill="${S.inkSoft}">Twenty-five stories from a quarter-century of mountain research</text>`;
-    svg += `<g font-family="ui-monospace, Menlo, monospace" font-size="${T.cartMono}" fill="${S.inkSoft}">`;
-    svg += `<line x1="60" y1="58" x2="104" y2="58" stroke="${S.red}" stroke-width="0.9" stroke-dasharray="5 4"/><circle cx="82" cy="58" r="2.4" fill="${S.paper}" stroke="${S.red}" stroke-width="0.9"/>`;
-    svg += `<text x="112" y="61.5">THE JOURNEY, STATIONS 01–25</text>`;
-    svg += `</g>`;
-    svg += `<text x="196" y="88" text-anchor="middle" font-family="ui-monospace, Menlo, monospace" font-size="${T.cartMono}" letter-spacing="3" fill="${S.blue}">MOUNTAIN RESEARCH INITIATIVE · MMXXVI</text>`;
-    svg += `</g>`;
   }
 
   svg += `</svg>`;
