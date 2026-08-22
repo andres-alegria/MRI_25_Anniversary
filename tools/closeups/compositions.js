@@ -70,7 +70,7 @@ window.MRI_VIGNETTES_DATA = {
     { m: 'marmot',           dx:  200, dy:  -72, k: 0.9 },
   ]},
   7: { name: 'Forests, soils & carbon dynamics', items: [
-    { m: 'soilProfile',      dx:  -95, dy:   64, k: 1.3, hero: true },
+    { m: 'soilProfile',      dx:  -95, dy:   64, k: 0.95, hero: true },
     { m: 'rootSystem',       dx:   85, dy:    4, k: 1.2 },
     { m: 'detailedPine',     dx: -185, dy:  -44, k: 1.1 },
     { m: 'loggedStand',      dx:  160, dy:   94, k: 1.0 },
@@ -177,7 +177,7 @@ window.MRI_VIGNETTES_DATA = {
     { m: 'cropRows',         dx: -175, dy:  -60, k: 0.9 },
   ]},
   19: { name: 'Hydropower & energy transitions', items: [
-    { m: 'damWall',          dx:  -45, dy:  -60, k: 1.3, hero: true, snap: 'river' },
+    { m: 'damWall',          dx:  -45, dy:  -60, k: 0.8, hero: true, snap: 'river' },
     { m: 'turbineHouse',     dx:   85, dy:   62, k: 1.1 },
     { m: 'pylonLine',        dx:  175, dy:  -20, k: 0.9, o: { count: 3 } },
     { m: 'braidedRiver',     dx:   40, dy:  142, k: 1.0, snap: 'river' },
