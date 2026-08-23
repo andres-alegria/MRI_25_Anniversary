@@ -44,20 +44,57 @@ restrained colour). They must look DRAWN, not like flat icons or clip-art.
 NEVER hard-code colours. The same motif must print on a dark sheet too.
 
 ## Style rules
-- Stroke weights 0.5 to 1.2 (in plate units). Hairlines 0.45–0.6 for detail,
-  0.9–1.2 for a main contour. stroke-linecap round, stroke-linejoin round.
+- Stroke weights: 0.45 hairline (detail), 0.7 secondary, 1.0–1.1 main contour.
+  The ink engine (ink.js) quantises every stroke to exactly those three
+  weights IN SHEET UNITS — a motif drawn at k = 2.7 gets the same line as one
+  at k = 1 — bends each stroke with a slow hand-wobble, and draws contours as
+  tapered ribbons. So: do NOT add per-vertex jitter yourself (a 0.05 nudge at
+  most), and do not thicken strokes for big motifs. Use the three classes
+  deliberately: contour for the object's silhouette, secondary for structure,
+  hairline for texture.
 - Prefer open strokes to filled shapes. Fills: paper (to knock out texture
   behind a building), paperHigh (snow), waterPale/ice (water bodies), shade at
-  low opacity, or MIX(paper, ink, 0.06) for a wall. No saturated fills.
-- Use rand() for jitter: a roof ridge that is 0.5 off, strokes that vary in
-  length, dots that scatter. Hand-drawn, not CAD.
+  low opacity as a FLAT polygon, or MIX(paper, ink, 0.06) for a wall. No
+  saturated fills. NEVER a translucent ellipse as a shadow — the engine deletes
+  them; a printed sheet has no feathered tone.
+- Use rand() for VARIATION, not jitter: a roof ridge that is 0.5 off, strokes
+  that vary in length, a door on the other side, one window instead of two.
+  Two calls of the same motif must not produce the same drawing.
 - Suggest volume with a few hatching strokes on one side (light comes from the
-  upper left: shade the RIGHT/lower side).
-- Ground contact: draw a short broken ground line or a few stones at the base
-  so the thing sits on the terrain rather than floating.
-- Keep each motif under ~50 elements. Small and crisp beats elaborate.
-- Figures: simple but human — head circle, torso line, limbs in motion; a hat,
-  a load, a tool. No faces.
+  upper left: shade the RIGHT/lower side). Hatch at 45–60°, never 90°, and let
+  the strokes tighten toward the shadow core.
+- Ground contact: a short broken ground line only. NO pebbles, NO shadow
+  ellipse. The composer ties the motif to the sheet's own hachures.
+- Keep each motif under ~60 elements. Small and crisp beats elaborate.
+- Overlap: when a motif has several parts (a hamlet, a group), draw the far
+  ones first and knock out paper behind the near ones so nothing shows
+  through. No outline may be visible through the thing in front of it.
+
+## Figures — period staffage, NOT stick figures
+A 19th-century survey engraver drew a person as a small SOLID INK SILHOUETTE:
+hat, head, coat and legs as one filled blot, four to six strokes, no outline,
+no circle for a head, no faces. That is the only way people appear on these
+sheets. Recipe, at k = 1 (a standing adult is 16 units tall — smaller than
+before; people on a survey sheet are small):
+- ONE closed filled path in S.ink: a flat brimmed hat (a short wide wedge) or
+  a cap, a small head blob that merges into it, a neck that narrows, shoulders,
+  a coat widening to the hem at mid-thigh, and legs as two tapered wedges —
+  one forward of the other so the figure has a stride or a stance. Hem and
+  brim are the only straight-ish lines; everything else is a gentle curve.
+- A second small filled shape for a load (rucksack, basket, jug, bundle)
+  separated from the body by a hairline gap in S.paper (draw the gap as a
+  paper stroke 0.45 wide between the two fills). At most one such gap on the
+  figure itself (collar or hem) — engravers left a light line there.
+- Tools are hairlines: an alpenstock 0.45 wide and taller than the figure,
+  a hoe, a rope as a sagging hairline between two people.
+- Posture is the whole expression: lean forward under a load, weight on one
+  hip when standing, arm up to shade the eyes, bent double over a hoe, a child
+  as a smaller blot with a shorter stride. Vary proportion by rand() ±8 %.
+- No interior lines, no hatching, no eyes, no hands: the blot does the work.
+  Read the old Agassiz/Whymper plates in your mind: tiny dark people against
+  pale ice.
+- Groups: 2–5 blots at slightly different sizes and stances, overlapping is
+  fine (they are all ink), never two identical.
 
 ## Self-test (required)
 Run:   node tools/closeups/motif-contact-sheet.js <yourfile.js>

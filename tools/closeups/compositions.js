@@ -8,15 +8,19 @@
    inside roughly dx ±300, dy −230 … +180.
 
    `m` is a motif name from the motif library; `k` is its scale (a standing
-   person is ~22 units at k = 1); `o` is passed through as opts.
+   person is ~16 units at k = 1); `o` is passed through as opts.
+   People are deliberately few: a survey sheet shows them small and only
+   where the story is about them, or where one gives the hero its scale.
    Adjust a story's scene here — nothing else needs to change.
 --------------------------------------------------------------------------- */
 window.MRI_VIGNETTES_DATA = {
   1: { name: 'Glaciers', items: [
     /* the glacier itself is the hero: the crevasse field sits on the tongue */
-    { m: 'crevasseField',    dx:    0, dy:  120, k: 1.0, hero: true, snap: 'glacier' },
-    { m: 'seracCliff',       dx:  -40, dy:   70, k: 0.7, snap: 'glacier', rx: 12 },
-    { m: 'snowStake',        dx:  -60, dy:  160, k: 0.9, snap: 'glacier', rx: -26 },
+    /* the crevasse field and the serac step belong on the glacier TONGUE, well
+       below the summit station — not on the snowcap beside the theodolite */
+    { m: 'crevasseField',    dx:    0, dy:  330, k: 0.7, hero: true, snap: 'glacier' },
+    { m: 'seracCliff',       dx:  -40, dy:  250, k: 0.5, snap: 'glacier', rx: 12 },
+    { m: 'snowStake',        dx:  -60, dy:  160, k: 0.9 },
     { m: 'surveyTape',       dx:   60, dy:  200, k: 0.9, o: { length: 70 } },
     { m: 'climbersRoped',    dx: -190, dy:  210, k: 0.85 },
     { m: 'theodoliteTripod', dx:  150, dy:  130, k: 0.8, o: { surveyor: true } },
@@ -26,7 +30,6 @@ window.MRI_VIGNETTES_DATA = {
     { m: 'weatherStation',   dx:    0, dy:  -20, k: 1.5, hero: true },
     { m: 'dataLogger',       dx:   95, dy:   24, k: 1.0 },
     { m: 'satelliteDish',    dx: -115, dy:   12, k: 1.0 },
-    { m: 'person',           dx:   58, dy:   62, k: 1.0 },
     { m: 'drone',            dx:  -60, dy: -130, k: 1.0 },
     { m: 'openNotebook',     dx:  140, dy:   74, k: 0.9 },
     { m: 'theodoliteTripod', dx: -180, dy:   64, k: 0.9 },
@@ -39,12 +42,10 @@ window.MRI_VIGNETTES_DATA = {
     { m: 'thermometerPost',  dx:   95, dy:  -60, k: 1.0 },
     { m: 'weatherStation',   dx:  200, dy:  -20, k: 1.0 },
     { m: 'birdsFlying',      dx: -130, dy: -150, k: 1.0 },
-    { m: 'person',           dx: -100, dy:   70, k: 1.0, o: { flip: true } },
   ]},
   4: { name: 'Social dimensions of glacier loss', items: [
     { m: 'memorialCross',    dx:  -25, dy:   32, k: 1.2, hero: true },
     { m: 'childAndElder',    dx:   70, dy:   52, k: 1.05 },
-    { m: 'groupInCircle',    dx: -160, dy:   96, k: 0.9 },
     { m: 'moraineRidge',     dx:   30, dy:  -70, k: 1.2 },
     { m: 'mountainLake',     dx:  140, dy:  -40, k: 1.0 },
     { m: 'rockfallBoulders', dx: -120, dy:  -40, k: 0.8 },
@@ -66,7 +67,6 @@ window.MRI_VIGNETTES_DATA = {
     { m: 'detailedPine',     dx: -170, dy:  -60, k: 1.0 },
     { m: 'shrubs',           dx:   40, dy:  104, k: 1.0 },
     { m: 'birdsFlying',      dx: -100, dy: -150, k: 1.0 },
-    { m: 'farmerWithHoe',    dx: -115, dy:   84, k: 1.0 },
     { m: 'marmot',           dx:  200, dy:  -72, k: 0.9 },
   ]},
   7: { name: 'Forests, soils & carbon dynamics', items: [
@@ -87,8 +87,8 @@ window.MRI_VIGNETTES_DATA = {
   ]},
   9: { name: 'Cascading hazards & risks', items: [
     /* a cascade with an order: lake → debris flow → flood → the bridge at risk */
-    { m: 'glacialLake',      dx:  -70, dy: -150, k: 0.9 },
-    { m: 'debrisFlow',       dx:    0, dy:  -20, k: 1.0, hero: true },
+    { m: 'glacialLake',      dx:  -70, dy: -190, k: 0.9 },
+    { m: 'debrisFlow',       dx:    0, dy:   10, k: 1.0, hero: true },
     { m: 'floodWave',        dx:   10, dy:  120, k: 1.0, snap: 'river' },
     { m: 'bridge',           dx:   10, dy:  175, k: 0.8, snap: 'river' },
     { m: 'houseCluster',     dx:  120, dy:  200, k: 0.7 },
@@ -109,13 +109,11 @@ window.MRI_VIGNETTES_DATA = {
     { m: 'hikerWithStick',   dx:   90, dy:   72, k: 1.0 },
     { m: 'hikerWithStick',   dx:  125, dy:   86, k: 0.95, o: { flip: true } },
     { m: 'terracesWithCrops',dx: -165, dy:  -64, k: 0.9 },
-    { m: 'personCarrying',   dx:  -40, dy:  104, k: 1.0 },
     { m: 'stupaOrShrine',    dx:  175, dy:  -62, k: 0.9 },
   ]},
   12: { name: 'Gender & social equity', items: [
     { m: 'womanWithJug',     dx:  -30, dy:   30, k: 1.1, hero: true },
     { m: 'personCarrying',   dx:   50, dy:   42, k: 1.0, o: { flip: true } },
-    { m: 'womanWithJug',     dx:  125, dy:   72, k: 1.0, o: { flip: true } },
     { m: 'irrigationChannel',dx: -150, dy:   82, k: 1.0, snap: 'river' },
     { m: 'houseCluster',     dx:  100, dy:  -92, k: 0.9 },
     { m: 'cropRows',         dx: -100, dy:  132, k: 1.0 },
@@ -127,7 +125,6 @@ window.MRI_VIGNETTES_DATA = {
     { m: 'signpost',         dx:  110, dy:   40, k: 0.8 },
     { m: 'hikerWithStick',   dx:  140, dy:   70, k: 0.7 },
     { m: 'hikerWithStick',   dx:  168, dy:   82, k: 0.7 },
-    { m: 'hikerWithStick',   dx:  196, dy:   96, k: 0.7 },
     { m: 'tent',             dx: -170, dy:   60, k: 0.8 },
     { m: 'bus',              dx:   10, dy:  150, k: 0.5 },
   ]},
@@ -136,7 +133,6 @@ window.MRI_VIGNETTES_DATA = {
     { m: 'roadSwitchbacks',  dx:  105, dy:   62, k: 1.1 },
     { m: 'bus',              dx:  155, dy:  132, k: 0.5 },
     { m: 'personCarrying',   dx:   40, dy:   72, k: 1.0 },
-    { m: 'hikerWithStick',   dx:   92, dy:  102, k: 1.0 },
     { m: 'childAndElder',    dx: -165, dy:   92, k: 0.9 },
     { m: 'birdsFlying',      dx:   60, dy: -150, k: 1.1 },
     { m: 'signpost',         dx:   20, dy:   30, k: 0.9 },
@@ -147,8 +143,6 @@ window.MRI_VIGNETTES_DATA = {
     { m: 'borderPost',       dx:  -95, dy:   22, k: 1.1 },
     { m: 'groupInCircle',    dx:  155, dy:   62, k: 0.9 },
     { m: 'fenceLine',        dx: -185, dy:   62, k: 1.0 },
-    { m: 'person',           dx: -140, dy:   -6, k: 1.0 },
-    { m: 'person',           dx:  120, dy:  -10, k: 1.0, o: { flip: true } },
   ]},
   16: { name: 'Urbanisation & infrastructure', items: [
     { m: 'crane',            dx:  -40, dy:  -30, k: 1.0, hero: true },
@@ -181,7 +175,6 @@ window.MRI_VIGNETTES_DATA = {
     { m: 'turbineHouse',     dx:   85, dy:   62, k: 1.1 },
     { m: 'pylonLine',        dx:  175, dy:  -20, k: 0.9, o: { count: 3 } },
     { m: 'braidedRiver',     dx:   40, dy:  142, k: 1.0, snap: 'river' },
-    { m: 'person',           dx: -135, dy:   84, k: 0.9 },
     { m: 'waterfall',        dx: -180, dy: -120, k: 0.8, snap: 'river' },
   ]},
   20: { name: 'Mountains in global frameworks', items: [
@@ -203,7 +196,6 @@ window.MRI_VIGNETTES_DATA = {
   22: { name: 'Mountains & the arts', items: [
     { m: 'painterAtEasel',   dx:    0, dy:   22, k: 1.3, hero: true },
     { m: 'openNotebook',     dx: -115, dy:   62, k: 0.9 },
-    { m: 'person',           dx:  115, dy:   52, k: 1.0 },
     { m: 'birdsFlying',      dx:  -80, dy: -140, k: 1.0 },
     { m: 'detailedPine',     dx:  155, dy:  -62, k: 1.0 },
     { m: 'flowerMeadow',     dx: -165, dy:   92, k: 1.0 },
@@ -219,13 +211,14 @@ window.MRI_VIGNETTES_DATA = {
     { m: 'houseCluster',     dx: -175, dy:   62, k: 0.8 },
   ]},
   24: { name: 'Snow dynamics', items: [
-    { m: 'snowPit',          dx:  -65, dy:   32, k: 1.3, hero: true },
-    { m: 'snowStake',        dx:   62, dy:  -20, k: 1.2 },
-    { m: 'cornice',          dx: -185, dy: -110, k: 1.2 },
-    { m: 'avalancheTrack',   dx:  125, dy: -120, k: 1.1 },
-    { m: 'person',           dx:   20, dy:   84, k: 1.0 },
+    /* the pit is the hero but a pit is small; the cornice and the icicle
+       overhang carry dark rock faces, so they stay modest */
+    { m: 'snowPit',          dx:  -65, dy:   32, k: 0.75, hero: true },
+    { m: 'snowStake',        dx:   62, dy:  -20, k: 1.1 },
+    { m: 'cornice',          dx: -150, dy: -110, k: 0.7 },
+    { m: 'avalancheTrack',   dx:  125, dy: -120, k: 0.9 },
     { m: 'weatherStation',   dx:  185, dy:   62, k: 0.9 },
-    { m: 'icicles',          dx: -120, dy:   92, k: 1.0 },
+    { m: 'icicles',          dx:  -90, dy:   96, k: 0.6 },
   ]},
   25: { name: 'Permafrost', items: [
     /* the rock glacier is the hero, on the talus below the snow and clear of the ice */

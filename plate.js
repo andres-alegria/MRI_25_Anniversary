@@ -1021,6 +1021,13 @@ function renderSurveyPlate(ctx) {
   }
   const nearGlacier = (x, y) => glacier.some(g => Math.abs(g[1] - y) < 30 && Math.abs(g[0] - x) < g[2] / 2 + 10);
 
+  /* The texture layers — hachures, outcrops, snow patches, forest, meadow —
+     draw from their own random stream. A close-up (SURVEY_FOCUS) reseeds it
+     with the story number, so the 25 windows onto the one massif do not
+     share every tick and tree; the macro form (silhouette, gullies, glacier,
+     rivers) is untouched and stays identical across all of them. */
+  const tex = makeRandom(hashString('texture-' + (SURVEY_FOCUS || 'sheet')));
+
   /* --- hachures: seeded off the skeleton, following the fall line ---------- */
   gullies.forEach((gu, gi) => {
     gu.forEach((pt, i2) => {
@@ -1031,35 +1038,35 @@ function renderSurveyPlate(ctx) {
       /* shaded (east) side dense, lit side sparse */
       [[1, 3], [-1, 1]].forEach(([sd, count]) => {
         for (let k = 0; k < count; k++) {
-          const off = sd * (6 + k * 9 + rand() * 6);
+          const off = sd * (6 + k * 9 + tex() * 6);
           const x = pt[0] + off;
           if (x < xl + 8 || x > xr - 8 || nearGlacier(x, y)) continue;
-          if (pt[2] > snowE && rand() < 0.7) continue;
-          const lean = (x - (xl + xr) / 2) * 0.055 + (rand() - 0.5) * 2;
-          const len = (8 + steep * 14) * (0.7 + rand() * 0.6);
-          svg += `<line x1="${x.toFixed(1)}" y1="${(y + (rand() - 0.5) * 20).toFixed(1)}" x2="${(x + lean).toFixed(1)}" y2="${(y + len).toFixed(1)}" stroke="${S.ink}" stroke-width="${(0.4 + steep * 0.35 + rand() * 0.2).toFixed(2)}" opacity="${((sd > 0 ? 0.16 : 0.09) + rand() * 0.12).toFixed(2)}"/>`;
+          if (pt[2] > snowE && tex() < 0.7) continue;
+          const lean = (x - (xl + xr) / 2) * 0.055 + (tex() - 0.5) * 2;
+          const len = (8 + steep * 14) * (0.7 + tex() * 0.6);
+          svg += `<line x1="${x.toFixed(1)}" y1="${(y + (tex() - 0.5) * 20).toFixed(1)}" x2="${(x + lean).toFixed(1)}" y2="${(y + len).toFixed(1)}" stroke="${S.ink}" stroke-width="${(0.4 + steep * 0.35 + tex() * 0.2).toFixed(2)}" opacity="${((sd > 0 ? 0.16 : 0.09) + tex() * 0.12).toFixed(2)}"/>`;
         }
       });
     });
   });
   /* free-standing outcrops between the gullies */
   for (let i = 0; i < 30; i++) {
-    const e = 1600 + rand() * 2500;
+    const e = 1600 + tex() * 2500;
     const y0 = plateY(e);
     const xl = flankAt(e, -1), xr = flankAt(e, 1);
     if (xr - xl < 40) continue;
-    const x0 = xl + 10 + rand() * (xr - xl - 20);
+    const x0 = xl + 10 + tex() * (xr - xl - 20);
     if (nearGlacier(x0, y0)) continue;
     let d = `M ${x0.toFixed(1)} ${y0.toFixed(1)}`;
     let x = x0, y = y0;
-    for (let k = 0; k < 4 + Math.floor(rand() * 5); k++) {
-      x += 2.5 + rand() * 5; y += (rand() - 0.62) * 5;
+    for (let k = 0; k < 4 + Math.floor(tex() * 5); k++) {
+      x += 2.5 + tex() * 5; y += (tex() - 0.62) * 5;
       d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
     }
     svg += `<path d="${d}" fill="none" stroke="${S.ink}" stroke-width="0.55" opacity="0.3"/>`;
     for (let k = 0; k < 3; k++) {
-      const hx = x0 + rand() * (x - x0);
-      svg += `<line x1="${hx.toFixed(1)}" y1="${(y0 + 2).toFixed(1)}" x2="${(hx + 1 + rand() * 2).toFixed(1)}" y2="${(y0 + 6 + rand() * 6).toFixed(1)}" stroke="${S.ink}" stroke-width="0.45" opacity="0.18"/>`;
+      const hx = x0 + tex() * (x - x0);
+      svg += `<line x1="${hx.toFixed(1)}" y1="${(y0 + 2).toFixed(1)}" x2="${(hx + 1 + tex() * 2).toFixed(1)}" y2="${(y0 + 6 + tex() * 6).toFixed(1)}" stroke="${S.ink}" stroke-width="0.45" opacity="0.18"/>`;
     }
   }
 
@@ -1107,74 +1114,289 @@ function renderSurveyPlate(ctx) {
       }
       if (dd) svg += `<path d="${dd}" fill="none" stroke="${S.iceLine}" stroke-width="0.45" opacity="0.35"/>`;
     }
-    /* exposed rock windows above the snowline */
-    for (let i = 0; i < 3; i++) {
-      const e = snowE + 160 + rand() * 380;
-      const l2 = flankAt(e, -1), r2 = flankAt(e, 1);
-      if (r2 - l2 < 40) continue;
-      const x = l2 + (r2 - l2) * (0.2 + rand() * 0.6);
-      for (let k = 0; k < 8; k++) {
-        svg += `<line x1="${(x + (rand() - 0.5) * 16).toFixed(1)}" y1="${(plateY(e) + (rand() - 0.5) * 10).toFixed(1)}" x2="${(x + (rand() - 0.5) * 16 + 2).toFixed(1)}" y2="${(plateY(e) + 8 + rand() * 6).toFixed(1)}" stroke="${S.ink}" stroke-width="0.5" opacity="0.3"/>`;
-      }
-    }
-    /* snow patches below the line, thinning downhill */
-    for (let i = 0; i < 30; i++) {
-      const e = snowE - 40 - Math.pow(rand(), 1.6) * 520;
+    /* (no rock windows: drawn as dark patches they read as floating blocks;
+       as crossing lines they read as scribbles — the snow is left clean) */
+    /* old snow below the line, thinning downhill. An engraver does not stamp
+       a lens for each patch: he marks the drift with a few short broken
+       hairline arcs (the lee edge of a snow bank) and a run of dots where the
+       crust breaks up. No two of these groups share a shape. */
+    for (let i = 0; i < 18; i++) {
+      const e = snowE - 40 - Math.pow(tex(), 1.5) * 520;
       const y = plateY(e);
       const l2 = flankAt(e, -1), r2 = flankAt(e, 1);
       if (r2 - l2 < 30) continue;
-      const x = l2 + 10 + rand() * (r2 - l2 - 20);
+      const x = l2 + 12 + tex() * (r2 - l2 - 24);
       if (nearGlacier(x, y)) continue;
-      const w2 = 7 + rand() * 14;
-      svg += `<path d="M ${(x - w2 / 2).toFixed(1)} ${y.toFixed(1)} Q ${x.toFixed(1)} ${(y - 4 - rand() * 3).toFixed(1)} ${(x + w2 / 2).toFixed(1)} ${y.toFixed(1)} Q ${x.toFixed(1)} ${(y + 2.5).toFixed(1)} ${(x - w2 / 2).toFixed(1)} ${y.toFixed(1)} Z" fill="${S.paperHigh}" stroke="${S.iceLine}" stroke-width="0.35" opacity="0.85"/>`;
+      const wS = 11 + tex() * 20;                     /* width of the drift */
+      const lean = (x - (l2 + r2) / 2) / (r2 - l2) * 4 + (tex() - 0.5) * 3;
+      const nArc = 1 + Math.floor(tex() * 3);
+      for (let a = 0; a < nArc; a++) {
+        /* each arc is a broken chord: one or two pieces with a gap */
+        const yA = y + a * (1.6 + tex() * 1.8) - nArc * 0.8;
+        const x0 = x - wS / 2 + tex() * wS * 0.25, x1 = x + wS / 2 - tex() * wS * 0.25;
+        const sag = (tex() < 0.7 ? -1 : 1) * (1.6 + tex() * 3.2);
+        const pieces = tex() < 0.55 ? 2 : 1;
+        for (let q = 0; q < pieces; q++) {
+          const u0 = q === 0 ? 0 : 0.55 + tex() * 0.15;
+          const u1 = pieces === 1 ? 1 : (q === 0 ? 0.38 + tex() * 0.14 : 1);
+          const px0 = x0 + (x1 - x0) * u0, px1 = x0 + (x1 - x0) * u1;
+          const cx2 = (px0 + px1) / 2 + lean * 0.4, cy2 = yA + sag * (u1 - u0);
+          svg += `<path d="M ${px0.toFixed(1)} ${(yA + (tex() - 0.5) * 0.8).toFixed(1)} Q ${cx2.toFixed(1)} ${cy2.toFixed(1)} ${px1.toFixed(1)} ${(yA + (tex() - 0.5) * 0.8).toFixed(1)}" fill="none" stroke="${S.iceLine}" stroke-width="0.5" opacity="${(0.6 + tex() * 0.3).toFixed(2)}"/>`;
+        }
+      }
+      /* the dotted crust edge, running off one end of the drift */
+      if (tex() < 0.8) {
+        const dir = tex() < 0.5 ? -1 : 1;
+        let dx = x + dir * wS * (0.2 + tex() * 0.3), dy = y + nArc * 1.2 + tex() * 2;
+        let dots = '';
+        for (let q = 0; q < 4 + Math.floor(tex() * 6); q++) {
+          dots += `M ${dx.toFixed(1)} ${dy.toFixed(1)} l ${(0.5 + tex() * 0.5).toFixed(1)} ${(tex() * 0.4).toFixed(1)} `;
+          dx += dir * (1.4 + tex() * 1.6); dy += (tex() - 0.35) * 1.2 + lean * 0.08;
+        }
+        svg += `<path d="${dots}" fill="none" stroke="${S.iceLine}" stroke-width="0.8" stroke-linecap="round" opacity="${(0.55 + tex() * 0.3).toFixed(2)}"/>`;
+      }
     }
     svg += `<path d="M ${(summitX - 34).toFixed(1)} ${(summitY + 46).toFixed(1)} q 18 7 40 3" fill="none" stroke="${S.iceLine}" stroke-width="0.8" opacity="0.55"/>`;
   }
 
-  /* --- forest in stands, with a ragged treeline ---------------------------- */
+  /* --- forest in stands, with a ragged treeline ----------------------------
+     Siegfried register: a wood is a TONE of tiny ticks with a ragged edge,
+     and the trees an engraver actually draws are small solid signs — a dark
+     spike for a conifer, a blot or a ring-on-a-stem for a broadleaf — set
+     along the edge of the wood and scattered as outliers. Stands lie along
+     the fall line, thin out toward the treeline and shrink with altitude. */
   const TREE_INKS = [S.sageDeep, MIX(S.sageDeep, S.ink, 0.35), MIX(S.sageDeep, S.sage, 0.4)];
+  /* one tree sign. v: 0 ragged spruce, 1 smooth fir spike, 2 broadleaf blot,
+     3 broadleaf ring-on-a-stem. Proportions vary ±10 % per call. */
   const treeGlyph = (x, y, h, v, inkc) => {
-    if (v === 0)      /* two-tier spruce */
-      return `<path d="M ${x.toFixed(1)} ${(y - h).toFixed(1)} l ${(h * 0.3).toFixed(1)} ${(h * 0.45).toFixed(1)} l ${(-h * 0.14).toFixed(1)} 0 l ${(h * 0.26).toFixed(1)} ${(h * 0.55).toFixed(1)} l ${(-h * 0.84).toFixed(1)} 0 l ${(h * 0.26).toFixed(1)} ${(-h * 0.55).toFixed(1)} l ${(-h * 0.14).toFixed(1)} 0 Z" fill="none" stroke="${inkc}" stroke-width="0.55" opacity="0.8"/>`;
-    if (v === 1)      /* plain conifer */
-      return `<path d="M ${x.toFixed(1)} ${(y - h).toFixed(1)} l ${(h * 0.36).toFixed(1)} ${h.toFixed(1)} h ${(-h * 0.72).toFixed(1)} Z" fill="none" stroke="${inkc}" stroke-width="0.55" opacity="0.75"/>`;
-    return `<g opacity="0.7"><line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${x.toFixed(1)}" y2="${(y - h * 0.5).toFixed(1)}" stroke="${inkc}" stroke-width="0.5"/><circle cx="${x.toFixed(1)}" cy="${(y - h * 0.72).toFixed(1)}" r="${(h * 0.3).toFixed(1)}" fill="none" stroke="${inkc}" stroke-width="0.5"/></g>`;
+    const op = (0.78 + tex() * 0.14).toFixed(2);
+    const f = n => n.toFixed(1);
+    if (v === 0) {
+      /* spruce: a solid spike with 2–4 lobes a side, right side a little fuller */
+      const wMax = h * (0.25 + tex() * 0.11), lobes = 2 + Math.floor(tex() * 3), asym = 1 + tex() * 0.18;
+      const tip = y - h, yB = y - h * 0.1;
+      let d = `M ${f(x + (tex() - 0.5) * 0.4)} ${f(tip)}`;
+      const side = (sgn, wid) => {
+        for (let i = 1; i <= lobes; i++) {
+          const t = Math.pow(i / lobes, 0.85), tt = t * 0.9;
+          const w = wid * Math.pow(t, 0.8) * (0.9 + tex() * 0.2);
+          d += ` L ${f(x + sgn * w)} ${f(tip + h * tt)} L ${f(x + sgn * w * (0.5 + tex() * 0.15))} ${f(tip + h * (tt + 0.045))}`;
+        }
+      };
+      side(1, wMax * asym);
+      d += ` L ${f(x + wMax * asym)} ${f(yB)} L ${f(x + h * 0.05)} ${f(yB)} L ${f(x + h * 0.045)} ${f(y)} L ${f(x - h * 0.045)} ${f(y)} L ${f(x - h * 0.05)} ${f(yB)} L ${f(x - wMax)} ${f(yB)}`;
+      /* left side runs back up: build its points and reverse them */
+      const pts = [];
+      for (let i = 1; i <= lobes; i++) {
+        const t = Math.pow(i / lobes, 0.85), tt = t * 0.9;
+        const w = wMax * Math.pow(t, 0.8) * (0.9 + tex() * 0.2);
+        pts.push([x - w, tip + h * tt], [x - w * (0.5 + tex() * 0.15), tip + h * (tt + 0.045)]);
+      }
+      pts.reverse().forEach(p => { d += ` L ${f(p[0])} ${f(p[1])}`; });
+      return `<path d="${d} Z" fill="${inkc}" opacity="${op}"/>`;
+    }
+    if (v === 1) {
+      /* fir: a smooth flame, leaning a touch, on a hairline trunk */
+      const w = h * (0.17 + tex() * 0.09), lean = (tex() - 0.5) * h * 0.12, yB = y - h * 0.12;
+      const tip = y - h;
+      return `<path d="M ${f(x + lean)} ${f(tip)} Q ${f(x + w * 1.25)} ${f(tip + h * 0.62)} ${f(x + w)} ${f(yB)} Q ${f(x)} ${f(yB - h * 0.05)} ${f(x - w * (0.85 + tex() * 0.3))} ${f(yB)} Q ${f(x - w * 1.2)} ${f(tip + h * 0.58)} ${f(x + lean)} ${f(tip)} Z" fill="${inkc}" opacity="${op}"/>` +
+        `<line x1="${f(x)}" y1="${f(yB)}" x2="${f(x + lean * 0.2)}" y2="${f(y)}" stroke="${inkc}" stroke-width="0.45" opacity="${op}"/>`;
+    }
+    if (v === 2) {
+      /* broadleaf blot: a lumpy crown, heavier on one side, on a short stem */
+      const r = h * (0.26 + tex() * 0.08), cy = y - h * 0.55, sk = (tex() - 0.5) * r * 0.6;
+      const r1 = r * (0.85 + tex() * 0.3), r2 = r * (0.85 + tex() * 0.3), r3 = r * (0.8 + tex() * 0.3);
+      return `<path d="M ${f(x - r1)} ${f(cy)} Q ${f(x - r1 * 0.9 + sk)} ${f(cy - r2 * 1.15)} ${f(x + sk * 0.5)} ${f(cy - r2)} Q ${f(x + r * 1.05 + sk)} ${f(cy - r3 * 0.9)} ${f(x + r)} ${f(cy + r3 * 0.15)} Q ${f(x + r * 0.75)} ${f(cy + r * 0.95)} ${f(x + sk * 0.3)} ${f(cy + r * 0.8)} Q ${f(x - r * 0.9)} ${f(cy + r * 0.85)} ${f(x - r1)} ${f(cy)} Z" fill="${inkc}" opacity="${op}"/>` +
+        `<line x1="${f(x + sk * 0.2)}" y1="${f(cy + r * 0.7)}" x2="${f(x)}" y2="${f(y)}" stroke="${inkc}" stroke-width="0.45" opacity="${op}"/>`;
+    }
+    /* ring on a stem, as on the Siegfried sheets for orchard and broadleaf */
+    const r = h * (0.2 + tex() * 0.07), cy = y - h * 0.55;
+    return `<circle cx="${f(x + (tex() - 0.5) * 0.6)}" cy="${f(cy)}" r="${f(r)}" fill="none" stroke="${inkc}" stroke-width="0.45" opacity="${op}"/>` +
+      `<line x1="${f(x)}" y1="${f(cy + r)}" x2="${f(x + (tex() - 0.5) * 0.5)}" y2="${f(y)}" stroke="${inkc}" stroke-width="0.45" opacity="${op}"/>`;
   };
   const tf = makeFbm(hashString('treeline'), 2);
   const treelineAt = x => 2520 + (tf(x * 0.006) - 0.5) * 300;
   {
-    /* clump centres, biased toward the lower forest */
-    const clumps = [];
-    for (let i = 0; i < 34; i++) {
-      const e = 600 + Math.pow(rand(), 1.3) * 1900;
+    /* downhill direction at a point on the face: straight down on the ridge
+       line, swinging outward toward either flank */
+    const slopeAngle = (x, e) => {
+      const u = Math.max(-1, Math.min(1, (x - plateCX(e)) / plateHW(e)));
+      const dhw = plateHW(e - 120) - plateHW(e + 120), dy = plateY(e - 120) - plateY(e + 120);
+      return Math.atan2(dy, u * dhw);
+    };
+    /* tree size falls with altitude; near the treeline only dwarfs remain */
+    const sizeAt = (x, e) => {
+      const toLine = Math.max(0, treelineAt(x) - e);
+      return (0.62 + 0.38 * Math.min(1, toLine / 700)) * (1 - e / 2600 * 0.25);
+    };
+    const pickV = () => { const r = tex(); return r < 0.42 ? 0 : r < 0.66 ? 1 : r < 0.86 ? 2 : 3; };
+    const okTree = (gx, ge) => {
+      if (ge > treelineAt(gx)) return false;
+      const y = plateY(ge);
+      const xl = flankAt(ge, -1), xr = flankAt(ge, 1);
+      return !(gx < xl + 8 || gx > xr - 8 || nearGlacier(gx, y));
+    };
+    /* stand centres: woods gather in the gullies and on the lower flanks and
+       leave the ridges between them bare. Each gully line is carried on below
+       its last drawn point along the fall line, so the forest below the
+       skeleton still follows it; centres sit a little to the east of the
+       line, in the concave ground that the gully's own shade already marks. */
+    const gullyX = (gu, e) => {
+      const last = gu[gu.length - 1], prev = gu[gu.length - 2];
+      if (e >= last[2]) {
+        for (let i = 1; i < gu.length; i++) if (gu[i][2] <= e) {
+          const t = (gu[i - 1][2] - e) / (gu[i - 1][2] - gu[i][2]);
+          return gu[i - 1][0] + (gu[i][0] - gu[i - 1][0]) * t;
+        }
+        return last[0];
+      }
+      const slope = (last[0] - prev[0]) / (prev[2] - last[2]);
+      return last[0] + slope * (last[2] - e) * 0.6;
+    };
+    const stands = [];
+    for (let i = 0; i < 26; i++) {
+      const e = 560 + Math.pow(tex(), 1.4) * 1880;
       const xl = flankAt(e, -1), xr = flankAt(e, 1);
       if (xr - xl < 60) continue;
-      clumps.push({ x: xl + 20 + rand() * (xr - xl - 40), e, n: 6 + Math.floor(rand() * 13) });
-    }
-    clumps.forEach(c => {
-      /* a dark understorey blob beneath the bigger stands */
-      if (c.n > 11) {
-        svg += `<ellipse cx="${c.x.toFixed(1)}" cy="${plateY(c.e).toFixed(1)}" rx="${(c.n * 2.6).toFixed(1)}" ry="${(c.n * 1.1).toFixed(1)}" fill="${S.sageDeep}" opacity="0.10"/>`;
+      let x;
+      const n = 5 + Math.floor(tex() * 14);
+      if (gullies.length && tex() < 0.85) {
+        const gu = gullies[Math.floor(tex() * gullies.length)];
+        /* mostly on the shaded (east) side of the gully, never far from it */
+        const side = tex() < 0.72 ? 1 : -1;
+        x = gullyX(gu, e) + side * (6 + Math.pow(tex(), 1.6) * 34);
+      } else {
+        /* the lower flanks, where the slope eases out */
+        x = tex() < 0.5 ? xl + (xr - xl) * (0.12 + tex() * 0.2) : xr - (xr - xl) * (0.12 + tex() * 0.2);
       }
-      for (let k = 0; k < c.n; k++) {
-        const gx = c.x + (rand() + rand() + rand() - 1.5) * 30;
-        const ge = c.e + (rand() + rand() - 1) * 130;
-        if (ge > treelineAt(gx)) continue;
-        const y = plateY(ge);
-        const xl = flankAt(ge, -1), xr = flankAt(ge, 1);
-        if (gx < xl + 8 || gx > xr - 8 || nearGlacier(gx, y)) continue;
-        const near2 = 1 - Math.min(1, Math.max(0, (treelineAt(gx) - ge)) / 500);
-        const h = (7 + rand() * 6) * (1 - near2 * 0.5);
-        svg += treeGlyph(gx, y + rand() * 12, h, rand() < 0.62 ? (rand() < 0.5 ? 0 : 1) : 2, TREE_INKS[Math.floor(rand() * 3)]);
+      /* a wood must sit whole on the face: no stand cut by the silhouette */
+      const reach = 16 + n * 2.4;
+      if (x < xl + reach || x > xr - reach) continue;
+      stands.push({ x, e, n });
+    }
+    /* light from the upper left: which way a rim faces decides its edge */
+    const LX = -0.55, LY = -0.835;
+    stands.forEach(c => {
+      const cy = plateY(c.e);
+      const th = slopeAngle(c.x, c.e), ct = Math.cos(th), st = Math.sin(th);
+      /* a ragged oval lying along the fall line, in plate units */
+      const a = (12 + c.n * 2.3) * (0.8 + tex() * 0.45), b = a * (0.38 + tex() * 0.4);
+      const p1 = tex() * 6.28, p2 = tex() * 6.28, p3 = tex() * 6.28, p4 = tex() * 6.28;
+      const rim = ph => 1 + 0.14 * Math.sin(2 * ph + p1) + 0.11 * Math.sin(3 * ph + p2) + 0.08 * Math.sin(5 * ph + p3) + 0.05 * Math.sin(8 * ph + p4);
+      const at = (rho, ph) => {
+        const ex = rho * a * rim(ph) * Math.cos(ph), ey = rho * b * rim(ph) * Math.sin(ph);
+        return [c.x + ex * ct - ey * st, cy + ex * st + ey * ct];
+      };
+      /* 0 on the lit rim, 1 on the shaded rim */
+      const shadeAt = ph => {
+        const p = at(1, ph), nx = p[0] - c.x, ny = p[1] - cy, nl = Math.hypot(nx, ny) || 1;
+        return (1 - (nx * LX + ny * LY) / nl) / 2;
+      };
+      const eOf = y => 5200 * (PLATE.seaY - y) / (PLATE.seaY - PLATE.topY);
+      /* thinning toward the treeline: fraction of this stand that survives */
+      const keep = 1 - 0.6 * Math.max(0, 1 - (treelineAt(c.x) - c.e) / 500);
+      /* trunks are seen leaning a little with the flank they stand on */
+      const lean = ct * 0.32 + (tex() - 0.5) * 0.16;
+      const f = n => n.toFixed(1);
+      if (c.n > 8) {
+        /* THE BODY OF THE WOOD: a tone of short directional strokes — trunks
+           as an engraver sets them — dense in the core and toward the shaded
+           side, opening out toward the lit edge. One path per stand. */
+        const N = Math.round(a * b * 0.62 * keep);
+        const toneInk = MIX(S.sageDeep, S.ink, 0.3);
+        let tone = '';
+        for (let i = 0; i < N; i++) {
+          const ph = tex() * 6.283, rho = Math.sqrt(tex()) * 0.98;
+          const w = 0.06 + 0.72 * shadeAt(ph) * rho + 0.4 * (1 - rho);
+          if (tex() > w) continue;
+          const p = at(rho, ph);
+          const ge = eOf(p[1]);
+          if (!okTree(p[0], ge)) continue;
+          const L = (1.6 + tex() * 1.9) * sizeAt(p[0], ge);
+          const ln = lean + (tex() - 0.5) * 0.2;
+          tone += `M ${f(p[0])} ${f(p[1])} l ${f(ln * L)} ${f(-L)} `;
+        }
+        if (tone) svg += `<path d="${tone}" fill="none" stroke="${toneInk}" stroke-width="0.5" opacity="${(0.72 + tex() * 0.12).toFixed(2)}"/>`;
+        /* THE DRAWN EDGE. Lit rim: a broken line of small crown arcs, each
+           a crown's width. Shaded rim: a darker fringe of strokes hanging
+           off a broken contour. Walk the rim in steps of one crown. */
+        let arcs = '', fringe = '', dark = '';
+        const edgeInk = MIX(S.sageDeep, S.ink, 0.45), darkInk = MIX(S.sageDeep, S.ink, 0.62);
+        const edgeTrees = [];
+        let ph = tex() * 6.283, run = 0, gap = 0;
+        const ph0 = ph;
+        while (ph < ph0 + 6.283) {
+          const p0 = at(1, ph);
+          const sh = shadeAt(ph);
+          const cw = (2.4 + tex() * 1.8) * (0.75 + 0.25 * sizeAt(p0[0], eOf(p0[1])));   /* crown width */
+          const rad = Math.hypot(p0[0] - c.x, p0[1] - cy) || 1;
+          const ph1 = ph + cw / rad;
+          const p1b = at(1, ph1);
+          const ge = eOf((p0[1] + p1b[1]) / 2);
+          const ok = okTree((p0[0] + p1b[0]) / 2, ge) && tex() < keep * 0.95;
+          if (!ok) { ph = ph1; run = 0; continue; }
+          const mx = (p0[0] + p1b[0]) / 2, my = (p0[1] + p1b[1]) / 2;
+          let nx = mx - c.x, ny = my - cy; const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;
+          if (sh < 0.5) {
+            /* lit side: scallops, dropped now and then so the line breaks */
+            if (gap > 0) { gap--; ph = ph1; continue; }
+            if (tex() < 0.12) { gap = 1 + Math.floor(tex() * 2); ph = ph1; run = 0; continue; }
+            const bul = cw * (0.55 + tex() * 0.35);
+            arcs += `M ${f(p0[0])} ${f(p0[1])} Q ${f(mx + nx * bul)} ${f(my + ny * bul)} ${f(p1b[0])} ${f(p1b[1])} `;
+            run++;
+            if (run % 4 === 2 && tex() < 0.55) edgeTrees.push([mx, my, ge]);
+          } else {
+            /* shaded side: a broken darker contour with a hanging fringe */
+            if (tex() < 0.82) dark += `M ${f(p0[0])} ${f(p0[1])} L ${f(p1b[0])} ${f(p1b[1])} `;
+            const nF = 1 + Math.floor(tex() * 2 + sh);
+            for (let q = 0; q < nF; q++) {
+              const u = (q + 0.3 + tex() * 0.5) / nF;
+              const fx = p0[0] + (p1b[0] - p0[0]) * u, fy = p0[1] + (p1b[1] - p0[1]) * u;
+              const L = (1.8 + tex() * 1.5) * (0.6 + sh * 0.6);
+              /* strokes set just inside the rim, leaning outward-down */
+              fringe += `M ${f(fx - nx * L * 0.4)} ${f(fy - ny * L * 0.4)} l ${f(nx * L * 0.5 + lean * L * 0.5)} ${f(ny * L * 0.5 + L * 0.6)} `;
+            }
+          }
+          ph = ph1;
+        }
+        if (arcs) svg += `<path d="${arcs}" fill="none" stroke="${edgeInk}" stroke-width="0.5" opacity="0.82"/>`;
+        if (dark) svg += `<path d="${dark}" fill="none" stroke="${darkInk}" stroke-width="0.7" opacity="0.75"/>`;
+        if (fringe) svg += `<path d="${fringe}" fill="none" stroke="${darkInk}" stroke-width="0.5" opacity="0.85"/>`;
+        /* a few tree signs where they tell something: along the lit edge,
+           standing proud of the scallops */
+        edgeTrees.slice(0, 2 + Math.floor(tex() * 3)).forEach(t => {
+          const h = (4.2 + tex() * 2.6) * sizeAt(t[0], t[2]);
+          svg += treeGlyph(t[0], t[1] + 0.6, h, pickV(), TREE_INKS[Math.floor(tex() * 3)]);
+        });
+        /* outliers trailing downslope from the wood */
+        for (let i = 0; i < 1 + Math.floor(tex() * 3); i++) {
+          const p = at(1.15 + tex() * 0.7, (tex() - 0.5) * 1.2);
+          const ge = eOf(p[1]);
+          if (!okTree(p[0], ge)) continue;
+          const h = (3.8 + tex() * 3) * sizeAt(p[0], ge);
+          svg += treeGlyph(p[0], p[1], h, pickV(), TREE_INKS[Math.floor(tex() * 3)]);
+        }
+      } else {
+        /* a small copse: a few signs in a tight group with a scrap of edge */
+        const m = 3 + Math.floor(tex() * 3);
+        const ph0 = tex() * 6.283;
+        for (let k = 0; k < m; k++) {
+          if (tex() > keep) continue;
+          const p = at(0.35 + tex() * 0.5, ph0 + k * 1.1 + tex() * 0.5);
+          const ge = eOf(p[1]);
+          if (!okTree(p[0], ge)) continue;
+          const h = (4.5 + tex() * 3.5) * sizeAt(p[0], ge);
+          svg += treeGlyph(p[0], p[1], h, pickV(), TREE_INKS[Math.floor(tex() * 3)]);
+        }
       }
     });
-    /* krummholz: dwarf stragglers above the treeline */
-    for (let i = 0; i < 14; i++) {
-      const x = flankAt(2600, -1) + rand() * (flankAt(2600, 1) - flankAt(2600, -1));
-      const e = treelineAt(x) + rand() * 160;
+    /* krummholz: dwarf stragglers above the treeline, conifers only */
+    for (let i = 0; i < 9; i++) {
+      const x = flankAt(2600, -1) + tex() * (flankAt(2600, 1) - flankAt(2600, -1));
+      const e = treelineAt(x) + tex() * 150;
       const y = plateY(e);
       if (nearGlacier(x, y)) continue;
-      svg += treeGlyph(x, y, 3 + rand() * 2.5, 1, TREE_INKS[1]);
+      svg += treeGlyph(x, y, 2.6 + tex() * 2, tex() < 0.6 ? 1 : 0, TREE_INKS[1]);
     }
   }
   /* alpine meadow ticks */
@@ -1183,19 +1405,19 @@ function renderSurveyPlate(ctx) {
     const xl = flankAt(e, -1), xr = flankAt(e, 1);
     const n = Math.round((xr - xl) / 90);
     for (let i = 0; i < n; i++) {
-      const x = xl + 10 + rand() * (xr - xl - 20);
+      const x = xl + 10 + tex() * (xr - xl - 20);
       if (nearGlacier(x, y)) continue;
-      svg += `<path d="M ${x.toFixed(1)} ${(y + rand() * 24).toFixed(1)} l 1.4 -3.4 m 1.2 3.4 l 1.4 -3.0" fill="none" stroke="${S.sageDeep}" stroke-width="0.5" opacity="0.5"/>`;
+      svg += `<path d="M ${x.toFixed(1)} ${(y + tex() * 24).toFixed(1)} l 1.4 -3.4 m 1.2 3.4 l 1.4 -3.0" fill="none" stroke="${S.sageDeep}" stroke-width="0.5" opacity="0.5"/>`;
     }
   }
   /* cultivated terraces */
   for (let i = 0; i < 22; i++) {
-    const e = 420 + rand() * 800;
-    const side = rand() < 0.55 ? -1 : 1;
+    const e = 420 + tex() * 800;
+    const side = tex() < 0.55 ? -1 : 1;
     const y = plateY(e);
-    const x0 = flankAt(e, side) - side * (30 + rand() * 130);
-    const wT = 34 + rand() * 46;
-    for (let k = 0; k < 3 + Math.floor(rand() * 3); k++) {
+    const x0 = flankAt(e, side) - side * (30 + tex() * 130);
+    const wT = 34 + tex() * 46;
+    for (let k = 0; k < 3 + Math.floor(tex() * 3); k++) {
       svg += `<line x1="${(x0 - wT / 2).toFixed(1)}" y1="${(y + k * 3.4).toFixed(1)}" x2="${(x0 + wT / 2).toFixed(1)}" y2="${(y + k * 3.4 - side * 1.4).toFixed(1)}" stroke="${S.sageDeep}" stroke-width="0.5" opacity="0.45"/>`;
     }
   }
@@ -1286,43 +1508,93 @@ function renderSurveyPlate(ctx) {
 
   /* --- the town: clustered around its church, not a bar chart -------------- */
   {
+    /* Drawn the way a plate engraver sets a town on a profile: gabled houses
+       of different widths and pitches, overlapping back to front, each
+       knocking out the one behind it, the shaded side hatched, a church
+       tower with a spire above the roofs. Nothing is a rectangle with a
+       triangle on it. When the ink engine is loaded (close-ups) the group is
+       passed through it like a motif. Adjust the town here. */
     const cx0 = PLATE.cx - PLATE.base * 0.226, cy0 = plateY(70);
-    const k = PLATE.base / 620;
-    svg += `<g stroke="${S.ink}" stroke-width="0.55" fill="${MIX(S.paper, S.ink, 0.05)}">`;
-    /* the church at the centre */
-    svg += `<rect x="${(cx0 - 4 * k).toFixed(1)}" y="${(cy0 - 26 * k).toFixed(1)}" width="${(8 * k).toFixed(1)}" height="${(26 * k).toFixed(1)}"/>`;
-    svg += `<path d="M ${(cx0 - 6 * k).toFixed(1)} ${(cy0 - 26 * k).toFixed(1)} L ${cx0.toFixed(1)} ${(cy0 - 40 * k).toFixed(1)} L ${(cx0 + 6 * k).toFixed(1)} ${(cy0 - 26 * k).toFixed(1)}" fill="none"/>`;
-    /* houses scattered around it, denser near the centre */
-    for (let i = 0; i < 26; i++) {
+    /* in a close-up the town is enlarged toward the motifs' register, so the
+       houses at the foot are not a quarter the size of a pilgrim mid-slope */
+    const k = (PLATE.base / 620) * (SURVEY_FOCUS ? 1.45 : 1);
+    const wallTint = MIX(S.paper, S.ink, 0.05), shadeTint = MIX(S.paper, S.ink, 0.16);
+    const f1 = v => v.toFixed(1);
+    const houses = [];
+    for (let i = 0; i < 30; i++) {
       const ang = rand() * Math.PI * 2;
-      const dist = (10 + Math.pow(rand(), 0.7) * 150) * k;
+      const dist = (6 + Math.pow(rand(), 0.7) * 150) * k;
       const bx = cx0 + Math.cos(ang) * dist;
-      const by = cy0 + (rand() - 0.5) * 6 - 0.5;
-      const bw = (7 + rand() * 9) * k, bh = (5 + rand() * 7) * k;
-      svg += `<rect x="${(bx - bw / 2).toFixed(1)}" y="${(by - bh).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}"/>`;
-      if (rand() < 0.65) {
-        svg += `<path d="M ${(bx - bw / 2 - 1).toFixed(1)} ${(by - bh).toFixed(1)} L ${bx.toFixed(1)} ${(by - bh - (2.5 + rand() * 2.5) * k).toFixed(1)} L ${(bx + bw / 2 + 1).toFixed(1)} ${(by - bh).toFixed(1)}" fill="none"/>`;
+      const depth = rand();                         /* 0 = far, 1 = near */
+      const by = cy0 - 5 + depth * 7;
+      const bw = (6 + rand() * 9) * k * (0.8 + depth * 0.35), bh = (4 + rand() * 6) * k * (0.8 + depth * 0.35);
+      houses.push({ bx, by, bw, bh, depth, pitch: 0.35 + rand() * 0.45, ridge: (rand() - 0.5) * 0.3, endOn: rand() < 0.22, chimney: rand() < 0.4, tall: rand() < 0.18 });
+    }
+    houses.sort((a, b) => a.depth - b.depth);
+    let town = `<g data-town="">`;
+    const house = h => {
+      const { bx, by, bw, bh } = h; const hw = bw / 2;
+      const roofH = bw * h.pitch * 0.5, rx = bx + h.ridge * hw;
+      const H = h.tall ? bh * 1.5 : bh;
+      const pts = [[bx - hw, by], [bx - hw, by - H], [rx, by - H - roofH], [bx + hw, by - H], [bx + hw, by]];
+      const d = pts.map((p, j) => (j ? 'L' : 'M') + f1(p[0]) + ' ' + f1(p[1])).join('') + 'Z';
+      let g = `<path d="${d}" fill="${wallTint}" stroke="none"/>`;
+      /* shaded right face and a little hatch on it */
+      g += `<path d="M${f1(bx + hw * 0.45)} ${f1(by)}L${f1(bx + hw * 0.45)} ${f1(by - H)}L${f1(bx + hw)} ${f1(by - H)}L${f1(bx + hw)} ${f1(by)}Z" fill="${shadeTint}" stroke="none"/>`;
+      for (let j = 0; j < 3; j++) {
+        const hx = bx + hw * (0.5 + j * 0.17), hy = by - H * (0.15 + rand() * 0.3);
+        g += `<path d="M${f1(hx)} ${f1(hy)}l${f1(-H * 0.22)} ${f1(H * 0.32)}" fill="none" stroke="${S.ink}" stroke-width="0.45" opacity="0.6"/>`;
       }
+      /* the outline; the eaves overhang a touch */
+      g += `<path d="M${f1(bx - hw - 0.8)} ${f1(by - H + 0.3)}L${f1(rx)} ${f1(by - H - roofH)}L${f1(bx + hw + 0.8)} ${f1(by - H + 0.3)}" fill="none" stroke="${S.ink}" stroke-width="0.9"/>`;
+      g += `<path d="M${f1(bx - hw)} ${f1(by - H)}L${f1(bx - hw)} ${f1(by)}M${f1(bx + hw)} ${f1(by - H)}L${f1(bx + hw)} ${f1(by)}" fill="none" stroke="${S.ink}" stroke-width="0.7"/>`;
+      if (h.endOn) g += `<path d="M${f1(bx - hw)} ${f1(by - H)}L${f1(bx + hw)} ${f1(by - H)}" fill="none" stroke="${S.ink}" stroke-width="0.55"/>`;
+      if (h.chimney) g += `<path d="M${f1(bx + hw * 0.55)} ${f1(by - H - roofH * 0.45)}l0 ${f1(-roofH * 0.9)}l${f1(bw * 0.1)} 0l0 ${f1(roofH * 0.75)}" fill="${wallTint}" stroke="${S.ink}" stroke-width="0.55"/>`;
+      /* a door or a window, dark, on the lit side */
+      const ww = Math.max(1.2, bw * 0.12), wh = Math.max(1.4, H * 0.22);
+      if (bw > 7) g += `<rect x="${f1(bx - hw * 0.55)}" y="${f1(by - H * 0.62)}" width="${f1(ww)}" height="${f1(wh)}" fill="${S.ink}" opacity="0.75" stroke="none"/>`;
+      return g;
+    };
+    houses.forEach(h => { if (h.depth < 0.5) town += house(h); });
+    /* the church: nave, and a tower with a spire rising above the roofs */
+    {
+      const tw = 7 * k, th = 30 * k, nx = cx0 - 6 * k;
+      town += house({ bx: nx - 6 * k, by: cy0, bw: 16 * k, bh: 9 * k, pitch: 0.9, ridge: 0, depth: 0.5, endOn: false, chimney: false, tall: false });
+      town += `<path d="M${f1(nx)} ${f1(cy0)}L${f1(nx)} ${f1(cy0 - th)}L${f1(nx + tw)} ${f1(cy0 - th)}L${f1(nx + tw)} ${f1(cy0)}Z" fill="${wallTint}" stroke="${S.ink}" stroke-width="0.8"/>`;
+      town += `<path d="M${f1(nx + tw * 0.5)} ${f1(cy0)}L${f1(nx + tw * 0.5)} ${f1(cy0 - th)}L${f1(nx + tw)} ${f1(cy0 - th)}L${f1(nx + tw)} ${f1(cy0)}Z" fill="${shadeTint}" stroke="none"/>`;
+      town += `<path d="M${f1(nx - 1)} ${f1(cy0 - th)}L${f1(nx + tw / 2)} ${f1(cy0 - th - 14 * k)}L${f1(nx + tw + 1)} ${f1(cy0 - th)}Z" fill="${S.ink}" stroke="${S.ink}" stroke-width="0.6"/>`;
+      town += `<path d="M${f1(nx + tw / 2)} ${f1(cy0 - th - 14 * k)}l0 ${f1(-3.5 * k)}m${f1(-1.4 * k)} ${f1(1.6 * k)}l${f1(2.8 * k)} 0" fill="none" stroke="${S.ink}" stroke-width="0.6"/>`;
+      town += `<path d="M${f1(nx + tw * 0.3)} ${f1(cy0 - th * 0.78)}l0 ${f1(th * 0.16)}l${f1(tw * 0.4)} 0l0 ${f1(-th * 0.16)}Q${f1(nx + tw * 0.5)} ${f1(cy0 - th * 0.88)} ${f1(nx + tw * 0.3)} ${f1(cy0 - th * 0.78)}Z" fill="${S.ink}" opacity="0.75" stroke="none"/>`;
     }
-    svg += `</g>`;
-    /* the old-town hatch */
-    for (let i = 0; i < 4; i++) {
-      svg += `<line x1="${(cx0 - 30 * k).toFixed(1)}" y1="${(cy0 - 4 - i * 3).toFixed(1)}" x2="${(cx0 + 30 * k).toFixed(1)}" y2="${(cy0 - 5.5 - i * 3).toFixed(1)}" stroke="${S.ink}" stroke-width="0.3" opacity="0.35"/>`;
+    houses.forEach(h => { if (h.depth >= 0.5) town += house(h); });
+    /* a lane through the town and a few garden walls */
+    town += `<path d="M${f1(cx0 - 60 * k)} ${f1(cy0 + 3)}Q${f1(cx0 - 10 * k)} ${f1(cy0 + 6)} ${f1(cx0 + 40 * k)} ${f1(cy0 + 2)}" fill="none" stroke="${S.ink}" stroke-width="0.45" stroke-dasharray="5 3" opacity="0.5"/>`;
+    town += `</g>`;
+    /* fields: irregular parcels on the plain, bounded by broken lines, a few
+       of them hatched as crops */
+    town += `<g data-fields="" stroke="${S.sageDeep}" stroke-width="0.45" opacity="0.65" fill="none">`;
+    let fx = cx0 + PLATE.base * 0.34;
+    for (let i = 0; i < 11; i++) {
+      const fw = 16 + rand() * 22, fh = 6 + rand() * 8, fy = cy0 - 1 - (i % 3) * 7 - rand() * 3;
+      const sk = (rand() - 0.5) * 4;
+      const q = [[fx, fy], [fx + fw, fy + sk], [fx + fw - 3 + rand() * 4, fy + sk - fh], [fx + 1 + rand() * 3, fy - fh]];
+      town += `<path d="${q.map((p, j) => (j ? 'L' : 'M') + f1(p[0]) + ' ' + f1(p[1])).join('')}Z"/>`;
+      if (i % 2) for (let r = 1; r < 4; r++) {
+        const t = r / 4;
+        town += `<path d="M${f1(fx + 2)} ${f1(fy - fh * t)}L${f1(fx + fw - 2)} ${f1(fy + sk - fh * t)}" stroke-dasharray="2 1.6" opacity="0.7"/>`;
+      }
+      fx += fw + 4 + rand() * 8;
     }
-    /* fields: an irregular lattice on the plain */
-    svg += `<g stroke="${S.sageDeep}" stroke-width="0.45" opacity="0.6">`;
-    for (let i = 0; i < 12; i++) {
-      const fx = cx0 + PLATE.base * 0.36 + i * 24 * k + rand() * 10;
-      const fy = cy0 - 2 - (i % 3) * 8;
-      const fw = 18 + rand() * 18, fh = 7 + rand() * 7;
-      svg += `<rect x="${fx.toFixed(1)}" y="${(fy - fh).toFixed(1)}" width="${fw.toFixed(1)}" height="${fh.toFixed(1)}" fill="${i % 2 ? MIX(S.paper, S.sage, 0.25) : 'none'}" transform="rotate(${((rand() - 0.5) * 5).toFixed(1)} ${fx.toFixed(1)} ${fy.toFixed(1)})"/>`;
-    }
-    svg += `</g>`;
-    svg += `<path d="M ${(cx0 - PLATE.base * 0.4).toFixed(1)} ${(cy0 + 6).toFixed(1)} L ${(cx0 + PLATE.base * 0.9).toFixed(1)} ${(cy0 - 2).toFixed(1)}" fill="none" stroke="${S.ink}" stroke-width="0.6" stroke-dasharray="4 3" opacity="0.4"/>`;
+    town += `</g>`;
+    town += `<path d="M ${(cx0 - PLATE.base * 0.4).toFixed(1)} ${(cy0 + 6).toFixed(1)} L ${(cx0 + PLATE.base * 0.9).toFixed(1)} ${(cy0 - 2).toFixed(1)}" fill="none" stroke="${S.ink}" stroke-width="0.6" stroke-dasharray="4 3" opacity="0.4"/>`;
+    svg += (typeof window !== 'undefined' && window.MRI_INK) ? window.MRI_INK.process(town, { rand, S }) : town;
   }
 
   /* --- the observatories --------------------------------------------------- */
-  OBSERVATORIES.forEach(o => {
+  /* A close-up carries none of the sheet's shared furniture — the observatory
+     huts and the spot heights repeat identically in every window otherwise,
+     and a series of 25 identical huts reads as a template. */
+  if (!SURVEY_FOCUS) OBSERVATORIES.forEach(o => {
     const k = (PLATE.base / 620) * o.scale;
     const x = Math.max(flankAt(o.elev, -1), flankAt(o.elev + 190, -1)) + 30 * k;
     svg += drawObservatory(x, plateY(o.elev), k,
@@ -1330,7 +1602,7 @@ function renderSurveyPlate(ctx) {
   });
 
   /* --- spot heights: the sheet finally carries measurements ----------------- */
-  {
+  if (!SURVEY_FOCUS) {
     const spots = [
       [summitX, summitY, 5200, 0, -8],
       [mFar.summit[0], mFar.summit[1], 4050, 0, -8],
@@ -1495,7 +1767,7 @@ function renderSurveyPlate(ctx) {
     let lines = [title];
     if (title.length > 22) { let cut = title.lastIndexOf(' ', 24); if (cut < 6) cut = title.indexOf(' ', 11); if (cut > 0) lines = [title.slice(0, cut), title.slice(cut + 1)]; }
     const fs = T.note * 1.05, lh = fs + 4;
-    const wEst = Math.max(...lines.map(l => l.length)) * fs * 0.62 + 22;
+    const wEst = Math.max(...lines.map(l => l.length)) * (fs * 0.66 + 2.2) + 22;
     const hEst = lines.length * lh + T.num + 26;
     const bx = left ? fx0 + 26 : fx0 + fw - 26 - wEst;
     const by = fy0 + 24;
@@ -1504,11 +1776,13 @@ function renderSurveyPlate(ctx) {
     /* leader from the box's near edge to the station */
     const lx = left ? bx + wEst : bx, ly = by + hEst / 2;
     svg += `<path d="M ${lx.toFixed(1)} ${ly.toFixed(1)} L ${node.x.toFixed(1)} ${node.y.toFixed(1)}" fill="none" stroke="${S.inkSoft}" stroke-width="0.55" stroke-dasharray="3 2.5" opacity="0.8"/>`;
-    svg += `<g font-family="ui-monospace, Menlo, monospace">`;
+    /* engraved-style lettering: the sheet's own serif in letterspaced
+       capitals, the station number in italic — adjust the cartouche type here */
+    svg += `<g font-family="'Source Serif 4', Georgia, serif">`;
     lines.forEach((l, i) => {
-      svg += `<text x="${(bx + 11).toFixed(1)}" y="${(by + 10 + lh * (i + 1) - 4).toFixed(1)}" font-size="${fs}" letter-spacing="1" fill="${S.ink}">${esc(l)}</text>`;
+      svg += `<text x="${(bx + 11).toFixed(1)}" y="${(by + 10 + lh * (i + 1) - 4).toFixed(1)}" font-size="${fs}" font-weight="600" letter-spacing="2.2" fill="${S.ink}">${esc(l)}</text>`;
     });
-    svg += `<text x="${(bx + wEst - 11).toFixed(1)}" y="${(by + hEst - 8).toFixed(1)}" text-anchor="end" font-size="${T.num}" letter-spacing="1.5" fill="${S.red}">Nº ${String(node.index + 1).padStart(2, '0')}</text>`;
+    svg += `<text x="${(bx + wEst - 11).toFixed(1)}" y="${(by + hEst - 8).toFixed(1)}" text-anchor="end" font-size="${T.num * 1.15}" font-style="italic" letter-spacing="1" fill="${S.red}">Nº ${String(node.index + 1).padStart(2, '0')}</text>`;
     svg += `</g>`;
   }
 

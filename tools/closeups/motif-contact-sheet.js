@@ -1,5 +1,6 @@
 // Renders a contact sheet of every motif in a group file.
-//   node harness.js <group.js>        (THEME=dark for the night palette)
+//   node motif-contact-sheet.js <group.js>   (THEME=dark for the night palette; INK=0 for raw output;
+//                                             a second file argument is loaded first, e.g. figures.js for its _silhouette helper)
 const fs = require('fs'), path = require('path'), cp = require('child_process');
 const file = path.resolve(process.argv[2]);
 const PAL = {
@@ -16,8 +17,11 @@ const toHex=a=>'#'+a.map(v=>Math.round(Math.max(0,Math.min(255,v))).toString(16)
 const MIX=(a,b,t)=>{const ca=hex(a),cb=hex(b);return ca&&cb?toHex(ca.map((v,i)=>v+(cb[i]-v)*t)):a;};
 let seed = 12345; const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
 global.window = global;
+if (process.argv[3]) require(path.resolve(process.argv[3]));
 require(file);
-const names = Object.keys(window.MRI_MOTIFS || {});
+const names = Object.keys(window.MRI_MOTIFS || {}).filter(n => !n.startsWith('_'));
+if (process.env.INK !== '0') require(path.join(__dirname, 'ink.js'));   // INK=0 to see the raw kit output
+const ink = s => window.MRI_INK ? window.MRI_INK.process(s, { rand, S }) : s;
 if (!names.length) { console.error('no motifs registered'); process.exit(1); }
 const COLS = 4, CW = 190, CH = 150;
 const rows = Math.ceil(names.length / COLS);
@@ -29,8 +33,8 @@ names.forEach((n, i) => {
   svg += `<rect x="${cx+2}" y="${cy+2}" width="${CW-4}" height="${CH-4}" fill="none" stroke="${S.inkSoft}" stroke-width="0.4" opacity="0.4"/>`;
   svg += `<text x="${cx+8}" y="${cy+14}" font-family="monospace" font-size="8" fill="${S.inkSoft}">${n}</text>`;
   try {
-    svg += window.MRI_MOTIFS[n]({S, rand, MIX}, cx + 52, cy + 108, 1, {});
-    svg += window.MRI_MOTIFS[n]({S, rand, MIX}, cx + 135, cy + 130, 1.6, {flip: true});
+    svg += ink(window.MRI_MOTIFS[n]({S, rand, MIX}, cx + 52, cy + 108, 1, {}));
+    svg += ink(window.MRI_MOTIFS[n]({S, rand, MIX}, cx + 135, cy + 130, 1.6, {flip: true}));
   } catch (e) { svg += `<text x="${cx+8}" y="${cy+60}" font-size="8" fill="red">${String(e.message).slice(0,40)}</text>`; console.error(n, e.message); }
 });
 svg += `</svg>`;
