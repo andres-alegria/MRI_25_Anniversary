@@ -412,7 +412,10 @@ def story_route(doc, G, H, L, P):
     for (num, x, y, what) in STATIONS:
         z = V.sample(H, x, y)
         anchors.append(np.array(V.project(x, y, z)))
-    anchors = np.array(anchors); pos = anchors.copy()
+    anchors = np.array(anchors)
+    # each number stands off its own symbol, up-slope, so the icon underneath
+    # stays visible — adjust the stand-off here
+    pos = anchors + np.array([0.0, -26.0])
     R = 13.0; gap = 2 * R + 14
     for _ in range(200):
         moved = False
@@ -422,7 +425,7 @@ def story_route(doc, G, H, L, P):
                 if dd < gap:
                     push = (gap - dd) / 2 * (dv / (dd + 1e-9) if dd > 1e-6 else np.array([1.0, 0]))
                     pos[i] -= push; pos[j] += push; moved = True
-        pos = anchors + np.clip(pos - anchors, -48, 48)
+        pos = anchors + np.clip(pos - anchors, -58, 58)
         if not moved:
             break
     st = doc.layer('Stations')
@@ -431,8 +434,11 @@ def story_route(doc, G, H, L, P):
         (ax, ay), (sx, sy) = anchors[i], pos[i]
         g = f'<g id="station-{i + 1:02d}" data-story="{num}">'
         if np.hypot(sx - ax, sy - ay) > 5:
-            g += (f'<path d="M{f1(ax)} {f1(ay)}L{f1(sx)} {f1(sy)}" stroke="{P["red"]}" stroke-width="1.1"/>'
-                  f'<circle cx="{f1(ax)}" cy="{f1(ay)}" r="2.4" fill="{P["red"]}"/>')
+            # a quiet grey leader ties the number to its spot, so it cannot be
+            # mistaken for a branch of the trail
+            g += (f'<path d="M{f1(ax)} {f1(ay)}L{f1(sx)} {f1(sy)}" stroke="{P["inkSoft"]}" stroke-width="0.9" '
+                  f'stroke-opacity="0.75"/>'
+                  f'<circle cx="{f1(ax)}" cy="{f1(ay)}" r="2.2" fill="{P["inkSoft"]}"/>')
         r_ = R + (2 if i == len(STATIONS) - 1 else 0)        # the summit station a little larger
         g += (f'<circle cx="{f1(sx)}" cy="{f1(sy)}" r="{r_}" fill="{P["paper"]}" stroke="{P["red"]}" stroke-width="2"/>'
               f'<text x="{f1(sx)}" y="{f1(sy + 4.6)}" text-anchor="middle" font-family="{K.SANS}" font-weight="700" '

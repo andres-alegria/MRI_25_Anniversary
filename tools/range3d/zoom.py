@@ -341,18 +341,7 @@ def urban(out):
     lay = doc.layer('Infrastructure')
     sl_ = doc.layer('Settlements')
 
-    def road(pts, wide=5.5):
-        for r in draped(G, H, F.densify(np.asarray(pts, float), 0.003), 3):
-            d = K.d_smooth(r, False, 1.5)
-            lay.append(f'<path d="{d}" fill="none" stroke="{P["shade"]}" stroke-width="{wide + 3.5}" stroke-opacity="0.7" stroke-linecap="round"/>')
-            lay.append(f'<path d="{d}" fill="none" stroke="{P["road"]}" stroke-width="{wide}" stroke-linecap="round"/>')
-            if wide > 4:
-                lay.append(f'<path d="{d}" fill="none" stroke="{P["paper"]}" stroke-width="0.8" stroke-dasharray="6 6"/>')
-    # the riverside road on the town bank, and the road over the bridge to the new quarter
-    bank = np.clip(riv + np.array([0.0, -0.10]), 0.01, 0.99)
-    road(bank)
-    road([mid + np.array([0, -0.10]), mid + np.array([0, -0.035])], 4.5)
-    road([mid + np.array([0, 0.035]), mid + np.array([0.01, 0.09])], 4.0)
+    # (no roads drawn in the clips: the linework read as scratches at this scale)
     # the bridge: a deck on piers across the river
     a, b = mid + np.array([0, -0.035]), mid + np.array([0, 0.035])
     za = max(V.sample(H, *a), V.sample(H, *b)) + 12
@@ -363,11 +352,7 @@ def urban(out):
         lay.append(f'<path d="M{f1(top_[0])} {f1(top_[1])}L{f1(bot[0])} {f1(bot[1])}" stroke="{P["concrete"]}" stroke-width="3"/>')
     lay.append(f'<path d="M{f1(pa[0])} {f1(pa[1])}L{f1(pb[0])} {f1(pb[1])}" stroke="{P["shade"]}" stroke-width="9" stroke-linecap="round"/>'
                f'<path d="M{f1(pa[0])} {f1(pa[1])}L{f1(pb[0])} {f1(pb[1])}" stroke="{P["concrete"]}" stroke-width="6" stroke-linecap="round"/>')
-    # the flood embankment along the town bank
-    emb = np.clip(riv + np.array([0.0, -0.042]), 0.01, 0.99)
-    for r in draped(G, H, emb, 10):
-        lay.append(f'<path d="{K.d_smooth(r, False, 1.5)}" fill="none" stroke="{P["shade"]}" stroke-width="6" stroke-opacity="0.6"/>'
-                   f'<path d="{K.d_smooth(r, False, 1.5)}" fill="none" stroke="{P["concrete"]}" stroke-width="3.4" stroke-linecap="round"/>')
+    # (no flood embankment line either)
     # the old town: dense, low, mixed roofs, between the embankment and the road
     js, is_ = np.nonzero(cls == LC.TOWN)
     N = cls.shape[0] - 1
@@ -421,11 +406,10 @@ def urban(out):
     if placed:
         u, v = placed[len(placed) // 3]
         callout(doc, u, v, 'self-built houses on the steep slope', -40, -90)
-    callout(doc, *at(H, *emb[len(emb) // 4], 10), 'flood embankment', -60, 90)
     callout(doc, *((pa + pb) / 2), 'bridge', 50, 40)
     callout(doc, *wt, 'water treatment', 40, -50)
     callout(doc, *bs, 'bus station', -40, 60)
-    title(doc, cfg, 'A valley town outgrowing its terrace: new blocks, self-built houses on the slopes, roads and flood defences', 1)
+    title(doc, cfg, 'A valley town outgrowing its terrace: new blocks, self-built houses on the slopes, a bridge and water works', 1)
     scale_bar(doc, cfg)
     open(out, 'w').write(doc.svg())
     return doc
