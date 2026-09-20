@@ -106,10 +106,7 @@ def dam_and_power(doc, G, H, L, P, w, road_paths):
         while t < 0.06 and V.sample(H, ox + sgn * perp[0] * t, oy + sgn * perp[1] * t) < crest:
             t += 0.0008
         ends.append(np.array([ox, oy]) + sgn * perp * t)
-    # the wall stands just downstream of the last water, arching into the
-    # reservoir as an arch dam does — adjust its position with the offset
-    off = dv * 0.004
-    arc = [ends[0] + off + (ends[1] - ends[0]) * s - dv * 0.007 * np.sin(np.pi * s) for s in np.linspace(0, 1, 24)]
+    arc = [ends[0] + (ends[1] - ends[0]) * s - dv * 0.006 * np.sin(np.pi * s) for s in np.linspace(0, 1, 24)]
     arc = np.array(arc)
     top = np.stack(V.project(arc[:, 0], arc[:, 1], np.full(len(arc), crest)), 1)
     down = arc + dv * 0.0025
@@ -117,47 +114,15 @@ def dam_and_power(doc, G, H, L, P, w, road_paths):
     face = np.concatenate([top, bot[::-1]])
     lay = doc.layer('Infrastructure')
     lay.append(f'<path d="{K.d_poly(face, True, 0.6)}" fill="{P["concrete"]}" stroke="{P["shade"]}" stroke-width="0.6"/>')
-    for e_ in (0, -1):                                       # the abutments, keyed into the rock
-        a0, b0 = top[e_], bot[e_]
-        wdt = 7 if e_ == 0 else -7
-        lay.append(f'<path d="M{f1(a0[0])} {f1(a0[1])}L{f1(a0[0] - wdt)} {f1(a0[1] + 3)}'
-                   f'L{f1(b0[0] - wdt)} {f1(b0[1] + 3)}L{f1(b0[0])} {f1(b0[1])}Z" fill="{P["concrete"]}" '
-                   f'fill-opacity="0.85" stroke="{P["shade"]}" stroke-width="0.5"/>')
-    lay.append(f'<path d="{K.d_poly(top, False, 0.6)}" fill="none" stroke="{P["concrete"]}" stroke-width="2.6" stroke-linecap="round"/>')
+    lay.append(f'<path d="{K.d_poly(top, False, 0.6)}" fill="none" stroke="{P["concrete"]}" stroke-width="6" stroke-linecap="round"/>')
+    lay.append(f'<path d="{K.d_poly(top, False, 0.6)}" fill="none" stroke="{P["shade"]}" stroke-width="1" stroke-opacity="0.6" transform="translate(0 3)"/>')
     mid = top[len(top) // 2]
-    # the downstream face, shaded, so the wall reads as a wall and not a causeway
-    lay.append(f'<path d="{K.d_poly(np.concatenate([top, bot[::-1]]), True, 0.6)}" fill="{P["shade"]}" '
-               f'fill-opacity="0.5"/>')
-    for s_ in np.linspace(0.12, 0.88, 7):                 # buttress lines down the face
-        a_ = top[int(s_ * (len(top) - 1))]; b_ = bot[int(s_ * (len(bot) - 1))]
-        lay.append(f'<path d="M{f1(a_[0])} {f1(a_[1])}L{f1(b_[0])} {f1(b_[1])}" stroke="{P["shade"]}" '
-                   f'stroke-width="0.7" stroke-opacity="0.45"/>')
-    # the spillway: a chute over one flank, with white water at its foot
-    sp = top[int(0.93 * (len(top) - 1))]; sb = bot[int(0.93 * (len(bot) - 1))]
-    lay.append(f'<path d="M{f1(sp[0] - 3)} {f1(sp[1])}L{f1(sb[0] - 2.5)} {f1(sb[1])}L{f1(sb[0] + 2.5)} {f1(sb[1])}'
-               f'L{f1(sp[0] + 3)} {f1(sp[1])}Z" fill="{P["waterLine"]}" fill-opacity="0.7"/>')
+    lay.append(f'<path d="M{f1(mid[0] - 3)} {f1(mid[1] - 2)}l6 0l-1 6l-4 0Z" fill="{P["water"]}"/>')      # spillway
     # powerhouse below
     phx, phy = ox + dv[0] * 0.022, oy + dv[1] * 0.022
     sx, sy = V.project(phx, phy, V.sample(H, phx, phy))
-    # the penstock: a steel pipe on saddles, from the dam down to the powerhouse
-    toe = bot[len(bot) // 2]
-    a_ = np.array([toe[0] + 4, toe[1]]); b_ = np.array([sx, sy - 8])
-    lay.append(f'<path d="M{f1(a_[0])} {f1(a_[1])}L{f1(b_[0])} {f1(b_[1])}" stroke="{P["shade"]}" stroke-width="5" stroke-opacity="0.5"/>')
-    lay.append(f'<path d="M{f1(a_[0])} {f1(a_[1])}L{f1(b_[0])} {f1(b_[1])}" stroke="{P["penstock"]}" stroke-width="3"/>')
-    for t_ in np.linspace(0.25, 0.75, 3):                 # saddles under the pipe
-        q_ = a_ + (b_ - a_) * t_
-        nq = (b_ - a_) / (np.hypot(*(b_ - a_)) + 1e-9)
-        lay.append(f'<path d="M{f1(q_[0] - nq[1] * 3)} {f1(q_[1] + nq[0] * 3)}l{f1(nq[1] * 6)} {f1(-nq[0] * 6)}" '
-                   f'stroke="{P["concrete"]}" stroke-width="1.6"/>')
-    lay.append(F.box(sx, sy, 20, 12, 10, 'flat', dict(P, roofFlat=P['metalRoof'])))
-    lay.append(f'<path d="M{f1(sx - 6)} {f1(sy + 4)}q-10 8 -16 18" fill="none" stroke="{P["waterLine"]}" '
-               f'stroke-width="2" stroke-opacity="0.85"/>')                    # the tailrace back to the river
-    # the switchyard beside it: a fenced platform with two transformers
-    lay.append(f'<rect x="{f1(sx + 13)}" y="{f1(sy - 6)}" width="22" height="11" fill="{P["shade"]}" '
-               f'fill-opacity="0.45" stroke="{P["pylon"]}" stroke-width="0.8"/>')
-    for dx_ in (4, 13):
-        lay.append(f'<rect x="{f1(sx + 13 + dx_)}" y="{f1(sy - 4)}" width="5" height="6" fill="{P["pylon"]}"/>'
-                   f'<path d="M{f1(sx + 15.5 + dx_)} {f1(sy - 4)}l0 -5" stroke="{P["pylon"]}" stroke-width="0.8"/>')
+    lay.append(f'<path d="M{f1(mid[0] + 8)} {f1(mid[1] + 2)}L{f1(sx)} {f1(sy - 8)}" stroke="{P["penstock"]}" stroke-width="2.2"/>')
+    lay.append(F.box(sx, sy, 20, 12, 10, 'flat', dict(P, roofFlat=P['powerRoof'])))
     # the power line: pylons along the road back down to the town
     line = road_paths[0][::-1]
     line = line[(line[:, 1] < oy - 0.01)]
@@ -234,85 +199,13 @@ def mine(doc, G, H, L, P, x0=0.905, y0=0.200):
                   [cx - 0.019, cy + 0.011]])
     zq = V.sample(H, q[:, 0], q[:, 1]).max() + 4
     pp = np.stack(V.project(q[:, 0], q[:, 1], np.full(len(q), zq)), 1)
-    out.append(f'<path d="{K.d_poly(pp, True, 0.5)}" fill="{P["slurry"]}" stroke="{P["inkFaint"]}" '
-               f'stroke-width="0.7" stroke-opacity="0.8"/>')
-    dec = pp.mean(0) + (pp[3] - pp.mean(0)) * 0.55                            # the decant pond, upstream
-    out.append(f'<ellipse cx="{f1(dec[0])}" cy="{f1(dec[1])}" rx="9" ry="4.5" fill="{P["tailings"]}" '
-               f'fill-opacity="0.9"/>')
-    a_, b_ = pp[0], pp[1]
-    dn = np.array([0.0, 15.0])                               # the embankment steps downhill on the screen
-    out.append(f'<path d="M{f1(a_[0])} {f1(a_[1])}L{f1(b_[0])} {f1(b_[1])}L{f1(b_[0] - 4)} {f1(b_[1] + dn[1])}'
-               f'L{f1(a_[0] + 4)} {f1(a_[1] + dn[1])}Z" fill="{P["waste"]}" stroke="{P["shade"]}" stroke-width="0.6"/>')
-    out.append(f'<path d="M{f1(a_[0])} {f1(a_[1])}L{f1(b_[0])} {f1(b_[1])}" stroke="{P["wasteTop"]}" stroke-width="3.4" stroke-linecap="round"/>')
-    for t_ in np.linspace(0.15, 0.85, 6):                    # the face of the embankment
-        u = a_ + (b_ - a_) * t_
-        out.append(f'<path d="M{f1(u[0])} {f1(u[1])}l{f1(-1 + 2 * t_)} {f1(dn[1])}" stroke="{P["shade"]}" '
-                   f'stroke-width="0.6" stroke-opacity="0.5"/>')
+    out.append(f'<path d="{K.d_poly(pp, True, 0.5)}" fill="{P["tailings"]}" stroke="{P["light"]}" stroke-width="0.7" stroke-opacity="0.7"/>')
+    out.append(f'<path d="M{f1(pp[0][0])} {f1(pp[0][1])}L{f1(pp[1][0])} {f1(pp[1][1])}" stroke="{P["concrete"]}" stroke-width="3.2" stroke-linecap="round"/>')
     # seepage from the tailings, down toward the paddies
     sp = np.array([[cx + 0.01, cy - 0.012], [cx - 0.01, cy - 0.05], [cx - 0.04, cy - 0.085], [cx - 0.07, cy - 0.11]])
     for r in F.draped(G, H, sp, 3):
         out.append(f'<path d="{K.d_smooth(r, False, 1.2)}" fill="none" stroke="{P["seep"]}" stroke-width="1.4" stroke-dasharray="2 3"/>')
     lay.append(''.join(out))
-
-
-def landslide(doc, G, H, L, P):
-    """A slope failure on a valley side: the arcuate scarp it left, the scar
-    that narrows down-slope, and the hummocky tongue of debris at its foot.
-    Drawn as one figure on the slope, at the scale the block can show."""
-    lay = doc.layer('Hazards-landslide')
-    rng = np.random.default_rng(23)
-    # the site: a steep, open valley side above the trunk river — adjust here
-    for cand in ((0.335, 0.300), (0.325, 0.290), (0.315, 0.285), (0.300, 0.300)):
-        p_ = np.array(cand)
-        n = H.shape[0]
-        if (G.visible(p_[0], p_[1], float(V.sample(H, p_[0], p_[1])) + 2)
-                and L['slope'][int(p_[1] * (n - 1)), int(p_[0] * (n - 1))] > 22):
-            break
-    else:
-        return
-    cx, cy = V.project(p_[0], p_[1], float(V.sample(H, p_[0], p_[1])))
-    # down-slope on the page, from the ground itself: the direction in which
-    # the projected surface falls fastest
-    gy_, gx_ = np.gradient(H)
-    gxv = float(V.sample(gx_, p_[0], p_[1])); gyv = float(V.sample(gy_, p_[0], p_[1]))
-    m_ = np.hypot(gxv, gyv) + 1e-9
-    a = np.array(V.project(p_[0], p_[1], float(V.sample(H, p_[0], p_[1]))))
-    q_ = np.clip(p_ - np.array([gxv, gyv]) / m_ * 0.02, 0.002, 0.998)
-    b = np.array(V.project(q_[0], q_[1], float(V.sample(H, q_[0], q_[1]))))
-    dwn = (b - a) / (np.hypot(*(b - a)) + 1e-9)               # down-slope, on the page
-    sid = np.array([-dwn[1], dwn[0]])
-    L_ = 86.0                                                 # the slide's length on the page
-    W = 30.0
-    head = np.array([cx, cy]) - dwn * L_ * 0.42
-    # the scarp: a crescent, with ticks pointing down into the scar
-    arc = np.array([head + sid * t * W + dwn * 9 * (1 - (t / 1.0) ** 2) for t in np.linspace(-1, 1, 22)])
-    lay.append(f'<path d="{K.d_smooth(arc, False, 1.2)}" fill="none" stroke="{P["shade"]}" stroke-width="5" '
-               f'stroke-opacity="0.5"/>'
-               f'<path d="{K.d_smooth(arc, False, 1.2)}" fill="none" stroke="{P["ink"]}" stroke-width="2.2"/>')
-    for t in np.linspace(-0.85, 0.85, 9):
-        u = head + sid * t * W + dwn * 9 * (1 - t ** 2)
-        lay.append(f'<path d="M{f1(u[0])} {f1(u[1])}l{f1(dwn[0] * 6)} {f1(dwn[1] * 6)}" stroke="{P["ink"]}" '
-                   f'stroke-width="1.1" stroke-opacity="0.85"/>')
-    # the scar: stripped ground narrowing down-slope
-    scar = ([head + sid * t * W + dwn * 9 * (1 - t ** 2) for t in np.linspace(-1, 1, 12)]
-            + [head + dwn * L_ * 0.62 + sid * t * W * 0.45 for t in (0.9, -0.9)])
-    lay.append(f'<path d="{K.d_poly(np.array(scar), True, 1.0)}" fill="{P["waste"]}" fill-opacity="0.7" '
-               f'stroke="{P["inkFaint"]}" stroke-width="0.8"/>')
-    # the deposit: a hummocky tongue spreading at the foot
-    toe = head + dwn * L_ * 0.86
-    lobe = ([toe + sid * t * W * 0.95 + dwn * 16 * (1 - t ** 2) for t in np.linspace(-1, 1, 18)]
-            + [head + dwn * L_ * 0.55 + sid * t * W * 0.5 for t in np.linspace(1, -1, 8)])
-    lay.append(f'<path d="{K.d_smooth(np.array(lobe), True, 1.3)}" fill="{P["debris"]}" fill-opacity="0.9" '
-               f'stroke="{P["moraineCrest"]}" stroke-width="1"/>')
-    for _ in range(22):
-        u = toe + sid * rng.uniform(-0.8, 0.8) * W * 0.8 + dwn * rng.uniform(-14, 12)
-        rr = 1.5 + rng.random() * 2.0
-        lay.append(f'<ellipse cx="{f1(u[0])}" cy="{f1(u[1])}" rx="{f1(rr * 1.6)}" ry="{f1(rr)}" '
-                   f'fill="{P["wasteTop"]}" fill-opacity="0.55"/>')
-    import labels as LB
-    u = toe - sid * W * 1.35 + dwn * 8
-    doc.layer('Labels').append(LB.halo(u[0] - 8, u[1] + 4, 'landslide scar and deposit', P,
-                                       LB.TYPE['feature'] - 1, col=P['ink'], anchor='end'))
 
 
 def _hull(pts):
@@ -503,39 +396,24 @@ def story_route(doc, G, H, L, P):
     """One continuous trail through the 25 stations; markers are nudged apart
     where they would collide and tied to their true spot by a short leader."""
     cost = F.cost_grid(H, L, 'trail')
-    # nobody walks over a tailings impoundment: make that ground expensive
-    n_ = cost.shape[0]
-    gx_ = np.linspace(0, 1, n_)
-    XX, YY = np.meshgrid(gx_, gx_)
-    cost = cost + 60.0 * np.exp(-(((XX - 0.853) / 0.045) ** 2 + ((YY - 0.206) / 0.030) ** 2))
     pts = [np.array(s[1:3]) for s in STATIONS]
     lay = doc.layer('Route')
     runs_all = []
     for a, b in zip(pts[:-1], pts[1:]):
         path = F.route(cost, a, b)
         runs_all += F.draped(G, H, path, 5)
-    # near parts of the trail are drawn heavier than far ones, so the path
-    # carries the same depth as the ground it lies on
-    bands = [(0.0, 0.34, 1.5, 3.1, 0.72), (0.34, 0.68, 1.9, 3.7, 0.82), (0.68, 1.01, 2.3, 4.3, 0.92)]
-    for lo, hi, w, wo, op in bands:
-        d = ''.join(K.d_smooth(r, False, 1.8) for r in runs_all
-                    if lo <= float(np.mean(r[:, 1])) / V.H_PX < hi)
-        if not d:
-            continue
-        lay.append(f'<path d="{d}" fill="none" stroke="{P["paper"]}" stroke-width="{wo}" stroke-opacity="0.75" '
-                   f'stroke-linecap="round" stroke-linejoin="round"/>')
-        lay.append(f'<path d="{d}" fill="none" stroke="{P["route"]}" stroke-width="{w}" stroke-opacity="{op}" '
-                   f'stroke-linecap="round" stroke-linejoin="round"/>')
+    d = ''.join(K.d_smooth(r, False, 1.8) for r in runs_all)
+    lay.append(f'<path d="{d}" fill="none" stroke="{P["paper"]}" stroke-width="4" stroke-opacity="0.75" '
+               f'stroke-linecap="round" stroke-linejoin="round"/>')
+    lay.append(f'<path d="{d}" fill="none" stroke="{P["route"]}" stroke-width="2" stroke-opacity="0.9" '
+               f'stroke-linecap="round" stroke-linejoin="round"/>')
     # markers: anchors on the ground, positions pushed apart on screen
     anchors = []
     for (num, x, y, what) in STATIONS:
         z = V.sample(H, x, y)
         anchors.append(np.array(V.project(x, y, z)))
-    anchors = np.array(anchors)
-    # every marker stands clear of the thing it names, up-slope, so the symbol
-    # underneath stays visible — adjust the stand-off here
-    pos = anchors + np.array([0.0, -27.0])
-    R = 11.5; gap = 2 * R + 17
+    anchors = np.array(anchors); pos = anchors.copy()
+    R = 13.0; gap = 2 * R + 14
     for _ in range(200):
         moved = False
         for i in range(len(pos)):
@@ -544,7 +422,7 @@ def story_route(doc, G, H, L, P):
                 if dd < gap:
                     push = (gap - dd) / 2 * (dv / (dd + 1e-9) if dd > 1e-6 else np.array([1.0, 0]))
                     pos[i] -= push; pos[j] += push; moved = True
-        pos = anchors + np.clip(pos - anchors, -62, 62)
+        pos = anchors + np.clip(pos - anchors, -48, 48)
         if not moved:
             break
     st = doc.layer('Stations')
@@ -553,21 +431,12 @@ def story_route(doc, G, H, L, P):
         (ax, ay), (sx, sy) = anchors[i], pos[i]
         g = f'<g id="station-{i + 1:02d}" data-story="{num}">'
         if np.hypot(sx - ax, sy - ay) > 5:
-            # a grey leader, never the route's orange, so it cannot read as a path
-            g += (f'<path d="M{f1(ax)} {f1(ay)}L{f1(sx)} {f1(sy)}" stroke="{P["inkSoft"]}" stroke-width="0.9" '
-                  f'stroke-opacity="0.75"/>'
-                  f'<circle cx="{f1(ax)}" cy="{f1(ay)}" r="2.2" fill="{P["inkSoft"]}"/>')
-        # near stations are drawn larger than far ones, as everything else is
-        depth = float(np.clip((sy - 120) / (V.H_PX - 260), 0, 1))
-        r_ = R - 1.8 + 3.6 * depth + (2.0 if i == len(STATIONS) - 1 else 0)
-        onice = V.nearest(L['cls'], x, y) in (LC.GLACIER, LC.SNOW)
-        if onice:                                            # a dark halo keeps the ring off white ice
-            g += (f'<circle cx="{f1(sx)}" cy="{f1(sy)}" r="{f1(r_ + 2.4)}" fill="none" stroke="{P["shade"]}" '
-                  f'stroke-width="2.2" stroke-opacity="0.5"/>')
-        g += (f'<circle cx="{f1(sx)}" cy="{f1(sy)}" r="{f1(r_)}" fill="{P["paper"]}" stroke="{P["red"]}" '
-              f'stroke-width="{f1(1.5 + 0.7 * depth)}"/>'
-              f'<text x="{f1(sx)}" y="{f1(sy + r_ * 0.38)}" text-anchor="middle" font-family="{K.SANS}" font-weight="700" '
-              f'font-size="{f1(r_ * 1.02)}" fill="{P["light"]}">{i + 1:02d}</text></g>')
+            g += (f'<path d="M{f1(ax)} {f1(ay)}L{f1(sx)} {f1(sy)}" stroke="{P["red"]}" stroke-width="1.1"/>'
+                  f'<circle cx="{f1(ax)}" cy="{f1(ay)}" r="2.4" fill="{P["red"]}"/>')
+        r_ = R + (2 if i == len(STATIONS) - 1 else 0)        # the summit station a little larger
+        g += (f'<circle cx="{f1(sx)}" cy="{f1(sy)}" r="{r_}" fill="{P["paper"]}" stroke="{P["red"]}" stroke-width="2"/>'
+              f'<text x="{f1(sx)}" y="{f1(sy + 4.6)}" text-anchor="middle" font-family="{K.SANS}" font-weight="700" '
+              f'font-size="13" fill="{P["light"]}">{i + 1:02d}</text></g>')
         st.append(g)
         coords.append(dict(order=i + 1, story=num, what=what, x=round(float(sx), 1), y=round(float(sy), 1),
                            anchor_x=round(float(ax), 1), anchor_y=round(float(ay), 1)))
@@ -602,11 +471,11 @@ def pictograms(doc, G, H, P):
     out.append(F.box(p_[0] - 14, p_[1] + 2, 22, 12, 9, 'gable', dict(P, roof=P['metalRoof'])))
     for i, (dx, dy) in enumerate([(0.012, 0.010), (0.018, 0.016), (0.024, 0.021)]):
         q = V.project(lx + dx, ly + dy, V.sample(H, lx + dx, ly + dy))
-        out.append(person(q[0], q[1], P, staff=True, load=True, k=1.5))
+        out.append(person(q[0], q[1], P, staff=True, load=True, k=2.3))
     # the painter at an easel, at the viewpoint
     vx, vy = 0.545, 0.275
     q = V.project(vx, vy, V.sample(H, vx, vy))
-    out.append(person(q[0] - 8, q[1], P, k=1.7))
+    out.append(person(q[0] - 10, q[1], P, k=2.5))
     out.append(f'<path d="M{f1(q[0] + 2)} {f1(q[1])}L{f1(q[0] + 8)} {f1(q[1] - 24)}L{f1(q[0] + 14)} {f1(q[1])}M{f1(q[0] + 8)} {f1(q[1] - 24)}l0 24" '
                f'stroke="{P["figure"]}" stroke-width="1.3" fill="none"/>')
     out.append(f'<rect x="{f1(q[0] + 1)}" y="{f1(q[1] - 24)}" width="15" height="11" fill="{P["light"]}" stroke="{P["shade"]}" stroke-width="0.8"/>')
@@ -631,119 +500,5 @@ def pictograms(doc, G, H, P):
     sx, sy = i / (n - 1), j / (n - 1)
     a = V.project(sx, sy, H[j, i])
     # (no flag on the summit: a survey pillar only, as a measurement, not a conquest)
-    # a survey pillar: a tapered concrete column on a plinth, the summit as a
-    # measured point rather than a conquest
-    px_, py_ = a[0] + 15, a[1] - 2
-    out.append(f'<path d="M{f1(px_ - 4)} {f1(py_)}l8 0l-1.6 -13l-4.8 0Z" fill="{P["light"]}" stroke="{P["shade"]}" stroke-width="0.7"/>'
-               f'<rect x="{f1(px_ - 5.5)}" y="{f1(py_)}" width="11" height="3" fill="{P["concrete"]}" stroke="{P["shade"]}" stroke-width="0.6"/>'
-               f'<circle cx="{f1(px_)}" cy="{f1(py_ - 15)}" r="2.2" fill="none" stroke="{P["light"]}" stroke-width="1.1"/>')
-    # fenced pastures on the eastern shoulder: the land-tenure station
-    gx, gy = 0.835, 0.330
-    ux, vy = F.axes()
-    for i_, (dx, dy) in enumerate([(-0.018, 0.004), (0.004, 0.012), (0.012, -0.010)]):
-        cx_, cy_ = gx + dx, gy + dy
-        z = V.sample(H, cx_, cy_)
-        if not G.visible(cx_, cy_, z + 1):
-            continue
-        w_, h_ = 38 + i_ * 7, 25
-        c = np.array(V.project(cx_, cy_, z))
-        corners = [c - ux * w_ / 2 - vy * h_ / 2, c + ux * w_ / 2 - vy * h_ / 2,
-                   c + ux * w_ / 2 + vy * h_ / 2, c - ux * w_ / 2 + vy * h_ / 2]
-        d_ = 'M' + 'L'.join(f'{f1(p[0])} {f1(p[1])}' for p in corners) + 'Z'
-        out.append(f'<path d="{d_}" fill="{P["alpine"]}" fill-opacity="0.35" stroke="{P["wallLit"]}" '
-                   f'stroke-width="1" stroke-dasharray="4 2.5"/>')
-        for p in corners:                                   # corner posts
-            out.append(f'<path d="M{f1(p[0])} {f1(p[1])}l0 -7" stroke="{P["wallLit"]}" stroke-width="1.6"/>')
-        for k_ in range(2):
-            q = c + ux * (k_ * 12 - 7) + vy * 3
-            out.append(animal(q[0], q[1], 'llama', 1 if k_ else -1, P, 1.25))
-    # the contour canal and its offtake gates: the water-tower station.
-    # It is traced on a real contour of the ground, so it cannot run uphill.
-    import render as _R
-    cxx, cyy = 0.372, 0.300
-    z0 = float(V.sample(H, cxx, cyy))
-    best = None
-    for lv, seg in _R.world_lines(H, [round(z0 / 20) * 20]):
-        d2 = np.hypot(seg[:, 0] - cxx, seg[:, 1] - cyy)
-        if best is None or d2.min() < best[0]:
-            best = (d2.min(), seg, int(np.argmin(d2)))
-    if best is not None and best[0] < 0.02:
-        _, seg, k0 = best
-        pth = seg[max(0, k0 - 55):k0 + 55]
-        for run in F.draped(G, H, pth, 4):
-            out.append(f'<path d="{K.d_smooth(run, False, 1.4)}" fill="none" stroke="{P["waterLine"]}" '
-                       f'stroke-width="2.4" stroke-opacity="0.9"/>')
-        # the intake, where the canal leaves the stream, and gates along it
-        head = pth[0]
-        zz = float(V.sample(H, head[0], head[1]))
-        if G.visible(head[0], head[1], zz + 1):
-            hx, hy = V.project(head[0], head[1], zz)
-            out.append(f'<rect x="{f1(hx - 5)}" y="{f1(hy - 5)}" width="10" height="7" fill="{P["concrete"]}" '
-                       f'stroke="{P["shade"]}" stroke-width="0.7"/>')
-        # the command area the canal waters: small parcels below its gates
-        ux2, vy2 = F.axes()
-        for t_ in (0.36, 0.60, 0.84):
-            q = pth[int(t_ * (len(pth) - 1))]
-            for row in range(3):
-                for col in range(2):
-                    qq = np.clip(q + np.array([0.004 * col - 0.002, -0.0065 * (row + 1)]), 0.002, 0.998)
-                    zz = float(V.sample(H, qq[0], qq[1]))
-                    if not G.visible(qq[0], qq[1], zz + 1):
-                        continue
-                    c_ = np.array(V.project(qq[0], qq[1], zz))
-                    poly = [c_ - ux2 * 6.5 - vy2 * 4, c_ + ux2 * 6.5 - vy2 * 4,
-                            c_ + ux2 * 6.5 + vy2 * 4, c_ - ux2 * 6.5 + vy2 * 4]
-                    d2 = 'M' + 'L'.join(f'{f1(p[0])} {f1(p[1])}' for p in poly) + 'Z'
-                    out.append(f'<path d="{d2}" fill="{P["paddyGreen2"]}" fill-opacity="0.8" '
-                               f'stroke="{P["bund"]}" stroke-width="0.6"/>')
-        for t_ in (0.32, 0.56, 0.80):                       # sluice gates on the downhill bank
-            q = pth[int(t_ * (len(pth) - 1))]
-            zz = float(V.sample(H, q[0], q[1]))
-            if not G.visible(q[0], q[1], zz + 1):
-                continue
-            sxx, syy = V.project(q[0], q[1], zz)
-            out.append(f'<rect x="{f1(sxx - 4.5)}" y="{f1(syy - 6)}" width="9" height="9" fill="{P["concrete"]}" '
-                       f'stroke="{P["shade"]}" stroke-width="0.9"/>'
-                       f'<path d="M{f1(sxx)} {f1(syy + 3)}l0 10" stroke="{P["waterLine"]}" stroke-width="2"/>')
-    # the high automatic weather station on the rock rib: elevation-dependent warming
-    ax_, ay_ = 0.600, 0.770
-    z = V.sample(H, ax_, ay_)
-    if G.visible(ax_, ay_, z + 2):
-        x_, y_ = V.project(ax_, ay_, z)
-        x_, y_ = x_ + 30, y_ + 6                            # clear of the station marker above it
-        # a mast with cup anemometer and vane, a louvred screen on legs, a panel.
-        # Drawn dark first: on snow a pale mast would vanish
-        mast = (f'M{f1(x_)} {f1(y_)}l0 -36'
-                f'M{f1(x_ - 8)} {f1(y_ - 27)}l16 0M{f1(x_ - 7)} {f1(y_ - 19)}l14 0'
-                f'M{f1(x_ - 7)} {f1(y_ - 36)}l14 0')
-        out.append(f'<path d="{mast}" stroke="{P["shade"]}" stroke-width="4" stroke-opacity="0.75" fill="none"/>'
-                   f'<path d="{mast}" stroke="{P["light"]}" stroke-width="2" fill="none"/>')
-        for dx_ in (-7, 7):
-            out.append(f'<circle cx="{f1(x_ + dx_)}" cy="{f1(y_ - 39)}" r="3" fill="{P["shade"]}" '
-                       f'fill-opacity="0.75"/>'
-                       f'<circle cx="{f1(x_ + dx_)}" cy="{f1(y_ - 39)}" r="2.6" fill="none" stroke="{P["light"]}" '
-                       f'stroke-width="1.4"/>')
-        out.append(f'<path d="M{f1(x_)} {f1(y_ - 36)}l0 -7l10 3.5Z" fill="{P["shade"]}" fill-opacity="0.8"/>'
-                   f'<path d="M{f1(x_)} {f1(y_ - 36)}l0 -6l9 3Z" fill="{P["light"]}"/>')
-        out.append(f'<rect x="{f1(x_ + 8)}" y="{f1(y_ - 14)}" width="15" height="11" fill="{P["wallLit"]}" '
-                   f'stroke="{P["shade"]}" stroke-width="1.1"/>'
-                   f'<path d="M{f1(x_ + 10)} {f1(y_ - 3)}l0 4M{f1(x_ + 21)} {f1(y_ - 3)}l0 4" '
-                   f'stroke="{P["shade"]}" stroke-width="1.4"/>'
-                   f'<path d="M{f1(x_ - 15)} {f1(y_ + 1)}l8 -7l8 7Z" fill="{P["solar"]}" stroke="{P["solarFrame"]}" '
-                   f'stroke-width="1.2"/>')
-    # the border over the pass: a boundary line with two posts
-    bx, by = 0.835, 0.650
-    bl = []
-    for t_ in np.linspace(-0.055, 0.055, 26):
-        q = np.array([bx + t_ * 0.9, by + t_ * 0.45])
-        zz = V.sample(H, q[0], q[1])
-        if G.visible(q[0], q[1], zz + 2):
-            bl.append(V.project(q[0], q[1], zz))
-    if len(bl) > 4:
-        bl = np.array(bl)
-        out.append(f'<path d="{K.d_smooth(bl, False, 1.4)}" fill="none" stroke="{P["ink"]}" stroke-width="1.5" '
-                   f'stroke-dasharray="9 4 2 4" stroke-opacity="0.85"/>')
-        for q in (bl[2], bl[-3]):
-            out.append(f'<path d="M{f1(q[0])} {f1(q[1])}l0 -13" stroke="{P["ink"]}" stroke-width="2"/>'
-                       f'<rect x="{f1(q[0])}" y="{f1(q[1] - 13)}" width="9" height="6" fill="{P["red"]}"/>')
+    out.append(f'<rect x="{f1(a[0] + 16)}" y="{f1(a[1] - 9)}" width="4" height="7" fill="{P["light"]}"/>')
     lay.append(''.join(out))

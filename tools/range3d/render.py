@@ -27,8 +27,8 @@ PAL = dict(
     ground='#2B4046',
     alpine='#46584A', scree='#394C5B', forest='#1F3B32', terrace='#4E5E3A',
     field='#3C4B34', paddy='#34504A', town='#4B5157', rock='#3C5266',
-    snow='#E1EAF1', glacier='#B4CADC', water='#33688C',
-    waterLine='#66A0C4', iceLine='#7FACCA', crevasse='#3E6E8E', treeInk='#6D9179',
+    snow='#E1EAF1', glacier='#B4CADC', water='#2F6F9E',
+    waterLine='#5FA8D8', iceLine='#7FACCA', crevasse='#3E6E8E', treeInk='#6D9179',
     red='#E07A66', blue='#4FA3D9',
     shade='#07131C', light='#DCE8F1',
     # trees, fields and buildings
@@ -42,14 +42,11 @@ PAL = dict(
     metalRoof='#6F7F8C', sapling='#8FB08A', hat='#D8C79A', buffalo='#3A302A', thatch='#9A8458',
     awning2='#E3C16F', awning3='#4FA3D9', crane='#E3C16F', sheet='#8A9AA6', shackB='#9C8A74', shackC='#7C8C8A',
     bus='#E3C16F', solarFrame='#9FB3C8', haze='#1B3048', ogive='#8FB3CC', debris='#5D5A55', moraineCrest='#A89F92', hazard='#BFD8F0',
-    lightWarm='#F3E4C6', rim='#FBE9C4',   # the sun side and the crest rim — adjust the light's colour here
     paper='#0B1F2E', road='#C9BD9C', concrete='#A7AFB3', benchLight='#A88A6C', benchDark='#5E584D',
-    tailings='#9FC7B8', slurry='#7A7466',   # the decant pond, and the slurry around it
-    whitewash='#E6EFF5', solar='#1D2A3A', animal='#D9CFBD', tent='#2A2622',
+    tailings='#9FC7B8', whitewash='#E6EFF5', solar='#1D2A3A', animal='#D9CFBD', tent='#2A2622',
     figure='#E8DFCC', rockGlacier='#7F8489', snowlineInk='#E6EFF5', treelineInk='#8FB08A',
     # the cut faces: earth tones muted to sit on the night paper
     # the rock on the cut faces: navy-shifted tints with one warm band (the gravels)
-    marker='#8E6F4E',   # the marker bed followed across the folds and the fault
     soil='#3A3228', alluvium='#6B5A3E', sandstone='#4E4B42', shale='#3E4658', limestone='#474B58',
     gneiss='#303A48', granite='#58505A', hornfels='#645C68', till='#524C45', permafrost='#A9D2EC',
 )
@@ -119,7 +116,7 @@ def chains(edge, max_dy=3):
     return [np.array(ch) for ch in done if len(ch) >= 6]
 
 
-def render(zoom=None, key=True):
+def render(zoom=None):
     w = T.build()
     H = w['H']
     V.fit(H)
@@ -130,7 +127,7 @@ def render(zoom=None, key=True):
     for name in ['Sky', 'Ground'] + ['Cover-' + nm for nm in LC.NAMES[1:]] + \
             ['Fields', 'Shade', 'Light', 'Contours', 'Terraces', 'Hachures', 'Glacier-detail', 'Moraines',
              'Streams', 'Silhouettes', 'Skyline', 'Trees', 'Haze', 'Isolines', 'Settlements', 'Infrastructure', 'People-animals',
-             'Hazards-landslide', 'Route', 'Faces', 'Face-symbols', 'Face-labels', 'Labels', 'Key', 'Stations']:
+             'Route', 'Faces', 'Face-symbols', 'Face-labels', 'Labels', 'Key', 'Stations']:
         doc.layer(name)
     m = G.mask
     px, py = np.nan_to_num(G.px), np.nan_to_num(G.py)
@@ -159,25 +156,18 @@ def render(zoom=None, key=True):
     # four stacked steps of shade, each light, so the tone builds in soft steps
     # rather than blotches — adjust the shading here
     lay = doc.layer('Shade')
-    for lv, op in [(0.56, 0.13), (0.40, 0.14), (0.26, 0.15), (0.12, 0.16)]:
+    for lv, op in [(0.50, 0.12), (0.36, 0.12), (0.24, 0.13), (0.12, 0.13)]:
         d = K.trace(m & (S < lv), blur=2, step=2.2)
         lay.append(f'<path d="{d}" fill="{PAL["shade"]}" fill-opacity="{op}" fill-rule="evenodd"/>')
-    # the sun side: a warm wash over every cover, stronger on the brightest faces,
-    # so the range has one light and slopes read as lit or shaded — adjust here
-    lit = doc.layer('Light')
-    for lv, op, col in [(0.74, 0.055, PAL['lightWarm']), (0.86, 0.075, PAL['lightWarm'])]:
-        d = K.trace(m & (S > lv), blur=3, step=2.4)
-        lit.append(f'<path d="{d}" fill="{col}" fill-opacity="{op}" fill-rule="evenodd"/>')
     d = K.trace(m & (S > 0.86) & ((C == LC.SNOW) | (C == LC.GLACIER) | (C == LC.ROCK)), blur=3, step=2.4)
-    lit.append(f'<path d="{d}" fill="{PAL["light"]}" fill-opacity="0.07" fill-rule="evenodd"/>')
+    doc.layer('Light').append(f'<path d="{d}" fill="{PAL["light"]}" fill-opacity="0.07" fill-rule="evenodd"/>')
 
     # ------------------------------------------------------------------ contours (screen space, broken at occlusions)
     D = depth_image(G)
     jump = np.zeros_like(m)
     dd = np.abs(np.diff(np.nan_to_num(D, nan=9), axis=0)) > 0.012
     jump[1:] |= dd; jump[:-1] |= dd
-    bare = (C == LC.ROCK) | (C == LC.SCREE)              # hachured ground: no contours over it
-    Z = np.where(m & ~jump & ~bare, G.pz, np.nan)
+    Z = np.where(m & ~jump, G.pz, np.nan)
     iso = K.lines(Z, list(range(500, 6400, 250)))
     lay = doc.layer('Contours')
     for lv, segs in iso.items():
@@ -203,27 +193,11 @@ def render(zoom=None, key=True):
     sky = np.stack([cols + 0.5, top[cols] + 0.5], 1)
     doc.layer('Skyline').append(f'<path d="{K.d_smooth(sky, False, 2.0)}" fill="none" stroke="{PAL["ink"]}" '
                                 f'stroke-width="{WEIGHT["skyline"]}" stroke-opacity="0.75" stroke-linejoin="round"/>')
-    # a rim of light along the crests that face the sun
-    rim_on = np.zeros(V.W, bool)
-    rim_on[cols] = S[np.clip(top[cols] + 2, 0, V.H_PX - 1), cols] > 0.62
-    run = []
-    for c_ in range(V.W):
-        if rim_on[c_]:
-            run.append((c_ + 0.5, top[c_] + 1.2))
-        elif len(run) > 6:
-            doc.layer('Skyline').append(f'<path d="{K.d_smooth(np.array(run), False, 2.0)}" fill="none" '
-                                        f'stroke="{PAL["rim"]}" stroke-width="1.5" stroke-opacity="0.5" '
-                                        f'stroke-linecap="round"/>')
-            run = []
-        else:
-            run = []
 
     # ------------------------------------------------------------------ draped linework
     rng = np.random.default_rng(T.SEED)
     hachures(doc, G, H, L, hs, rng)
-    slope_waste(doc, G, H, L, rng)
     ICE.glacier(doc, G, H, L, PAL, rng)
-    ICE.ice_tone(doc, G, L, PAL)
     ICE.debris_cover(doc, G, L, PAL)
     ICE.rivers(doc, G, H, L, PAL, w)
     streams(doc, G, H, L, w)
@@ -246,8 +220,7 @@ def render(zoom=None, key=True):
     ST.herd(doc, G, H, L, PAL, rng, 0.255, 0.585, 10, 'llama')
     ST.herd(doc, G, H, L, PAL, rng, 0.86, 0.62, 7, 'yak')
     ST.rock_glacier(doc, G, H, L, PAL)
-    ST.landslide(doc, G, H, L, PAL)
-    ICE.retreat(doc, G, H, PAL, cls)
+    ICE.retreat(doc, G, H, PAL)
     stations = ST.story_route(doc, G, H, L, PAL)
 
     # ------------------------------------------------------------------ the scientific apparatus
@@ -258,8 +231,7 @@ def render(zoom=None, key=True):
     LB.spot_heights(doc, G, H, PAL)
     LB.feature_labels(doc, G, H, PAL, FEATURES)
     LB.compass_and_scale(doc, PAL, 150, 1480)
-    if key:                                              # off for the web, where the key is live text
-        ST.station_key(doc, PAL, 1995, 1112, cols=1, colw=380, lh=19.0)
+    ST.station_key(doc, PAL, 1995, 1112, cols=1, colw=380, lh=19.0)
     doc.stations = stations
 
     # ------------------------------------------------------------------ aerial perspective
@@ -267,10 +239,8 @@ def render(zoom=None, key=True):
     D2 = depth_image(G)
     dmax = np.nanmax(D2)
     hz = doc.layer('Haze')
-    # distance haze in several thin steps, with soft edges, so it never reads
-    # as a sheet of water lying on the slope — adjust the depth fade here
-    for frac, op in [(0.50, 0.05), (0.60, 0.05), (0.70, 0.05), (0.79, 0.05), (0.88, 0.05), (0.95, 0.05)]:
-        d = K.trace(G.mask & (np.nan_to_num(D2) > frac * dmax), blur=7, step=3.0)
+    for frac, op in [(0.62, 0.10), (0.74, 0.10), (0.86, 0.10)]:
+        d = K.trace(G.mask & (np.nan_to_num(D2) > frac * dmax), blur=3, step=2.4)
         hz.append(f'<path d="{d}" fill="{PAL["haze"]}" fill-opacity="{op}" fill-rule="evenodd"/>')
 
     # ------------------------------------------------------------------ cut faces
@@ -332,111 +302,18 @@ def hachures(doc, G, H, L, hs, rng):
     mag = np.hypot(gxv, gyv) + 1e-9
     sl = V.sample(L['slope'], X, Y)
     Lw = (0.0014 + 0.0030 * np.clip((sl - 22) / 40, 0, 1)) * np.where(isrock, 1.0, 0.7)
-    Lw = Lw * rng.uniform(0.62, 1.42, Lw.shape)          # no two strokes the same length
-    # each stroke leans a few degrees off the fall line, as a hand would cut it
-    a = rng.normal(0, 0.085, X.shape)
-    ca_, sa_ = np.cos(a), np.sin(a)
-    gxr, gyr = gxv * ca_ - gyv * sa_, gxv * sa_ + gyv * ca_
-    gxv, gyv = gxr, gyr
     X2 = np.clip(X - gxv / mag * Lw, 0, 1); Y2 = np.clip(Y - gyv / mag * Lw, 0, 1)
     Z1, Z2 = V.sample(H, X, Y) + 4, V.sample(H, X2, Y2) + 4
     vis = G.visible(X, Y, Z1) & G.visible(X2, Y2, Z2)
     sx1, sy1 = V.project(X, Y, Z1); sx2, sy2 = V.project(X2, Y2, Z2)
-    litv = V.sample(hs, X, Y)
-    # hachuring is shading: dense where the slope turns away from the sun,
-    # almost absent on the faces the light strikes
-    vis = vis & (rng.random(X.shape) > np.clip((litv - 0.45) / 0.45, 0, 1) * 0.82)
+    lit = V.sample(hs, X, Y)
     lay = doc.layer('Hachures')
-    for lo, hi, op in [(-9, 0.25, 0.06), (0.25, 0.55, 0.13), (0.55, 9, 0.20)]:   # brighter on lit faces
-        k = vis & (litv >= lo) & (litv < hi)
+    for lo, hi, op in [(-9, 0.25, 0.06), (0.25, 0.55, 0.13), (0.55, 9, 0.22)]:   # brighter on lit faces
+        k = vis & (lit >= lo) & (lit < hi)
         d = ''.join(f'M{a:.1f} {b:.1f}L{c_:.1f} {e:.1f}' for a, b, c_, e in zip(sx1[k], sy1[k], sx2[k], sy2[k]))
         if d:
             lay.append(f'<path d="{d}" fill="none" stroke="{PAL["ink"]}" stroke-width="0.55" '
                        f'stroke-opacity="{op}" stroke-linecap="round"/>')
-
-
-def slope_waste(doc, G, H, L, rng):
-    """What the range sheds: talus cones under the rock walls, and debris fans
-    where a side stream drops its load at the mountain front."""
-    cls, slope, acc = L['cls'], L['slope'], L['acc']
-    n = H.shape[0]
-    gy_, gx_ = np.gradient(H)
-    lay = doc.layer('Hachures')
-    ux, vy = F.axes()
-    # --- talus: below every rock face steep enough to shed blocks
-    cand = ((slope > 26) & (slope < 40) & np.isin(cls, [LC.ROCK, LC.SCREE, LC.ALPINE])
-            & (H > 2400) & (H < LC.SNOWLINE - 150))
-    js, is_ = np.nonzero(cand)
-    order = rng.permutation(len(js))
-    picked = []
-    for k in order:
-        j, i = js[k], is_[k]
-        x, y = i / (n - 1), j / (n - 1)
-        # the ground a little up-slope must be a wall
-        gxv, gyv = float(gx_[j, i]), float(gy_[j, i])
-        mag = np.hypot(gxv, gyv) + 1e-9
-        ux_, uy_ = x + gxv / mag * 0.012, y + gyv / mag * 0.012
-        if not (0 < ux_ < 1 and 0 < uy_ < 1) or V.sample(slope, ux_, uy_) < 44:
-            continue
-        z = float(V.sample(H, x, y))
-        if not G.visible(x, y, z + 2):
-            continue
-        if any(np.hypot(x - a, y - b) < 0.035 for a, b in picked):
-            continue
-        picked.append((x, y))
-        # the cone: apex at the foot of the wall, spreading down-slope
-        apex = np.array(V.project(x, y, z))
-        dxw, dyw = -gxv / mag, -gyv / mag                      # down-slope, in world
-        foot = np.array([x + dxw * 0.021, y + dyw * 0.021])
-        zf = float(V.sample(H, *np.clip(foot, 0, 1)))
-        base = np.array(V.project(foot[0], foot[1], zf))
-        side = np.array([-(base - apex)[1], (base - apex)[0]])
-        side = side / (np.hypot(*side) + 1e-9) * (11 + rng.random() * 9)
-        d = (f'M{f1(apex[0])} {f1(apex[1])}L{f1(base[0] + side[0])} {f1(base[1] + side[1])}'
-             f'Q{f1(base[0])} {f1(base[1] + 3)} {f1(base[0] - side[0])} {f1(base[1] - side[1])}Z')
-        lay.append(f'<path d="{d}" fill="{PAL["scree"]}" fill-opacity="0.65"/>')
-        # the loose lower edge of the cone catches the light
-        lay.append(f'<path d="M{f1(base[0] + side[0])} {f1(base[1] + side[1])}Q{f1(base[0])} {f1(base[1] + 3)} '
-                   f'{f1(base[0] - side[0])} {f1(base[1] - side[1])}" fill="none" stroke="{PAL["light"]}" '
-                   f'stroke-width="0.8" stroke-opacity="0.3"/>')
-        for t_ in (-0.5, 0.0, 0.5):                            # a few fall lines down the cone
-            e = base + side * t_
-            lay.append(f'<path d="M{f1(apex[0])} {f1(apex[1])}L{f1(e[0])} {f1(e[1])}" stroke="{PAL["ink"]}" '
-                       f'stroke-width="0.5" stroke-opacity="0.22"/>')
-        if len(picked) >= 18:
-            break
-    # --- debris fans where side streams reach the valley floor or the plain
-    fan_cls = (acc > 900) & (slope < 9) & (H < 2600) & (cls != LC.WATER) & (cls != LC.GLACIER)
-    js, is_ = np.nonzero(fan_cls)
-    fans = []
-    for k in rng.permutation(len(js)):
-        j, i = js[k], is_[k]
-        x, y = i / (n - 1), j / (n - 1)
-        if any(np.hypot(x - a, y - b) < 0.09 for a, b in fans):
-            continue
-        z = float(V.sample(H, x, y))
-        if not G.visible(x, y, z + 2):
-            continue
-        gxv, gyv = float(gx_[j, i]), float(gy_[j, i])
-        mag = np.hypot(gxv, gyv) + 1e-9
-        fans.append((x, y))
-        c = np.array(V.project(x, y, z))
-        dwn = np.array([-gxv / mag, -gyv / mag])
-        tip = np.array(V.project(*np.clip([x - dwn[0] * 0.02, y - dwn[1] * 0.02], 0, 1),
-                                 float(V.sample(H, *np.clip([x - dwn[0] * 0.02, y - dwn[1] * 0.02], 0, 1)))))
-        r = 26 + rng.random() * 16
-        a1 = c + (ux * -0.7 + vy * 0.5) * r
-        a2 = c + (ux * 0.7 + vy * 0.5) * r
-        lay.append(f'<path d="M{f1(tip[0])} {f1(tip[1])}L{f1(a1[0])} {f1(a1[1])}'
-                   f'Q{f1(c[0])} {f1(c[1] + r * 0.45)} {f1(a2[0])} {f1(a2[1])}Z" '
-                   f'fill="{PAL["alluvium"]}" fill-opacity="0.45" stroke="{PAL["inkFaint"]}" stroke-width="0.5"/>')
-        for t_ in np.linspace(-0.75, 0.75, 4):                 # distributary channels on the fan
-            e = c + (ux * t_ + vy * 0.42) * r
-            lay.append(f'<path d="M{f1(tip[0])} {f1(tip[1])}Q{f1((tip[0] + e[0]) / 2 + t_ * 5)} '
-                       f'{f1((tip[1] + e[1]) / 2)} {f1(e[0])} {f1(e[1])}" fill="none" '
-                       f'stroke="{PAL["waterLine"]}" stroke-width="0.7" stroke-opacity="0.5"/>')
-        if len(fans) >= 7:
-            break
 
 
 def glacier_marks(doc, G, H, L, rng):
@@ -478,7 +355,7 @@ def streams(doc, G, H, L, w):
     acc = L['acc']; cls = L['cls']; n = H.shape[0]
     _, best, has = T.flow(H)
     offs = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
-    thr = 130                                            # channel initiation — adjust stream density here
+    thr = 420                                            # channel initiation — adjust stream density here
     # on the plain the ground is too flat for its drainage to mean anything;
     # only the designed rivers run there
     stream = (acc > thr) & (cls != LC.GLACIER) & (cls != LC.WATER) & (w['Y'] > T.LOWLAND_Y - 0.02)
@@ -499,7 +376,7 @@ def streams(doc, G, H, L, w):
             seen.add(c); c = down[c]; pts.append(c)
             if not (0 <= c[0] < n and 0 <= c[1] < n) or not stream[c]:
                 break
-        if len(pts) > 3:
+        if len(pts) > 4:
             lines.append(pts)
     lay = doc.layer('Streams')
     for pts in lines:
@@ -507,10 +384,10 @@ def streams(doc, G, H, L, w):
         x, y = pts[:, 1] / (n - 1), pts[:, 0] / (n - 1)
         z = V.sample(H, x, y) + 3
         a = acc[pts[-1][0] if pts[-1][0] < n else n - 1, pts[-1][1] if pts[-1][1] < n else n - 1]
-        wgt = 0.75 + 0.55 * np.log10(max(a, 10))
+        wgt = 0.5 + 0.35 * np.log10(max(a, 10))
         for run in visible_runs(G, x, y, z):
             lay.append(f'<path d="{K.d_smooth(run, False, 1.6)}" fill="none" stroke="{PAL["waterLine"]}" '
-                       f'stroke-width="{wgt:.2f}" stroke-opacity="0.9" stroke-linecap="round" stroke-linejoin="round"/>')
+                       f'stroke-width="{wgt:.2f}" stroke-opacity="0.85" stroke-linecap="round" stroke-linejoin="round"/>')
 
 
 # ---------------------------------------------------------------------------
@@ -652,7 +529,7 @@ def _tone(hexc, k):
 if __name__ == '__main__':
     import json
     out = sys.argv[1]
-    doc = render(key='--no-key' not in sys.argv)
+    doc = render()
     open(out, 'w').write(doc.svg())
     # the stations' positions on the canvas, for placing interactive markers on the web
     with open(out.rsplit('.', 1)[0] + '-stations.json', 'w') as fh:

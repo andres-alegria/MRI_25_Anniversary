@@ -245,24 +245,6 @@ def build(seed=SEED, n=N):
         H = H - np.minimum(cut, 380)
         H = 0.75 * H + 0.25 * blur(H, 2)
 
-    # --- structure in the relief: the hard beds hold up strike ridges and the
-    #     weak ones are worn into strike valleys, so the shape of the range
-    #     agrees with the rock drawn on the cut faces. Adjust its strength here
-    import geology as GEO
-    code, _, _ = GEO.unit_at(X, Y, H - 260, H)
-    hard = np.zeros_like(H)
-    for unit, r in ((3, 1.0), (1, 0.45), (2, -1.0), (0, 0.25), (4, 0.7), (5, 0.85)):
-        hard = np.where(code == unit, r, hard)             # sandstone stands, shale wears back
-    ridge_amp = 165.0
-    # valley floors keep the profile they were carved to
-    prot = np.zeros_like(H)
-    for pts, w_ in ((MAIN_GLACIER, 0.075), (MAIN_RIVER, 0.070), (EAST_VALLEY, 0.065), (WEST_TRIB, 0.055)):
-        d_, _ = _polyline_dist(X, Y, pts)
-        prot = np.maximum(prot, 1 - smoothstep(w_ * 0.6, w_ * 1.8, d_))
-    band = smoothstep(900, 1800, H) * (1 - smoothstep(5200, 6100, H))
-    H = H + blur(hard, 1) * ridge_amp * band * (1 - prot)
-    H = 0.8 * H + 0.2 * blur(H, 1)
-
     # --- the lowland: flatten the front of the block toward a floodplain
     plain = 1 - smoothstep(LOWLAND_Y - 0.12, LOWLAND_Y + 0.05, Y)
     H = H * (1 - 0.85 * plain) + (230 + 110 * fbm(X * 5, Y * 5, 3, seed=seed + 31)) * 0.85 * plain
@@ -276,7 +258,7 @@ def build(seed=SEED, n=N):
     H = lo + (H - lo) * (top - lo) / (H.max() - lo)
 
     # --- lakes: flat water surfaces set a little below their banks
-    def lake(c, level_drop=12, cut_y=None):
+    def lake(c, level_drop=12):
         """Flood the valley floor from the lake's centre up to a level set by its
         banks, so the water takes the shape of the ground it fills."""
         cx, cy, rx, ry = c
@@ -284,8 +266,6 @@ def build(seed=SEED, n=N):
         rim = H[(d > 0.9) & (d < 1.6)]
         level = np.percentile(rim, 18) - level_drop
         allowed = (H < level) & (d < 3.0)
-        if cut_y is not None:                         # a dam holds the water back: none below this line
-            allowed &= (Y >= cut_y)
         seed = (d < 0.05) & allowed
         if not seed.any():
             seed = (d == d.min())
@@ -301,7 +281,7 @@ def build(seed=SEED, n=N):
         return inside, level
 
     lake1, lvl1 = lake(PROGLACIAL_LAKE)
-    lake2, lvl2 = lake(RESERVOIR, cut_y=RESERVOIR[1] - RESERVOIR[3] * 0.62)
+    lake2, lvl2 = lake(RESERVOIR)
 
     return dict(X=X, Y=Y, H=H, lakes=[(lake1, lvl1, 'proglacial'), (lake2, lvl2, 'reservoir')])
 

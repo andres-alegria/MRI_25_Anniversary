@@ -63,7 +63,7 @@ def glacier(doc, G, H, L, P, rng):
         q = p[sel] + nor[sel] * (f * gw(t[sel]))[:, None]
         for run in draped_runs(G, H, q[:, 0], q[:, 1], 7, on_ice(q[:, 0], q[:, 1])):
             d.append(K.d_smooth(run, False, 1.5))
-    lay.append(f'<path d="{"".join(d)}" fill="none" stroke="{P["iceLine"]}" stroke-width="0.9" stroke-opacity="0.7"/>')
+    lay.append(f'<path d="{"".join(d)}" fill="none" stroke="{P["iceLine"]}" stroke-width="0.8" stroke-opacity="0.55"/>')
 
     # the icefall: rows of crevasses across the whole width
     d = []
@@ -71,14 +71,14 @@ def glacier(doc, G, H, L, P, rng):
         for f in np.arange(-0.85, 0.86, 0.22):
             if rng.random() < 0.3:
                 continue
-            ff = np.linspace(f - 0.10, f + 0.10, 9)
-            tb = tt + 0.014 * (1 - ((ff - f) / 0.10) ** 2)       # bowed down-glacier
+            ff = np.linspace(f - 0.085, f + 0.085, 5)
+            tb = tt + 0.012 * (1 - ff ** 2)                      # bowed down-glacier
             i = np.clip((tb * (len(t) - 1)).astype(int), 0, len(t) - 1)
             q = p[i] + nor[i] * (ff * gw(tb))[:, None]
             for run in draped_runs(G, H, q[:, 0], q[:, 1], 7, on_ice(q[:, 0], q[:, 1])):
-                d.append(K.d_smooth(run, False, 1.0))
+                d.append(K.d_poly(run, False, 0.8))
     # marginal crevasses: short, splayed up-glacier at the edges, where the ice shears
-    for tt in np.arange(0.30, 0.86, 0.045):          # shear cracks along the tongue's margins only
+    for tt in np.arange(0.12, 0.88, 0.028):
         for sgn in (-1, 1):
             i0 = int(tt * (len(t) - 1)); i1 = max(0, int((tt - 0.018) * (len(t) - 1)))
             a = p[i0] + nor[i0] * sgn * 0.93 * gw(tt)
@@ -86,25 +86,8 @@ def glacier(doc, G, H, L, P, rng):
             q = np.stack([np.linspace(a[0], b[0], 4), np.linspace(a[1], b[1], 4)], 1)
             for run in draped_runs(G, H, q[:, 0], q[:, 1], 7, on_ice(q[:, 0], q[:, 1])):
                 d.append(K.d_poly(run, False, 0.8))
-    # transverse crevasses down the tongue, bowed down-glacier, opening wider
-    # where the bed steepens
-    for tt in np.arange(0.52, 0.96, 0.028):
-        ff = np.linspace(-0.88, 0.88, 26)
-        tb = tt + 0.030 * (1 - ff ** 2)                       # convex down-glacier
-        i = np.clip((tb * (len(t) - 1)).astype(int), 0, len(t) - 1)
-        q = p[i] + nor[i] * (ff * gw(tb))[:, None]
-        for run in draped_runs(G, H, q[:, 0], q[:, 1], 7, on_ice(q[:, 0], q[:, 1])):
-            d.append(K.d_smooth(run, False, 1.2))
-    lay.append(f'<path d="{"".join(d)}" fill="none" stroke="{P["crevasse"]}" stroke-width="1.4" '
+    lay.append(f'<path d="{"".join(d)}" fill="none" stroke="{P["crevasse"]}" stroke-width="1.2" '
                f'stroke-opacity="0.95" stroke-linecap="round"/>')
-    # the bergschrund: the crack where moving ice pulls away from the headwall
-    ff = np.linspace(-0.78, 0.78, 26)
-    tb = 0.075 + 0.03 * (1 - ff ** 2)
-    i = np.clip((tb * (len(t) - 1)).astype(int), 0, len(t) - 1)
-    q = p[i] + nor[i] * (ff * gw(tb))[:, None]
-    bs = ''.join(K.d_smooth(r, False, 1.4) for r in draped_runs(G, H, q[:, 0], q[:, 1], 7, on_ice(q[:, 0], q[:, 1])))
-    lay.append(f'<path d="{bs}" fill="none" stroke="{P["crevasse"]}" stroke-width="2.4" stroke-opacity="0.9" '
-               f'stroke-linecap="round"/>')
 
     # ogives: bands below the icefall, bowed down-glacier
     d = []
@@ -137,20 +120,6 @@ def glacier(doc, G, H, L, P, rng):
     ml.append(f'<path d="{"".join(trim)}" fill="none" stroke="{P["iceLine"]}" stroke-width="0.9" stroke-dasharray="2 3" stroke-opacity="0.6"/>')
 
 
-def ice_tone(doc, G, L, P):
-    """Bright firn in the basin, greyer ice down the tongue: the ablation area
-    reads darker, as it does in the field."""
-    m = G.mask
-    px, py = np.nan_to_num(G.px), np.nan_to_num(G.py)
-    ice = V.nearest(L['cls'], px, py) == LC.GLACIER
-    gt = V.sample(L['glacier_t'], px, py)
-    lay = doc.layer('Glacier-detail')
-    for lo, op in [(0.30, 0.10), (0.52, 0.10), (0.72, 0.10)]:    # adjust the tongue's tone here
-        d = K.trace(m & ice & (gt > lo), blur=3, step=2.2)
-        if d:
-            lay.insert(0, f'<path d="{d}" fill="{P["shade"]}" fill-opacity="{op}" fill-rule="evenodd"/>')
-
-
 def debris_cover(doc, G, L, P):
     """Rock debris on the lower tongue, from the screen buffer (so it follows
     the ice exactly): a dark stippled veneer."""
@@ -159,7 +128,7 @@ def debris_cover(doc, G, L, P):
     ice = V.nearest(L['cls'], px, py) == LC.GLACIER
     gt = V.sample(L['glacier_t'], px, py)
     gd = V.sample(L['glacier_d'], px, py)
-    mk = m & ice & (gt > 0.68) & (gd < 0.14)          # the lower third carries its own rock waste
+    mk = m & ice & (gt > 0.80) & (gd < 0.09)
     d = K.trace(mk, blur=2, step=2.0)
     lay = doc.layer('Glacier-detail')
     lay.insert(0, f'<path d="{d}" fill="{P["debris"]}" fill-opacity="0.72" fill-rule="evenodd"/>')
@@ -169,12 +138,6 @@ def debris_cover(doc, G, L, P):
         k = rng.choice(len(xs), size=min(len(xs) // 18, 900), replace=False)
         dots = ''.join(f'M{f1(xs[i] + 0.5)} {f1(ys[i] + 0.5)}l0.1 0' for i in k)
         lay.insert(1, f'<path d="{dots}" fill="none" stroke="{P["ink"]}" stroke-width="1.3" stroke-opacity="0.35" stroke-linecap="round"/>')
-        # supraglacial ponds in the hollows of the debris-covered ice
-        pk = rng.choice(len(xs), size=min(9, len(xs)), replace=False)
-        pond = ''.join(f'<ellipse cx="{f1(xs[i])}" cy="{f1(ys[i])}" rx="{f1(3 + (i % 4))}" ry="{f1(1.6 + (i % 3) * 0.7)}" '
-                       f'fill="{P["water"]}" fill-opacity="0.75" stroke="{P["iceLine"]}" stroke-width="0.5"/>'
-                       for i in pk)
-        lay.insert(2, pond)
 
 
 def snout_axis():
@@ -183,32 +146,11 @@ def snout_axis():
     return p[-1], tan[-1], nor[-1]
 
 
-def retreat(doc, G, H, P, cls=None):
+def retreat(doc, G, H, P):
     """Dated moraines of past ice fronts, bowed down-valley, each named."""
     import labels as LB
     S, dv, nv = snout_axis()
     lay = doc.layer('Moraines'); lab = doc.layer('Labels')
-    # where the ice ends now: traced from the ice itself, not drawn as an arc
-    import contourpy, landcover as _LC
-    if cls is not None:
-        n_ = cls.shape[0]
-        gen = contourpy.contour_generator(z=(cls == _LC.GLACIER).astype(float), line_type='Separate')
-        best = None
-        for seg in gen.lines(0.5):
-            q = seg / (n_ - 1)
-            d2 = np.hypot(q[:, 0] - S[0], q[:, 1] - S[1])
-            if d2.min() < 0.03:
-                sel = q[d2 < 0.045]
-                if best is None or len(sel) > len(best):
-                    best = sel
-        if best is not None and len(best) > 6:
-            for r in draped_runs(G, H, best[:, 0], best[:, 1], 8):
-                lay.append(f'<path d="{K.d_smooth(r, False, 1.2)}" fill="none" stroke="{P["iceLine"]}" '
-                           f'stroke-width="2" stroke-dasharray="2 3" stroke-linecap="round"/>')
-            q = best[len(best) // 2]
-            zz = V.sample(H, q[0], q[1])
-            sx_, sy_ = V.project(q[0], q[1], zz)
-            lab.append(LB.halo(sx_ + 16, sy_ - 12, 'today', P, 13, col=P['iceLine'], italic=True))
     for k_, (year, dist, hw) in enumerate([('2000', 0.012, 0.040), ('1950', 0.034, 0.048), ('1850', 0.080, 0.058)]):
         ff = np.linspace(-1, 1, 30)
         q = S[None, :] + dv[None, :] * (dist + 0.014 * (1 - ff ** 2))[:, None] + nv[None, :] * (ff * hw)[:, None]
@@ -220,15 +162,10 @@ def retreat(doc, G, H, P, cls=None):
             r_ = max(runs, key=len)
             right = r_[-1] if r_[-1][0] > r_[0][0] else r_[0]
             left = r_[0] if r_[-1][0] > r_[0][0] else r_[-1]
-            # dates are set in ice blue, italic, each tied to its own
-            # moraine by a tick, so they cannot be read as spot heights
-            txt = f'{year} ice edge' if year == '1850' else year
             if year == '1950':                                  # 1950 named on the other side, so the dates never touch
-                lab.append(f'<path d="M{f1(left[0] - 7)} {f1(left[1] + 1)}l-6 0" stroke="{P["iceLine"]}" stroke-width="1"/>')
-                lab.append(LB.halo(left[0] - 15, left[1] + 5, txt, P, 13, col=P['iceLine'], italic=True, anchor='end'))
+                lab.append(LB.halo(left[0] - 8, left[1] + 5, year, P, 13, col=P['dateInk'], italic=False, anchor='end'))
             else:
-                lab.append(f'<path d="M{f1(right[0] + 4)} {f1(right[1] + 1)}l6 {f1(8 * k_)}" stroke="{P["iceLine"]}" stroke-width="1"/>')
-                lab.append(LB.halo(right[0] + 12, right[1] + 5 + 8 * k_, txt, P, 13, col=P['iceLine'], italic=True))
+                lab.append(LB.halo(right[0] + 10, right[1] + 5 + 8 * k_, year, P, 13, col=P['dateInk'], italic=False))
 
 
 def glof_path(doc, G, H, P):
@@ -287,14 +224,6 @@ def rivers(doc, G, H, L, P, w):
         pts = np.array(canal)
         t, p, tan, nor = centreline(pts, 160)
         runs = draped_runs(G, H, p[:, 0], p[:, 1], 3)
-        # a canal ends where it delivers: three distributaries into the fields
-        end, dv_, nv_ = p[-1], tan[-1], nor[-1]
-        for ang in (-0.6, 0.0, 0.6):
-            v = dv_ * np.cos(ang) + nv_ * np.sin(ang)
-            br = np.array([end + v * s_ for s_ in np.linspace(0, 0.022, 10)])
-            for r in draped_runs(G, H, br[:, 0], br[:, 1], 3):
-                lay.append(f'<path d="{K.d_smooth(r, False, 1.2)}" fill="none" stroke="{P["waterLine"]}" '
-                           f'stroke-width="0.8" stroke-opacity="0.8"/>')
         for r in runs:
             lay.append(f'<path d="{K.d_smooth(r, False, 1.4)}" fill="none" stroke="{P["waterLine"]}" stroke-width="1.1" stroke-opacity="0.95"/>')
             for i in range(8, len(r) - 4, 10 ** 9):              # (sluice gates: shown in the zoom clip only)
@@ -306,6 +235,6 @@ def rivers(doc, G, H, L, P, w):
 
 
 CANALS = [   # irrigation canals, world coordinates — adjust here
-    [(0.372, 0.300), (0.352, 0.268), (0.330, 0.238), (0.312, 0.205), (0.300, 0.170)],
+    [(0.372, 0.300), (0.352, 0.268), (0.330, 0.238), (0.305, 0.212)],
     [(0.560, 0.170), (0.590, 0.180), (0.625, 0.188), (0.670, 0.186)],
 ]
