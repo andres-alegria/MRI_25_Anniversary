@@ -139,6 +139,10 @@ def render(zoom=None):
 
     # ------------------------------------------------------------------ ground: fills by class
     C = np.where(m, V.nearest(cls, px, py), -1)
+    # a speck of forest left inside the painted ice reads as trees growing on
+    # the glacier: give any such pixel to the ice it sits in
+    surrounded = K.box_blur((C == LC.GLACIER).astype(float), 3) > 0.5
+    C = np.where(np.isin(C, [LC.FOREST, LC.GROUND, LC.ALPINE]) & surrounded, LC.GLACIER, C)
     doc.layer('Ground').append(f'<path d="{K.trace(m, blur=0, step=1.5)}" fill="{PAL["ground"]}"/>')
     for code, name in enumerate(LC.NAMES):
         if code == LC.GROUND:

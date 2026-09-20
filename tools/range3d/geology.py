@@ -29,7 +29,8 @@ STRUCTURE = dict(
     regional_dip=1200,                                 # beds sink this much from front to back, m
     sand_base=-150, shale_thick=330, lime_thick=430,   # beds: sandstone 420 m, shale, limestone (m)
     thrust_z0=2600, thrust_dip=14400, thrust_y=0.45,   # thrust plane z = z0 - dip*(y - y0): ~30° true dip
-    thrust_throw=1100,                                 # the hanging wall (north) is lifted this much
+    thrust_throw=610,                                  # the hanging wall (north) rides up this much
+    thrust_flat=1500,                                  # above this the ramp flattens into a thrust flat
     pluton=(0.02, 0.90, 0.24, 0.20, -2700, 4600),      # granite dome: cx, cy, rx, ry, base z, rise
     aureole=380,                                       # baked zone around the granite, m
     gravel_top=950, gravel_max=380,                    # river gravels under ground below this height, max thickness
@@ -51,7 +52,9 @@ def unit_at(x, y, z, ztop):
         + 230 * np.sin(2 * np.pi * (0.95 * y) / 0.23 + 1.3) * np.exp(z / 5000.0) \
         - S['regional_dip'] * y
     # the thrust: a plane dipping ~30° north, surfacing near y = 0.45
-    zf = S['thrust_z0'] - S['thrust_dip'] * (y - S['thrust_y'])
+    ramp = S['thrust_z0'] - S['thrust_dip'] * (y - S['thrust_y'])
+    zf = np.where(ramp > S['thrust_flat'],
+                  S['thrust_flat'] + (ramp - S['thrust_flat']) * 0.35, ramp)
     lift = np.where(z > zf, S['thrust_throw'], 0.0)          # the hanging wall rides up
     zr = z - fold - lift                                      # height within the unfolded pile
     period = S['shale_thick'] + S['lime_thick'] + 420         # one sandstone-shale-limestone cycle
@@ -59,8 +62,11 @@ def unit_at(x, y, z, ztop):
     code = np.where(ph < 420, 3, np.where(ph < 420 + S['shale_thick'], 2, 1))
     code = np.where(zr < -1700, 0, code)                      # the basement
     cx, cy, rx, ry, zb, rise = S['pluton']
-    zg = zb + rise * np.exp(-(((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2))
-    code = np.where((z < zg + S['aureole']) & (z >= zg), 5, code)
+    bump = 1 + 0.22 * np.sin(11.0 * x + 1.7) + 0.16 * np.sin(15.0 * y - 0.6)   # cupolas in the roof
+    rr = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2
+    zg = zb + rise * bump * np.exp(-rr ** 2.0)
+    bake = S['aureole'] * np.where(code == 2, 1.7, np.where(code == 3, 0.55, 1.0))   # hottest in the shale
+    code = np.where((z < zg + bake) & (z >= zg), 5, code)
     code = np.where(z < zg, 4, code)
     gravel = np.clip((S['gravel_top'] - ztop) / 650, 0, 1) * S['gravel_max']
     code = np.where(z > ztop - gravel - 60, 6, code)
@@ -175,7 +181,16 @@ def draw(doc, H, P, rng, tone_of, frame=(0.0, 0.0, 1.0)):
         # the water table in the gravels under the plain
         plain = ztop < S['gravel_top'] - 150
         if face == 'south' and plain.sum() > 10:
-            wt = ztop - 45 - 25 * np.sin(s * 11)
+            # a subdued replica of the surface — deeper under high ground,
+            # rising to daylight at the river, as a gaining stream requires
+            kern = np.ones(31) / 31
+            zsm = np.convolve(np.pad(ztop, (15, 15), mode='edge'), kern, 'valid')
+            z0 = float(ztop[plain].min())
+            wt = z0 + 0.55 * (zsm - z0) - 15
+            i0 = int(np.argmin(np.where(plain, ztop, 1e9)))     # the river: the lowest ground
+            pull = np.exp(-((np.arange(len(ztop)) - i0) / 34.0) ** 2)
+            wt = wt * (1 - pull) + (ztop - 3) * pull
+            wt = np.clip(np.minimum(wt, ztop - 3), z0 - 45, None)
             pts = np.stack(V.project(x[plain], y[plain], wt[plain]), 1)
             lay.append(f'<path d="{K.d_poly(pts, False, 1)}" fill="none" stroke="{P["waterLine"]}" stroke-width="1.1" stroke-dasharray="6 3"/>')
             j = int(len(pts) * 0.30)

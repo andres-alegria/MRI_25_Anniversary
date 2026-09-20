@@ -115,6 +115,11 @@ def classify(w, seed=T.SEED):
     smooth = np.array(natural, dtype=np.int8)[stack.argmax(0)]
     keep = np.isin(cls, [GLACIER, TERRACE, PADDY])
     cls = np.where(keep, cls, smooth)
+    # nothing grows in the trough the ice occupies: forest the majority filter
+    # left inside it becomes ice, or bare forefield close to the snout
+    introu = (gdist < gw * 1.15) & (H < gfloor + 900)
+    cls[introu & (cls == FOREST) & (gt < 0.93)] = GLACIER
+    cls[introu & (cls == FOREST)] = FOREFIELD
 
     # --- the glacier forefield: ground the ice left since 1850, still bare
     g = np.array(T.MAIN_GLACIER)

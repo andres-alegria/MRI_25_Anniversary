@@ -321,7 +321,7 @@ def agriculture(out):
     ts = find(Lc, H, G, cls == LC.TERRACE, rng, n=1)
     if ts:
         callout(doc, *at(H, *ts[0]), 'terraced slopes: millet, maize, vegetables', -50, -90)
-    title(doc, cfg, 'Food from the plain below the range: rice fed by glacier and monsoon water, a contour canal, terraced foot-slopes', 10)
+    title(doc, cfg, 'Food from the plain below the range: rice fed by glacier and monsoon water, a contour canal, terraced foot-slopes', 2)
     scale_bar(doc, cfg)
     open(out, 'w').write(doc.svg())
     return doc

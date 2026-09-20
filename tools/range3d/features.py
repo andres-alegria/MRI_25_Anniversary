@@ -54,6 +54,19 @@ def trees(doc, G, H, L, P, rng, scale=1.0, step=0.0098):
     vis = G.visible(X, Y, Z + 2)
     X, Y, Z, near_line = X[vis], Y[vis], Z[vis], near_line[vis]
     sx, sy = V.project(X, Y, Z)
+    # a tree standing in front of the ice can still paint its crown onto the
+    # glacier behind it; drop those, so no conifer appears to grow on ice
+    ix = np.clip(sx.astype(int), 0, G.w - 1)
+    onice = np.zeros(len(sx), bool)
+    for dy_ in (-2, -6, -11, -16):                      # base, trunk and crown
+        iy = np.clip((sy + dy_).astype(int), 0, G.h - 1)
+        ok = G.mask[iy, ix]
+        if ok.any():
+            hit = np.isin(V.nearest(L['cls'], G.px[iy[ok], ix[ok]], G.py[iy[ok], ix[ok]]),
+                          [LC.GLACIER, LC.SNOW])
+            idx = np.nonzero(ok)[0]
+            onice[idx[hit]] = True
+    sx, sy, Z, near_line = sx[~onice], sy[~onice], Z[~onice], near_line[~onice]
     order = np.argsort(sy)                              # far (higher on screen) first
     # each tree in two tones: the side toward the light and the side away,
     # so a stand reads as a mass of small crowns rather than as texture
