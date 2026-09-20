@@ -46,8 +46,8 @@ def base_block(name, rng, recover=None):
     G = V.GBuffer(H, V.W, V.H_PX)
     doc = K.Doc(V.W, V.H_PX, P['sky1'])
     for nm in ['Sky', 'Ground'] + ['Cover-' + n for n in LC.NAMES[1:]] + \
-            ['Fields', 'Shade', 'Contours', 'Terraces', 'Streams', 'Skyline', 'Trees', 'Settlements',
-             'Infrastructure', 'People-animals', 'Hazards', 'Route', 'Faces', 'Face-symbols', 'Face-labels',
+            ['Fields', 'Shade', 'Contours', 'Terraces', 'Streams', 'Skyline', 'Trees', 'Isolines', 'Settlements',
+             'Infrastructure', 'People-animals', 'Route', 'Faces', 'Face-symbols', 'Face-labels',
              'Labels', 'Title', 'Stations']:
         doc.layer(nm)
     m = G.mask

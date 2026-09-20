@@ -393,9 +393,8 @@ def retreat_lines(doc, G, H, L, P):
 # the story route and its stations
 # ---------------------------------------------------------------------------
 def story_route(doc, G, H, L, P):
-    """One continuous trail through the 25 stations, with chevrons showing the
-    direction of travel; markers are nudged apart where they would collide and
-    tied to their true spot by a short leader."""
+    """One continuous trail through the 25 stations; markers are nudged apart
+    where they would collide and tied to their true spot by a short leader."""
     cost = F.cost_grid(H, L, 'trail')
     pts = [np.array(s[1:3]) for s in STATIONS]
     lay = doc.layer('Route')
@@ -407,18 +406,6 @@ def story_route(doc, G, H, L, P):
     lay.append(f'<path d="{d}" fill="none" stroke="{P["paper"]}" stroke-width="4" stroke-opacity="0.75" '
                f'stroke-linecap="round" stroke-linejoin="round"/>')
     lay.append(f'<path d="{d}" fill="none" stroke="{P["route"]}" stroke-width="2" stroke-opacity="0.9" '
-               f'stroke-linecap="round" stroke-linejoin="round"/>')
-    chev = []
-    for r in runs_all:                                   # a chevron every ~110 px of trail
-        L_ = np.concatenate([[0], np.cumsum(np.hypot(*np.diff(r, axis=0).T))])
-        for s_ in np.arange(80, L_[-1] - 30, 170):
-            i = int(np.searchsorted(L_, s_))
-            if i < 3 or i >= len(r) - 1:
-                continue
-            v = r[i] - r[i - 3]; v = v / (np.hypot(*v) + 1e-9); nrm = np.array([-v[1], v[0]])
-            c = r[i]; a1 = c - v * 6 + nrm * 5; a2 = c - v * 6 - nrm * 5
-            chev.append(f'M{f1(a1[0])} {f1(a1[1])}L{f1(c[0])} {f1(c[1])}L{f1(a2[0])} {f1(a2[1])}')
-    lay.append(f'<path d="{"".join(chev)}" fill="none" stroke="{P["chevron"]}" stroke-width="1.8" '
                f'stroke-linecap="round" stroke-linejoin="round"/>')
     # markers: anchors on the ground, positions pushed apart on screen
     anchors = []

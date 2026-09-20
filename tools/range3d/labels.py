@@ -84,7 +84,8 @@ def isolines(doc, G, P, cls=None):
     if cls is not None:
         ICECLS[0] = cls; ICECLS[1] = (LC.GLACIER, LC.SNOW, LC.WATER)
     """Snowline and treeline as dashed lines on the ground, from the visible surface."""
-    lay = doc.layer('Labels')
+    lay = doc.layer('Isolines')
+    names = doc.layer('Labels')
     import render
     D = render.depth_image(G)
     jump = np.zeros_like(G.mask)
@@ -119,7 +120,7 @@ def isolines(doc, G, P, cls=None):
             if best is None:
                 continue
             x, y = best
-            lay.append(text(x + 6, y - 6, f'{name} ~{lv:,} m'.replace(',', ' '), P, TYPE['feature'] - 1, col=col))
+            names.append(text(x + 6, y - 6, f'{name} ~{lv:,} m'.replace(',', ' '), P, TYPE['feature'] - 1, col=col))
 
 
 def spot_heights(doc, G, H, P):

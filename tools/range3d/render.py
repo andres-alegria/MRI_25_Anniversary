@@ -126,8 +126,8 @@ def render(zoom=None):
     doc = K.Doc(V.W, V.H_PX, PAL['sky1'])
     for name in ['Sky', 'Ground'] + ['Cover-' + nm for nm in LC.NAMES[1:]] + \
             ['Fields', 'Shade', 'Light', 'Contours', 'Terraces', 'Hachures', 'Glacier-detail', 'Moraines',
-             'Streams', 'Silhouettes', 'Skyline', 'Trees', 'Haze', 'Settlements', 'Infrastructure', 'People-animals',
-             'Hazards', 'Route', 'Faces', 'Face-symbols', 'Face-labels', 'Labels', 'Key', 'Stations']:
+             'Streams', 'Silhouettes', 'Skyline', 'Trees', 'Haze', 'Isolines', 'Settlements', 'Infrastructure', 'People-animals',
+             'Route', 'Faces', 'Face-symbols', 'Face-labels', 'Labels', 'Key', 'Stations']:
         doc.layer(name)
     m = G.mask
     px, py = np.nan_to_num(G.px), np.nan_to_num(G.py)
@@ -221,7 +221,6 @@ def render(zoom=None):
     ST.herd(doc, G, H, L, PAL, rng, 0.86, 0.62, 7, 'yak')
     ST.rock_glacier(doc, G, H, L, PAL)
     ICE.retreat(doc, G, H, PAL)
-    ICE.glof_path(doc, G, H, PAL)
     stations = ST.story_route(doc, G, H, L, PAL)
 
     # ------------------------------------------------------------------ the scientific apparatus
