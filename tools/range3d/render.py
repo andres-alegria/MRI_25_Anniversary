@@ -44,7 +44,8 @@ PAL = dict(
     bus='#E3C16F', solarFrame='#9FB3C8', haze='#1B3048', ogive='#8FB3CC', debris='#5D5A55', moraineCrest='#A89F92', hazard='#BFD8F0',
     lightWarm='#F3E4C6', rim='#FBE9C4',   # the sun side and the crest rim — adjust the light's colour here
     paper='#0B1F2E', road='#C9BD9C', concrete='#A7AFB3', benchLight='#A88A6C', benchDark='#5E584D',
-    tailings='#9FC7B8', whitewash='#E6EFF5', solar='#1D2A3A', animal='#D9CFBD', tent='#2A2622',
+    tailings='#9FC7B8', slurry='#7A7466',   # the decant pond, and the slurry around it
+    whitewash='#E6EFF5', solar='#1D2A3A', animal='#D9CFBD', tent='#2A2622',
     figure='#E8DFCC', rockGlacier='#7F8489', snowlineInk='#E6EFF5', treelineInk='#8FB08A',
     # the cut faces: earth tones muted to sit on the night paper
     # the rock on the cut faces: navy-shifted tints with one warm band (the gravels)
@@ -175,7 +176,8 @@ def render(zoom=None):
     jump = np.zeros_like(m)
     dd = np.abs(np.diff(np.nan_to_num(D, nan=9), axis=0)) > 0.012
     jump[1:] |= dd; jump[:-1] |= dd
-    Z = np.where(m & ~jump, G.pz, np.nan)
+    bare = (C == LC.ROCK) | (C == LC.SCREE)              # hachured ground: no contours over it
+    Z = np.where(m & ~jump & ~bare, G.pz, np.nan)
     iso = K.lines(Z, list(range(500, 6400, 250)))
     lay = doc.layer('Contours')
     for lv, segs in iso.items():
@@ -221,6 +223,7 @@ def render(zoom=None):
     hachures(doc, G, H, L, hs, rng)
     slope_waste(doc, G, H, L, rng)
     ICE.glacier(doc, G, H, L, PAL, rng)
+    ICE.ice_tone(doc, G, L, PAL)
     ICE.debris_cover(doc, G, L, PAL)
     ICE.rivers(doc, G, H, L, PAL, w)
     streams(doc, G, H, L, w)
@@ -359,7 +362,8 @@ def slope_waste(doc, G, H, L, rng):
     lay = doc.layer('Hachures')
     ux, vy = F.axes()
     # --- talus: below every rock face steep enough to shed blocks
-    cand = ((slope > 26) & (slope < 40) & np.isin(cls, [LC.ROCK, LC.SCREE, LC.ALPINE]) & (H > 2400))
+    cand = ((slope > 26) & (slope < 40) & np.isin(cls, [LC.ROCK, LC.SCREE, LC.ALPINE])
+            & (H > 2400) & (H < LC.SNOWLINE - 150))
     js, is_ = np.nonzero(cand)
     order = rng.permutation(len(js))
     picked = []
@@ -472,7 +476,7 @@ def streams(doc, G, H, L, w):
     acc = L['acc']; cls = L['cls']; n = H.shape[0]
     _, best, has = T.flow(H)
     offs = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
-    thr = 230                                            # channel initiation — adjust stream density here
+    thr = 130                                            # channel initiation — adjust stream density here
     # on the plain the ground is too flat for its drainage to mean anything;
     # only the designed rivers run there
     stream = (acc > thr) & (cls != LC.GLACIER) & (cls != LC.WATER) & (w['Y'] > T.LOWLAND_Y - 0.02)
@@ -493,7 +497,7 @@ def streams(doc, G, H, L, w):
             seen.add(c); c = down[c]; pts.append(c)
             if not (0 <= c[0] < n and 0 <= c[1] < n) or not stream[c]:
                 break
-        if len(pts) > 4:
+        if len(pts) > 3:
             lines.append(pts)
     lay = doc.layer('Streams')
     for pts in lines:
@@ -501,10 +505,10 @@ def streams(doc, G, H, L, w):
         x, y = pts[:, 1] / (n - 1), pts[:, 0] / (n - 1)
         z = V.sample(H, x, y) + 3
         a = acc[pts[-1][0] if pts[-1][0] < n else n - 1, pts[-1][1] if pts[-1][1] < n else n - 1]
-        wgt = 0.5 + 0.35 * np.log10(max(a, 10))
+        wgt = 0.75 + 0.55 * np.log10(max(a, 10))
         for run in visible_runs(G, x, y, z):
             lay.append(f'<path d="{K.d_smooth(run, False, 1.6)}" fill="none" stroke="{PAL["waterLine"]}" '
-                       f'stroke-width="{wgt:.2f}" stroke-opacity="0.85" stroke-linecap="round" stroke-linejoin="round"/>')
+                       f'stroke-width="{wgt:.2f}" stroke-opacity="0.9" stroke-linecap="round" stroke-linejoin="round"/>')
 
 
 # ---------------------------------------------------------------------------

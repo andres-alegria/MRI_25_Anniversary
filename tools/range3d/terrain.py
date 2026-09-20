@@ -258,7 +258,7 @@ def build(seed=SEED, n=N):
     H = lo + (H - lo) * (top - lo) / (H.max() - lo)
 
     # --- lakes: flat water surfaces set a little below their banks
-    def lake(c, level_drop=12):
+    def lake(c, level_drop=12, cut_y=None):
         """Flood the valley floor from the lake's centre up to a level set by its
         banks, so the water takes the shape of the ground it fills."""
         cx, cy, rx, ry = c
@@ -266,6 +266,8 @@ def build(seed=SEED, n=N):
         rim = H[(d > 0.9) & (d < 1.6)]
         level = np.percentile(rim, 18) - level_drop
         allowed = (H < level) & (d < 3.0)
+        if cut_y is not None:                         # a dam holds the water back: none below this line
+            allowed &= (Y >= cut_y)
         seed = (d < 0.05) & allowed
         if not seed.any():
             seed = (d == d.min())
@@ -281,7 +283,7 @@ def build(seed=SEED, n=N):
         return inside, level
 
     lake1, lvl1 = lake(PROGLACIAL_LAKE)
-    lake2, lvl2 = lake(RESERVOIR)
+    lake2, lvl2 = lake(RESERVOIR, cut_y=RESERVOIR[1] - RESERVOIR[3] * 0.62)
 
     return dict(X=X, Y=Y, H=H, lakes=[(lake1, lvl1, 'proglacial'), (lake2, lvl2, 'reservoir')])
 

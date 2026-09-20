@@ -107,6 +107,10 @@ def classify(w, seed=T.SEED):
     for pts, width in T.SMALL_GLACIERS:
         sd, st = T._polyline_dist(X, Y, pts)
         glacier |= (sd < width * (1 - 0.55 * st) * (1 + 0.3 * noise)) & (H > 3500)
+    # close the small holes the noise leaves inside the ice, or the land cover
+    # behind them paints forest onto the middle of the glacier
+    glacier = glacier | ((T.blur(glacier.astype(float), 3) > 0.62)
+                         & (gdist < gw * 1.05) & (H > w['lakes'][0][1] + 60))
     cls[glacier | (grow & (H > SNOWLINE - 450))] = GLACIER
 
     # --- coherent belts: a majority filter over the natural classes, so the
@@ -116,6 +120,11 @@ def classify(w, seed=T.SEED):
     smooth = np.array(natural, dtype=np.int8)[stack.argmax(0)]
     keep = np.isin(cls, [GLACIER, TERRACE, PADDY])
     cls = np.where(keep, cls, smooth)
+    # nothing grows in the trough the ice occupies: any forest the majority
+    # filter left inside it becomes ice, or bare forefield near the snout
+    introu = (gdist < gw * 0.95) & (H < gfloor + 900)
+    cls[introu & (cls == FOREST) & (gt < 0.93)] = GLACIER
+    cls[introu & (cls == FOREST)] = FOREFIELD
 
     # --- the glacier forefield: ground the ice left since 1850, still bare
     g = np.array(T.MAIN_GLACIER)

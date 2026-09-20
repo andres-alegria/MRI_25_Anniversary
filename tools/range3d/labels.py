@@ -97,7 +97,13 @@ def isolines(doc, G, P, cls=None):
     dd = np.abs(np.diff(np.nan_to_num(D, nan=9), axis=0)) > 0.012
     jump[1:] |= dd; jump[:-1] |= dd
     Z = np.where(G.mask & ~jump, G.pz, np.nan)
-    iso = K.lines(Z, [LC.SNOWLINE, LC.TREELINE, LC.PERMAFROST_LOW])
+    # the treeline is traced off the ice; snow and permafrost limits may cross it
+    onice = np.zeros_like(G.mask)
+    if ICECLS[0] is not None:
+        px_, py_ = np.nan_to_num(G.px), np.nan_to_num(G.py)
+        onice = G.mask & np.isin(V.nearest(ICECLS[0], px_, py_), [LC.GLACIER, LC.SNOW])
+    iso = K.lines(Z, [LC.SNOWLINE, LC.PERMAFROST_LOW])
+    iso.update(K.lines(np.where(onice, np.nan, Z), [LC.TREELINE]))
     for lv, col, name in [(LC.SNOWLINE, P['snowlineInk'], 'snowline'), (LC.TREELINE, P['treelineInk'], 'treeline'),
                           (LC.PERMAFROST_LOW, P['permafrost'], 'permafrost')]:
         segs = [s for s in iso[lv] if len(s) > 25]
@@ -113,8 +119,9 @@ def isolines(doc, G, P, cls=None):
                 for q in sg[len(sg) // 5: 4 * len(sg) // 5: 6]:
                     xi, yi = int(q[0]), int(q[1])
                     # the label's whole run of text must lie on plain ground
-                    # keep each name in its own part of the page
-                    ok = q[0] < (820 if lv == LC.PERMAFROST_LOW else 1500)
+                    # keep each name in its own part of the page, clear of the
+                    # glacier's own dated labels
+                    ok = q[0] < {LC.PERMAFROST_LOW: 820, LC.TREELINE: 600}.get(lv, 1500)
                     for dx in range(0, 200, 25):
                         xx = xi + dx
                         if not (0 <= yi < G.h and 0 <= xx < G.w and G.mask[yi, xx]):
@@ -128,7 +135,7 @@ def isolines(doc, G, P, cls=None):
             if best is None:
                 continue
             x, y = best
-            txt = (f'permafrost below ~{lv:,} m' if lv == LC.PERMAFROST_LOW
+            txt = (f'lower limit of permafrost ~{lv:,} m' if lv == LC.PERMAFROST_LOW
                    else f'{name} ~{lv:,} m').replace(',', ' ')
             names.append(text(x + 6, y - 6, txt, P, TYPE['feature'] - 1, col=col))
 

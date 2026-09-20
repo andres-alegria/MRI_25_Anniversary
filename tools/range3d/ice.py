@@ -71,14 +71,14 @@ def glacier(doc, G, H, L, P, rng):
         for f in np.arange(-0.85, 0.86, 0.22):
             if rng.random() < 0.3:
                 continue
-            ff = np.linspace(f - 0.085, f + 0.085, 5)
-            tb = tt + 0.012 * (1 - ff ** 2)                      # bowed down-glacier
+            ff = np.linspace(f - 0.10, f + 0.10, 9)
+            tb = tt + 0.014 * (1 - ((ff - f) / 0.10) ** 2)       # bowed down-glacier
             i = np.clip((tb * (len(t) - 1)).astype(int), 0, len(t) - 1)
             q = p[i] + nor[i] * (ff * gw(tb))[:, None]
             for run in draped_runs(G, H, q[:, 0], q[:, 1], 7, on_ice(q[:, 0], q[:, 1])):
-                d.append(K.d_poly(run, False, 0.8))
+                d.append(K.d_smooth(run, False, 1.0))
     # marginal crevasses: short, splayed up-glacier at the edges, where the ice shears
-    for tt in np.arange(0.12, 0.88, 0.028):
+    for tt in np.arange(0.30, 0.86, 0.045):          # shear cracks along the tongue's margins only
         for sgn in (-1, 1):
             i0 = int(tt * (len(t) - 1)); i1 = max(0, int((tt - 0.018) * (len(t) - 1)))
             a = p[i0] + nor[i0] * sgn * 0.93 * gw(tt)
@@ -88,9 +88,9 @@ def glacier(doc, G, H, L, P, rng):
                 d.append(K.d_poly(run, False, 0.8))
     # transverse crevasses down the tongue, bowed down-glacier, opening wider
     # where the bed steepens
-    for tt in np.arange(0.54, 0.95, 0.035):
-        ff = np.linspace(-0.82, 0.82, 16)
-        tb = tt + 0.022 * (1 - ff ** 2)
+    for tt in np.arange(0.52, 0.96, 0.028):
+        ff = np.linspace(-0.88, 0.88, 26)
+        tb = tt + 0.030 * (1 - ff ** 2)                       # convex down-glacier
         i = np.clip((tb * (len(t) - 1)).astype(int), 0, len(t) - 1)
         q = p[i] + nor[i] * (ff * gw(tb))[:, None]
         for run in draped_runs(G, H, q[:, 0], q[:, 1], 7, on_ice(q[:, 0], q[:, 1])):
@@ -135,6 +135,20 @@ def glacier(doc, G, H, L, P, rng):
     ml.append(f'<path d="{"".join(mor)}" fill="none" stroke="{P["shade"]}" stroke-width="4.2" stroke-opacity="0.55" stroke-linecap="round"/>')
     ml.append(f'<path d="{"".join(mor)}" fill="none" stroke="{P["moraineCrest"]}" stroke-width="2.2" stroke-linecap="round"/>')
     ml.append(f'<path d="{"".join(trim)}" fill="none" stroke="{P["iceLine"]}" stroke-width="0.9" stroke-dasharray="2 3" stroke-opacity="0.6"/>')
+
+
+def ice_tone(doc, G, L, P):
+    """Bright firn in the basin, greyer ice down the tongue: the ablation area
+    reads darker, as it does in the field."""
+    m = G.mask
+    px, py = np.nan_to_num(G.px), np.nan_to_num(G.py)
+    ice = V.nearest(L['cls'], px, py) == LC.GLACIER
+    gt = V.sample(L['glacier_t'], px, py)
+    lay = doc.layer('Glacier-detail')
+    for lo, op in [(0.30, 0.10), (0.52, 0.10), (0.72, 0.10)]:    # adjust the tongue's tone here
+        d = K.trace(m & ice & (gt > lo), blur=3, step=2.2)
+        if d:
+            lay.insert(0, f'<path d="{d}" fill="{P["shade"]}" fill-opacity="{op}" fill-rule="evenodd"/>')
 
 
 def debris_cover(doc, G, L, P):
@@ -189,12 +203,12 @@ def retreat(doc, G, H, P, cls=None):
                     best = sel
         if best is not None and len(best) > 6:
             for r in draped_runs(G, H, best[:, 0], best[:, 1], 8):
-                lay.append(f'<path d="{K.d_smooth(r, False, 1.2)}" fill="none" stroke="{P["route"]}" '
+                lay.append(f'<path d="{K.d_smooth(r, False, 1.2)}" fill="none" stroke="{P["iceLine"]}" '
                            f'stroke-width="2" stroke-dasharray="2 3" stroke-linecap="round"/>')
             q = best[len(best) // 2]
             zz = V.sample(H, q[0], q[1])
             sx_, sy_ = V.project(q[0], q[1], zz)
-            lab.append(LB.halo(sx_ - 10, sy_ + 16, 'today', P, 13, col=P['route'], italic=True, anchor='end'))
+            lab.append(LB.halo(sx_ + 16, sy_ - 12, 'today', P, 13, col=P['iceLine'], italic=True))
     for k_, (year, dist, hw) in enumerate([('2000', 0.012, 0.040), ('1950', 0.034, 0.048), ('1850', 0.080, 0.058)]):
         ff = np.linspace(-1, 1, 30)
         q = S[None, :] + dv[None, :] * (dist + 0.014 * (1 - ff ** 2))[:, None] + nv[None, :] * (ff * hw)[:, None]
@@ -206,15 +220,15 @@ def retreat(doc, G, H, P, cls=None):
             r_ = max(runs, key=len)
             right = r_[-1] if r_[-1][0] > r_[0][0] else r_[0]
             left = r_[0] if r_[-1][0] > r_[0][0] else r_[-1]
-            # dates are set in the route's warm ink, italic, each tied to its own
+            # dates are set in ice blue, italic, each tied to its own
             # moraine by a tick, so they cannot be read as spot heights
             txt = f'{year} ice edge' if year == '1850' else year
             if year == '1950':                                  # 1950 named on the other side, so the dates never touch
-                lab.append(f'<path d="M{f1(left[0] - 7)} {f1(left[1] + 1)}l-6 0" stroke="{P["route"]}" stroke-width="1"/>')
-                lab.append(LB.halo(left[0] - 15, left[1] + 5, txt, P, 13, col=P['route'], italic=True, anchor='end'))
+                lab.append(f'<path d="M{f1(left[0] - 7)} {f1(left[1] + 1)}l-6 0" stroke="{P["iceLine"]}" stroke-width="1"/>')
+                lab.append(LB.halo(left[0] - 15, left[1] + 5, txt, P, 13, col=P['iceLine'], italic=True, anchor='end'))
             else:
-                lab.append(f'<path d="M{f1(right[0] + 4)} {f1(right[1] + 1)}l6 {f1(8 * k_)}" stroke="{P["route"]}" stroke-width="1"/>')
-                lab.append(LB.halo(right[0] + 12, right[1] + 5 + 8 * k_, txt, P, 13, col=P['route'], italic=True))
+                lab.append(f'<path d="M{f1(right[0] + 4)} {f1(right[1] + 1)}l6 {f1(8 * k_)}" stroke="{P["iceLine"]}" stroke-width="1"/>')
+                lab.append(LB.halo(right[0] + 12, right[1] + 5 + 8 * k_, txt, P, 13, col=P['iceLine'], italic=True))
 
 
 def glof_path(doc, G, H, P):
