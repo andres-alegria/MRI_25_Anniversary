@@ -54,7 +54,7 @@ PAL = dict(
 )
 # --- palette, light printing — the same keys, for paper ------------------------
 PAL_LIGHT = dict(
-    sky0='#DCE6ED', sky1='#F2F6F8',
+    sky0='#A9CDE8', sky1='#E4F0F8',               # a light blue sky — adjust the paper sky here
     ink='#2B3A45', inkSoft='#64798A', inkFaint='#93A7B4',
     ground='#CBD5CE',
     alpine='#B7C6A6', scree='#C2CAD2', forest='#7E9E85', terrace='#C4CB98',
@@ -79,7 +79,7 @@ PAL_LIGHT = dict(
     metalRoof='#8494A0', sapling='#6E9B72', hat='#B39A63', buffalo='#4A4038',
     thatch='#B79B70', awning2='#D9A93F', awning3='#3E86B8', crane='#C98F2A',
     sheet='#9AA8B2', shackB='#B49E84', shackC='#94A4A2', bus='#D9A93F',
-    solarFrame='#6E8296', haze='#EAF1F6', ogive='#6E93AE', debris='#8A857C',
+    solarFrame='#6E8296', haze='#DCEAF5', ogive='#6E93AE', debris='#8A857C',
     moraineCrest='#7A7266', hazard='#4E86AE',
     paper='#FBFDFE', road='#A89774', concrete='#8E979C',
     benchLight='#C9A87F', benchDark='#8A8172', tailings='#A8CBBD', whitewash='#FFFFFF',
