@@ -15,6 +15,10 @@ import terrain as T
 
 # --- the zonation — adjust the altitudinal belts here (metres) ----------------
 SNOWLINE = 4000          # permanent snow above this on slopes that can hold it
+EAST_RISE = 380          # both climate lines sit this much higher in the dry east
+def east(X):
+    """How far into the rain shadow a point lies, 0 on the wet west side to 1 in the east."""
+    return np.clip((np.asarray(X) - 0.42) / 0.40, 0, 1)
 PERMAFROST_LOW = 3400    # frozen ground beneath the surface above this — well below the snowline
 TREELINE = 2800          # the upper limit of closed forest (it wanders ±150 m)
 ALPINE_TOP = 3900        # alpine grassland gives way to scree and snow
@@ -53,7 +57,9 @@ def classify(w, seed=T.SEED):
     cls = np.full(H.shape, GROUND, dtype=np.int8)
 
     # --- lowland and forest belt
-    treeline = TREELINE + 150 * noise * 3 - 120 * north
+    # both limits climb into the rain shadow: drier air, more sun, less snow
+    treeline = TREELINE + 150 * noise * 3 - 120 * north + EAST_RISE * east(X)
+    snowline = SNOWLINE - 260 * north + 120 * noise * 3 + EAST_RISE * east(X)
     # the humid side (west, facing the moist winds) carries closed forest; the
     # dry side (east) only open woodland — the trees module thins it out
     forest = (H > 650 + 250 * noise) & (H < treeline) & (slope < 50) & (noise2 > -0.18 - 0.2 * (X < 0.5)) \
@@ -63,7 +69,7 @@ def classify(w, seed=T.SEED):
     cls[alpine] = ALPINE
     cls[(X > 0.58) & (H > 700) & (H < treeline) & (cls == GROUND)] = ALPINE   # grassland between the dry-side trees
     scree = (H > SCREE_LOW + 200 * noise) & (slope > 22) & (slope < ROCK_SLOPE + 8)
-    cls[scree & (H < SNOWLINE + 300)] = SCREE
+    cls[scree & (H < snowline + 300)] = SCREE
 
     # --- farming: fields on the plain, paddies by the river, terraces on slopes
     field = (Y < T.LOWLAND_Y + 0.06) & (H < 1000) & (slope < 14)
@@ -82,7 +88,6 @@ def classify(w, seed=T.SEED):
     cls[rock] = ROCK
 
     # --- snow above the snowline, where the slope can hold it
-    snowline = SNOWLINE - 260 * north + 120 * noise * 3
     # high up, ice and snow cling to steeper faces than they can lower down
     # steep faces hold snow only in gullies and ledges (noise), which breaks the
     # snow on a planar face into tongues rather than a flat slab

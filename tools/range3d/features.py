@@ -61,6 +61,7 @@ def trees(doc, G, H, L, P, rng, scale=1.0, step=0.0098):
     vis = G.visible(X, Y, Z + 2)
     X, Y, Z, near_line = X[vis], Y[vis], Z[vis], near_line[vis]
     sx, sy = V.project(X, Y, Z)
+    Xk = X
     # a tree in front of the ice can still paint its crown onto the glacier
     # behind it; drop those, so no conifer appears to grow on a glacier
     ix = np.clip(sx.astype(int), 0, G.w - 1)
@@ -73,7 +74,7 @@ def trees(doc, G, H, L, P, rng, scale=1.0, step=0.0098):
                           [LC.GLACIER, LC.SNOW])
             idx = np.nonzero(ok)[0]
             onice[idx[hit]] = True
-    sx, sy, Z, near_line = sx[~onice], sy[~onice], Z[~onice], near_line[~onice]
+    sx, sy, Z, near_line, X = sx[~onice], sy[~onice], Z[~onice], near_line[~onice], Xk[~onice]
     order = np.argsort(sy)                              # far (higher on screen) first
     # each tree in two tones: the side toward the light and the side away,
     # so a stand reads as a mass of small crowns rather than as texture
@@ -105,6 +106,22 @@ def trees(doc, G, H, L, P, rng, scale=1.0, step=0.0098):
                              f'L{f1(x - wdt)} {f1(yb)}L{f1(x)} {f1(yb)}Z')
                 out_s.append(f'M{f1(tipx)} {f1(y - h)}L{f1(x + s2)} {f1(y - h * 0.62)}L{f1(x + wdt * 0.55)} {f1(y - h * 0.5)}'
                              f'L{f1(x + wdt)} {f1(yb)}L{f1(x)} {f1(yb)}Z')
+        elif X[k] > 0.60 and rng.random() < 0.45:
+            # the dry east: open crowns on bare stems, spreading like an acacia
+            r = h * (0.40 + rng.random() * 0.14)
+            cy = y - h * 0.72
+            out_s.append(f'M{f1(x)} {f1(y)}l0 {f1(-h * 0.7)}' if False else
+                         f'M{f1(x - r)} {f1(cy + 2)}q{f1(r)} {f1(-r * 0.95)} {f1(2 * r)} 0'
+                         f'q{f1(-r)} {f1(r * 0.34)} {f1(-2 * r)} 0Z')
+            out_l.append(f'M{f1(x - r * 0.15)} {f1(cy + 2)}q{f1(r * 0.6)} {f1(-r * 0.8)} {f1(r * 1.1)} -0.5'
+                         f'q{f1(-r * 0.5)} {f1(r * 0.3)} {f1(-r * 1.1)} 0.5Z')
+            out_l.append(f'M{f1(x - 0.6)} {f1(y)}l0 {f1(-(y - cy) - 1)}l1.2 0l0 {f1(y - cy + 1)}Z')
+        elif rng.random() < 0.22:
+            # a columnar tree: narrow, upright, a poplar by a field edge
+            r = h * 0.16
+            out_s.append(f'M{f1(x - r)} {f1(y)}q0 {f1(-h)} {f1(r)} {f1(-h)}q{f1(r)} 0 {f1(r)} {f1(h)}Z')
+            out_l.append(f'M{f1(x)} {f1(y - h)}q{f1(r)} 0 {f1(r)} {f1(h)}l{f1(-r * 0.55)} 0'
+                         f'q0 {f1(-h * 0.8)} {f1(-r * 0.45)} {f1(-h * 0.2)}Z')
         else:
             r = h * (0.33 + rng.random() * 0.14)
             ry = r * (0.78 + rng.random() * 0.34)        # some crowns tall, some spread

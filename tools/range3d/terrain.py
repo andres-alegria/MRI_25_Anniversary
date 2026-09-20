@@ -245,6 +245,24 @@ def build(seed=SEED, n=N):
         H = H - np.minimum(cut, 380)
         H = 0.75 * H + 0.25 * blur(H, 2)
 
+    # --- structure in the relief: the hard beds hold up strike ridges and the
+    #     weak ones are worn into strike valleys, so the shape of the range
+    #     agrees with the rock drawn on the cut faces. Adjust its strength here
+    import geology as GEO
+    code, _, _ = GEO.unit_at(X, Y, H - 260, H)
+    hard = np.zeros_like(H)
+    for unit, r in ((3, 1.0), (1, 0.45), (2, -1.0), (0, 0.25), (4, 0.7), (5, 0.85)):
+        hard = np.where(code == unit, r, hard)             # sandstone stands, shale wears back
+    ridge_amp = 165.0
+    # valley floors keep the profile they were carved to
+    prot = np.zeros_like(H)
+    for pts, w_ in ((MAIN_GLACIER, 0.075), (MAIN_RIVER, 0.070), (EAST_VALLEY, 0.065), (WEST_TRIB, 0.055)):
+        d_, _ = _polyline_dist(X, Y, pts)
+        prot = np.maximum(prot, 1 - smoothstep(w_ * 0.6, w_ * 1.8, d_))
+    band = smoothstep(900, 1800, H) * (1 - smoothstep(5200, 6100, H))
+    H = H + blur(hard, 1) * ridge_amp * band * (1 - prot)
+    H = 0.8 * H + 0.2 * blur(H, 1)
+
     # --- the lowland: flatten the front of the block toward a floodplain
     plain = 1 - smoothstep(LOWLAND_Y - 0.12, LOWLAND_Y + 0.05, Y)
     H = H * (1 - 0.85 * plain) + (230 + 110 * fbm(X * 5, Y * 5, 3, seed=seed + 31)) * 0.85 * plain

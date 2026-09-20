@@ -102,8 +102,11 @@ def isolines(doc, G, P, cls=None):
     if ICECLS[0] is not None:
         px_, py_ = np.nan_to_num(G.px), np.nan_to_num(G.py)
         onice = G.mask & np.isin(V.nearest(ICECLS[0], px_, py_), [LC.GLACIER, LC.SNOW])
-    iso = K.lines(Z, [LC.SNOWLINE, LC.PERMAFROST_LOW])
-    iso.update(K.lines(np.where(onice, np.nan, Z), [LC.TREELINE]))
+    # the climate limits rise into the rain shadow, so they are traced on the
+    # height above each limit's own local value rather than at a flat level
+    rise = LC.EAST_RISE * LC.east(np.nan_to_num(G.px))
+    iso = K.lines(Z - rise, [LC.SNOWLINE, LC.PERMAFROST_LOW])
+    iso.update(K.lines(np.where(onice, np.nan, Z - rise), [LC.TREELINE]))
     for lv, col, name in [(LC.SNOWLINE, P['snowlineInk'], 'snowline'), (LC.TREELINE, P['treelineInk'], 'treeline'),
                           (LC.PERMAFROST_LOW, P['permafrost'], 'permafrost')]:
         segs = [s for s in iso[lv] if len(s) > 25]
@@ -136,7 +139,7 @@ def isolines(doc, G, P, cls=None):
                 continue
             x, y = best
             txt = (f'lower limit of permafrost ~{lv:,} m' if lv == LC.PERMAFROST_LOW
-                   else f'{name} ~{lv:,} m').replace(',', ' ')
+                   else f'{name} ~{lv:,} m on the wet side, +{LC.EAST_RISE} m east').replace(',', ' ')
             names.append(text(x + 6, y - 6, txt, P, TYPE['feature'] - 1, col=col))
 
 

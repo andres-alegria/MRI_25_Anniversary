@@ -287,6 +287,14 @@ def rivers(doc, G, H, L, P, w):
         pts = np.array(canal)
         t, p, tan, nor = centreline(pts, 160)
         runs = draped_runs(G, H, p[:, 0], p[:, 1], 3)
+        # a canal ends where it delivers: three distributaries into the fields
+        end, dv_, nv_ = p[-1], tan[-1], nor[-1]
+        for ang in (-0.6, 0.0, 0.6):
+            v = dv_ * np.cos(ang) + nv_ * np.sin(ang)
+            br = np.array([end + v * s_ for s_ in np.linspace(0, 0.022, 10)])
+            for r in draped_runs(G, H, br[:, 0], br[:, 1], 3):
+                lay.append(f'<path d="{K.d_smooth(r, False, 1.2)}" fill="none" stroke="{P["waterLine"]}" '
+                           f'stroke-width="0.8" stroke-opacity="0.8"/>')
         for r in runs:
             lay.append(f'<path d="{K.d_smooth(r, False, 1.4)}" fill="none" stroke="{P["waterLine"]}" stroke-width="1.1" stroke-opacity="0.95"/>')
             for i in range(8, len(r) - 4, 10 ** 9):              # (sluice gates: shown in the zoom clip only)
@@ -298,6 +306,6 @@ def rivers(doc, G, H, L, P, w):
 
 
 CANALS = [   # irrigation canals, world coordinates — adjust here
-    [(0.372, 0.300), (0.352, 0.268), (0.330, 0.238), (0.305, 0.212)],
+    [(0.372, 0.300), (0.352, 0.268), (0.330, 0.238), (0.312, 0.205), (0.300, 0.170)],
     [(0.560, 0.170), (0.590, 0.180), (0.625, 0.188), (0.670, 0.186)],
 ]

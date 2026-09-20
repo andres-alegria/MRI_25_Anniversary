@@ -74,10 +74,10 @@ def unit_at(x, y, z, ztop):
     marker = np.abs(ph - (420 + S['shale_thick'] + 90) * wedge) < 45 * wedge
     code = np.where(zr < -1700, 0, code)                      # the basement
     cx, cy, rx, ry, zb, rise = S['pluton']
-    bump = (1 + 0.24 * np.sin(11.0 * x + 1.7) + 0.18 * np.sin(15.0 * y - 0.6)
-            + 0.14 * np.sin(23.0 * x + 7.0 * y))          # cupolas and hollows in the roof
+    bump = (1 + 0.30 * np.sin(11.0 * x + 1.7) + 0.22 * np.sin(15.0 * y - 0.6)
+            + 0.18 * np.sin(23.0 * x + 7.0 * y))          # cupolas and hollows in the roof
     rr = (((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2)
-    zg = zb + rise * bump * np.exp(-rr ** 1.7)            # flat roof, steep flanks: a discordant contact
+    zg = zb + rise * bump * np.exp(-rr ** 2.4)            # flat roof, steep flanks: a discordant contact
     # two apophyses: narrow tongues of granite pushing up into the cover
     for ax_, ay_, aw in ((0.10, 0.84, 0.030), (0.21, 0.93, 0.024)):
         zg = np.maximum(zg, zb + rise * 1.22 * np.exp(-(((x - ax_) / aw) ** 2 + ((y - ay_) / (aw * 2.4)) ** 2)))
@@ -237,7 +237,7 @@ def draw(doc, H, P, rng, tone_of, frame=(0.0, 0.0, 1.0)):
             pts = np.stack(V.project(x[plain], y[plain], wt[plain]), 1)
             lay.append(f'<path d="{K.d_poly(pts, False, 1)}" fill="none" stroke="{P["waterLine"]}" stroke-width="1.1" stroke-dasharray="6 3"/>')
             fr = np.nonzero(plain)[0]
-            if len(fr):
+            if len(fr) and frame == (0.0, 0.0, 1.0):        # the spring line belongs to the whole range
                 q_ = int(fr[-1])                              # the range front end of the plain
                 sp = V.project(x[q_], y[q_], float(wt[q_]))
                 lay.append(f'<circle cx="{f1(sp[0])}" cy="{f1(sp[1])}" r="2.6" fill="{P["waterLine"]}"/>')

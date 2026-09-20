@@ -119,7 +119,7 @@ def chains(edge, max_dy=3):
     return [np.array(ch) for ch in done if len(ch) >= 6]
 
 
-def render(zoom=None):
+def render(zoom=None, key=True):
     w = T.build()
     H = w['H']
     V.fit(H)
@@ -130,7 +130,7 @@ def render(zoom=None):
     for name in ['Sky', 'Ground'] + ['Cover-' + nm for nm in LC.NAMES[1:]] + \
             ['Fields', 'Shade', 'Light', 'Contours', 'Terraces', 'Hachures', 'Glacier-detail', 'Moraines',
              'Streams', 'Silhouettes', 'Skyline', 'Trees', 'Haze', 'Isolines', 'Settlements', 'Infrastructure', 'People-animals',
-             'Route', 'Faces', 'Face-symbols', 'Face-labels', 'Labels', 'Key', 'Stations']:
+             'Hazards-landslide', 'Route', 'Faces', 'Face-symbols', 'Face-labels', 'Labels', 'Key', 'Stations']:
         doc.layer(name)
     m = G.mask
     px, py = np.nan_to_num(G.px), np.nan_to_num(G.py)
@@ -246,6 +246,7 @@ def render(zoom=None):
     ST.herd(doc, G, H, L, PAL, rng, 0.255, 0.585, 10, 'llama')
     ST.herd(doc, G, H, L, PAL, rng, 0.86, 0.62, 7, 'yak')
     ST.rock_glacier(doc, G, H, L, PAL)
+    ST.landslide(doc, G, H, L, PAL)
     ICE.retreat(doc, G, H, PAL, cls)
     stations = ST.story_route(doc, G, H, L, PAL)
 
@@ -257,7 +258,8 @@ def render(zoom=None):
     LB.spot_heights(doc, G, H, PAL)
     LB.feature_labels(doc, G, H, PAL, FEATURES)
     LB.compass_and_scale(doc, PAL, 150, 1480)
-    ST.station_key(doc, PAL, 1995, 1112, cols=1, colw=380, lh=19.0)
+    if key:                                              # off for the web, where the key is live text
+        ST.station_key(doc, PAL, 1995, 1112, cols=1, colw=380, lh=19.0)
     doc.stations = stations
 
     # ------------------------------------------------------------------ aerial perspective
@@ -650,7 +652,7 @@ def _tone(hexc, k):
 if __name__ == '__main__':
     import json
     out = sys.argv[1]
-    doc = render()
+    doc = render(key='--no-key' not in sys.argv)
     open(out, 'w').write(doc.svg())
     # the stations' positions on the canvas, for placing interactive markers on the web
     with open(out.rsplit('.', 1)[0] + '-stations.json', 'w') as fh:

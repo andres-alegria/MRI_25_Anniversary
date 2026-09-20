@@ -250,6 +250,8 @@ def find(Lc, H, G, cond, rng, n=1, spacing=0.05):
     N = H.shape[0] - 1
     for k in order:
         x, y = is_[k] / N, js[k] / N
+        if not (0.12 < x < 0.86 and 0.10 < y < 0.88):        # keep symbols off the block's edges
+            continue
         if not G.visible(x, y, H[js[k], is_[k]] + 2):
             continue
         if any(np.hypot(x - a, y - b) < spacing for a, b in out):
