@@ -30,6 +30,8 @@ PAL = dict(
     snow='#E1EAF1', glacier='#B4CADC', water='#2F6F9E',
     waterLine='#5FA8D8', iceLine='#7FACCA', crevasse='#3E6E8E', treeInk='#6D9179',
     red='#E07A66', blue='#4FA3D9',
+    markerFill='#0B1F2E', markerText='#DCE8F1',   # the station circles
+    titleInk='#DCE8F1',                            # the clip titles
     shade='#07131C', light='#DCE8F1',
     # trees, fields and buildings
     treeBody='#12281F', treeLit='#3E6B52',
@@ -50,6 +52,54 @@ PAL = dict(
     soil='#3A3228', alluvium='#6B5A3E', sandstone='#4E4B42', shale='#3E4658', limestone='#474B58',
     gneiss='#303A48', granite='#58505A', hornfels='#645C68', till='#524C45', permafrost='#A9D2EC',
 )
+# --- palette, light printing — the same keys, for paper ------------------------
+PAL_LIGHT = dict(
+    sky0='#DCE6ED', sky1='#F2F6F8',
+    ink='#2B3A45', inkSoft='#64798A', inkFaint='#93A7B4',
+    ground='#CBD5CE',
+    alpine='#B7C6A6', scree='#C2CAD2', forest='#7E9E85', terrace='#C4CB98',
+    field='#BAC598', paddy='#A7C6BC', town='#C4C7C9', rock='#A9B8C4',
+    snow='#FFFFFF', glacier='#DCEAF4', water='#7FB0D6',
+    waterLine='#4E86AE', iceLine='#79A3C0', crevasse='#5E87A6', treeInk='#4F7A5C',
+    red='#C2503A', blue='#2E7EB5',
+    markerFill='#FBFDFE', markerText='#26333C',
+    titleInk='#26333C',
+    shade='#3B4E5A', light='#FFFFFF',
+    treeBody='#3F6349', treeLit='#7FA982',
+    fieldGreen='#AFC08C', fieldOchre='#D3C48E', fieldFallow='#C9BFA2',
+    paddyWater='#9FC49A', paddyGreen2='#B7D49A', paddyFlood='#A8C6D4',
+    bund='#7E8F79', terraceLine='#7C8A55',
+    wallLit='#EDE3D2', wallShade='#B4A995', roof='#B0705A', roofFlat='#C2B9A6',
+    dome='#E3D6AE', window='#5A5A5A',
+    forefield='#C4C6C2', waste='#B4B2AB', wasteTop='#D2CFC7', yak='#3A312A',
+    tentWhite='#FFFFFF', paddySheen='#6E93AA', rgFront='#7E858C', rgRidge='#8A9198',
+    dateInk='#4A6070', route='#C2503A', chevron='#C2503A',
+    pitShadow='#8A7460', benchMid='#B79B7C', pitWater='#86B3AE', seep='#A98F2E',
+    penstock='#7E8A93', powerRoof='#C79F3F', pylon='#5E7285',
+    metalRoof='#8494A0', sapling='#6E9B72', hat='#B39A63', buffalo='#4A4038',
+    thatch='#B79B70', awning2='#D9A93F', awning3='#3E86B8', crane='#C98F2A',
+    sheet='#9AA8B2', shackB='#B49E84', shackC='#94A4A2', bus='#D9A93F',
+    solarFrame='#6E8296', haze='#EAF1F6', ogive='#6E93AE', debris='#8A857C',
+    moraineCrest='#7A7266', hazard='#4E86AE',
+    paper='#FBFDFE', road='#A89774', concrete='#8E979C',
+    benchLight='#C9A87F', benchDark='#8A8172', tailings='#A8CBBD', whitewash='#FFFFFF',
+    solar='#2A3A4A', animal='#6A6152', tent='#4A443C', figure='#3A4048',
+    rockGlacier='#9BA1A6', snowlineInk='#4A6B84', treelineInk='#4E7A55',
+    permafrost='#3F7FA8',
+    soil='#8A7A62', alluvium='#CBB183', sandstone='#D7C9A6', shale='#9FA8BC',
+    limestone='#C3C9D2', gneiss='#9AA3AE', granite='#CBBFC9', hornfels='#BCB2BE',
+    till='#BBB2A6',
+)
+
+
+def use_light():
+    """Swap the palette to the paper version, in place, before anything draws."""
+    missing = set(PAL) - set(PAL_LIGHT)
+    if missing:                                          # keep both palettes complete
+        raise SystemExit('light palette is missing: ' + ', '.join(sorted(missing)))
+    PAL.update(PAL_LIGHT)
+
+
 # stroke weights, px at 2400 wide — adjust line weights here
 WEIGHT = dict(skyline=1.6, silhouette=1.0, contour=0.5, index=0.8, stream=0.9, face=1.2)
 
@@ -533,6 +583,8 @@ def _tone(hexc, k):
 if __name__ == '__main__':
     import json
     out = sys.argv[1]
+    if '--light' in sys.argv:
+        use_light()
     doc = render()
     open(out, 'w').write(doc.svg())
     # the stations' positions on the canvas, for placing interactive markers on the web

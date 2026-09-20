@@ -114,8 +114,8 @@ def title(doc, cfg, sub, num):
     lay = doc.layer('Title')
     lay.append(f'<circle cx="112" cy="84" r="24" fill="{P["paper"]}" stroke="{P["red"]}" stroke-width="3"/>')
     lay.append(f'<text x="112" y="92" text-anchor="middle" font-family="{K.SANS}" font-weight="700" font-size="22" '
-               f'fill="{P["light"]}">{num:02d}</text>')
-    lay.append(LB.text(152, 80, cfg['title'].replace('&', '&amp;'), P, 30, italic=False, weight=600, col=P['light']))
+               f'fill="{P["titleInk"]}">{num:02d}</text>')
+    lay.append(LB.text(152, 80, cfg['title'].replace('&', '&amp;'), P, 30, italic=False, weight=600, col=P['titleInk']))
     lay.append(LB.text(152, 108, sub, P, 17, col=P['inkSoft']))
 
 
@@ -431,6 +431,8 @@ import ice as _ice
 ST_CANALS = _ice.CANALS
 
 if __name__ == '__main__':
+    if '--light' in sys.argv:
+        R.use_light()
     which, out = sys.argv[1], sys.argv[2]
     {'agriculture': agriculture, 'urban': urban}[which](out)
     print('wrote', out)

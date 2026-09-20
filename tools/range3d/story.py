@@ -440,9 +440,9 @@ def story_route(doc, G, H, L, P):
                   f'stroke-opacity="0.75"/>'
                   f'<circle cx="{f1(ax)}" cy="{f1(ay)}" r="2.2" fill="{P["inkSoft"]}"/>')
         r_ = R + (2 if i == len(STATIONS) - 1 else 0)        # the summit station a little larger
-        g += (f'<circle cx="{f1(sx)}" cy="{f1(sy)}" r="{r_}" fill="{P["paper"]}" stroke="{P["red"]}" stroke-width="2"/>'
+        g += (f'<circle cx="{f1(sx)}" cy="{f1(sy)}" r="{r_}" fill="{P["markerFill"]}" stroke="{P["red"]}" stroke-width="2"/>'
               f'<text x="{f1(sx)}" y="{f1(sy + 4.6)}" text-anchor="middle" font-family="{K.SANS}" font-weight="700" '
-              f'font-size="13" fill="{P["light"]}">{i + 1:02d}</text></g>')
+              f'font-size="13" fill="{P["markerText"]}">{i + 1:02d}</text></g>')
         st.append(g)
         coords.append(dict(order=i + 1, story=num, what=what, x=round(float(sx), 1), y=round(float(sy), 1),
                            anchor_x=round(float(ax), 1), anchor_y=round(float(ay), 1)))
