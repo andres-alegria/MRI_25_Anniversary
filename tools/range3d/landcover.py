@@ -15,6 +15,7 @@ import terrain as T
 
 # --- the zonation — adjust the altitudinal belts here (metres) ----------------
 SNOWLINE = 4000          # permanent snow above this on slopes that can hold it
+PERMAFROST_LOW = 3400    # frozen ground beneath the surface above this — well below the snowline
 TREELINE = 2800          # the upper limit of closed forest (it wanders ±150 m)
 ALPINE_TOP = 3900        # alpine grassland gives way to scree and snow
 SCREE_LOW = 3300         # talus and periglacial ground from here up

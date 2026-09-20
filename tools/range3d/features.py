@@ -40,20 +40,37 @@ def jittered(step, rng, x0=0, x1=1, y0=0, y1=1, j=0.45):
 # ---------------------------------------------------------------------------
 def trees(doc, G, H, L, P, rng, scale=1.0, step=0.0098):
     """Forest as individual trees: spire conifers high up, round crowns lower,
-    thinning and shrinking toward the treeline."""
+    thinning and shrinking toward the treeline. Stands clump — dense in the
+    gullies and on shaded ground, thin on the spurs — and no two crowns are
+    quite the same shape."""
     X, Y = jittered(step, rng)
     c = V.nearest(L['cls'], X, Y)
     Z = V.sample(H, X, Y)
     forest = c == LC.FOREST
     near_line = np.clip((Z - (LC.TREELINE - 450)) / 450, 0, 1)
+    # clumping: a slow noise field, so the stand has dense cores and open gaps
+    clump = T.fbm(X * 26, Y * 26, 4, seed=T.SEED + 311)
+    clump = (clump - clump.min()) / (np.ptp(clump) + 1e-9)
+    wet = np.clip(V.sample(L['acc'], X, Y) / 60.0, 0, 1)          # gullies hold more trees
+    dens = np.clip(0.30 + 1.15 * clump + 0.45 * wet, 0, 1.35)
     # dense low down, thinning to scattered trees at the treeline; the dry
     # east side is open woodland
     dry = X > 0.55
-    keep = forest & (rng.random(X.shape) > 0.12 + 0.70 * near_line + 0.30 * dry)
+    keep = forest & (rng.random(X.shape) * (0.35 + 0.65 * dens) > 0.12 + 0.70 * near_line + 0.30 * dry)
     X, Y, Z, near_line = X[keep], Y[keep], Z[keep], near_line[keep]
     vis = G.visible(X, Y, Z + 2)
     X, Y, Z, near_line = X[vis], Y[vis], Z[vis], near_line[vis]
     sx, sy = V.project(X, Y, Z)
+    # a tree in front of the ice can still paint its crown onto the glacier
+    # behind it; drop those, so no conifer appears to grow on a glacier
+    ix = np.clip(sx.astype(int), 0, G.w - 1)
+    iy = np.clip((sy - 9).astype(int), 0, G.h - 1)
+    onice = np.zeros(len(sx), bool)
+    ok = G.mask[iy, ix]
+    if ok.any():
+        onice[ok] = np.isin(V.nearest(L['cls'], G.px[iy[ok], ix[ok]], G.py[iy[ok], ix[ok]]),
+                            [LC.GLACIER, LC.SNOW])
+    sx, sy, Z, near_line = sx[~onice], sy[~onice], Z[~onice], near_line[~onice]
     order = np.argsort(sy)                              # far (higher on screen) first
     # each tree in two tones: the side toward the light and the side away,
     # so a stand reads as a mass of small crowns rather than as texture
@@ -61,23 +78,41 @@ def trees(doc, G, H, L, P, rng, scale=1.0, step=0.0098):
     out_l, out_s = [], []
     for k in order:
         x, y = sx[k], sy[k]
-        h = (7.5 + rng.random() * 4.5) * (1 - 0.45 * near_line[k]) * scale
+        # size falls off with height, continuously, with a little spread
+        h = (6.8 + rng.random() * 5.6) * (1 - 0.45 * near_line[k]) * scale
+        lean = (rng.random() - 0.5) * h * 0.22          # no tree stands perfectly straight
         conifer = Z[k] > 1500 + rng.normal(0, 250)
         if conifer:
-            wdt = h * (0.30 + rng.random() * 0.08); yb = y - h * 0.08
-            out_l.append(f'M{f1(x)} {f1(y - h)}L{f1(x)} {f1(yb)}L{f1(x - wdt)} {f1(yb)}Z')
-            out_s.append(f'M{f1(x)} {f1(y - h)}L{f1(x + wdt)} {f1(yb)}L{f1(x)} {f1(yb)}Z')
+            wdt = h * (0.26 + rng.random() * 0.16)
+            yb = y - h * 0.08
+            tipx = x + lean
+            kind = rng.random()
+            if kind < 0.38:                              # narrow spire
+                out_l.append(f'M{f1(tipx)} {f1(y - h)}L{f1(x)} {f1(yb)}L{f1(x - wdt)} {f1(yb)}Z')
+                out_s.append(f'M{f1(tipx)} {f1(y - h)}L{f1(x + wdt)} {f1(yb)}L{f1(x)} {f1(yb)}Z')
+            elif kind < 0.72:                            # fir with a stepped skirt
+                m1 = y - h * 0.52
+                out_l.append(f'M{f1(tipx)} {f1(y - h)}L{f1(x - wdt * 0.62)} {f1(m1)}L{f1(x - wdt * 0.34)} {f1(m1)}'
+                             f'L{f1(x - wdt)} {f1(yb)}L{f1(x)} {f1(yb)}Z')
+                out_s.append(f'M{f1(tipx)} {f1(y - h)}L{f1(x + wdt * 0.62)} {f1(m1)}L{f1(x + wdt * 0.34)} {f1(m1)}'
+                             f'L{f1(x + wdt)} {f1(yb)}L{f1(x)} {f1(yb)}Z')
+            else:                                        # ragged, wind-cut crown
+                s1, s2 = wdt * (0.5 + rng.random() * 0.3), wdt * (0.5 + rng.random() * 0.3)
+                out_l.append(f'M{f1(tipx)} {f1(y - h)}L{f1(x - s1)} {f1(y - h * 0.58)}L{f1(x - wdt * 0.5)} {f1(y - h * 0.5)}'
+                             f'L{f1(x - wdt)} {f1(yb)}L{f1(x)} {f1(yb)}Z')
+                out_s.append(f'M{f1(tipx)} {f1(y - h)}L{f1(x + s2)} {f1(y - h * 0.62)}L{f1(x + wdt * 0.55)} {f1(y - h * 0.5)}'
+                             f'L{f1(x + wdt)} {f1(yb)}L{f1(x)} {f1(yb)}Z')
         else:
-            r = h * (0.36 + rng.random() * 0.1)
-            cx, cy = x, y - h * 0.62
-            out_s.append(f'M{f1(cx - r)} {f1(cy)}a{f1(r)} {f1(r * 0.92)} 0 1 1 {f1(2 * r)} 0'
-                         f'a{f1(r)} {f1(r * 0.92)} 0 1 1 {f1(-2 * r)} 0Z')
-            out_l.append(f'M{f1(cx - r * 0.1)} {f1(cy - r * 0.92)}A{f1(r)} {f1(r * 0.92)} 0 0 0 {f1(cx - r * 0.1)} {f1(cy + r * 0.92)}'
-                         f'A{f1(r * 0.55)} {f1(r * 0.92)} 0 0 1 {f1(cx - r * 0.1)} {f1(cy - r * 0.92)}Z')
+            r = h * (0.33 + rng.random() * 0.14)
+            ry = r * (0.78 + rng.random() * 0.34)        # some crowns tall, some spread
+            cx, cy = x + lean * 0.5, y - h * 0.62
+            out_s.append(f'M{f1(cx - r)} {f1(cy)}a{f1(r)} {f1(ry)} 0 1 1 {f1(2 * r)} 0'
+                         f'a{f1(r)} {f1(ry)} 0 1 1 {f1(-2 * r)} 0Z')
+            out_l.append(f'M{f1(cx - r * 0.1)} {f1(cy - ry)}A{f1(r)} {f1(ry)} 0 0 0 {f1(cx - r * 0.1)} {f1(cy + ry)}'
+                         f'A{f1(r * 0.55)} {f1(ry)} 0 0 1 {f1(cx - r * 0.1)} {f1(cy - ry)}Z')
     lay = doc.layer('Trees')
     lay.append(f'<path d="{"".join(out_s)}" fill="{shade_c}"/>')
     lay.append(f'<path d="{"".join(out_l)}" fill="{lit_c}"/>')
-
 
 # ---------------------------------------------------------------------------
 # fields, paddies, terraces
@@ -118,7 +153,13 @@ def fields(doc, G, H, L, P, rng, k=1.0, v_range=(-0.2, 0.55)):
                 sx2, sy2 = V.project(inner2[:, 0], inner2[:, 1], z2)
                 bunds.append('M' + 'L'.join(f'{f1(a)} {f1(b)}' for a, b in zip(sx2, sy2)) + 'Z')
             else:
-                tone = tones[int(rng.integers(0, len(tones)))]
+                # neighbouring parcels tend to carry the same crop, so the plain
+                # reads as blocks of land use rather than confetti
+                blk = T.fbm(np.array([cx * 14]), np.array([cy * 14]), 3, seed=T.SEED + 903)[0]
+                idx = int(np.clip((blk * 0.5 + 0.5) * len(tones), 0, len(tones) - 1))
+                if rng.random() < 0.28:
+                    idx = int(rng.integers(0, len(tones)))
+                tone = tones[idx]
                 paths[tone].append(d)
                 if rng.random() < 0.45:                          # furrows along the long side
                     for t in np.linspace(0.2, 0.8, 4):
@@ -146,8 +187,14 @@ def terraces(doc, G, H, L, P):
         z = V.sample(H, x, y) + 2
         for run in render.visible_runs(G, x, y, z, 3):
             d.append(K.d_poly(run, False, 1.2))
-    doc.layer('Terraces').append(f'<path d="{"".join(d)}" fill="none" stroke="{P["terraceLine"]}" '
-                                 f'stroke-width="0.6" stroke-opacity="0.6" stroke-linecap="round"/>')
+    # each riser drawn twice: a shadow under the step and a lit edge on top of
+    # it, so a terraced slope reads as stairs and not as contour lines
+    lay = doc.layer('Terraces')
+    dd = "".join(d)
+    lay.append(f'<path d="{dd}" fill="none" stroke="{P["shade"]}" stroke-width="1.5" stroke-opacity="0.35" '
+               f'transform="translate(0 1.6)"/>')
+    lay.append(f'<path d="{dd}" fill="none" stroke="{P["terraceLine"]}" '
+               f'stroke-width="0.7" stroke-opacity="0.75" stroke-linecap="round"/>')
 
 
 # ---------------------------------------------------------------------------

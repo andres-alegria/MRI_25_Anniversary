@@ -57,7 +57,7 @@ def ruler(doc, P, corner=(1.0, 0.0)):
                    f'fill="none" stroke="{P["inkSoft"]}" stroke-width="0.8"/>')
         out.append(text(xb + 8, (y1 + y2) / 2 + 5, name, P, TYPE['zone'], col=P['inkSoft']))
     # the periglacial belt overlaps grassland and snow: a thin second bracket
-    _, y1 = V.project(x0, y0, LC.SCREE_LOW); _, y2 = V.project(x0, y0, LC.SNOWLINE)
+    _, y1 = V.project(x0, y0, LC.PERMAFROST_LOW); _, y2 = V.project(x0, y0, 6400)
     out.append(f'<path d="M{f1(xb + 170)} {f1(y1)}L{f1(xb + 174)} {f1(y1)}L{f1(xb + 174)} {f1(y2)}L{f1(xb + 170)} {f1(y2)}" '
                f'fill="none" stroke="{P["permafrost"]}" stroke-width="0.8"/>')
     out.append(text(xb + 180, (y1 + y2) / 2 + 5, 'periglacial', P, TYPE['zone'] - 1, col=P['permafrost']))
@@ -71,10 +71,15 @@ def winds(doc, P, x=150, y=330):
     lay = doc.layer('Labels')
     lay.append(text(x, y - 22, 'moist winds from the west \u2192 forest on the windward side; open woodland in the rain shadow (east)',
                     P, TYPE['tick'], col=P['iceLine']))
+    # the streamlines rise over the range, so they read as air meeting ground
+    # rather than as marks floating in the sky
     for k in range(3):
-        yy = y + k * 22
-        lay.append(f'<path d="M{f1(x)} {f1(yy)}q40 -10 80 0t80 0" fill="none" stroke="{P["iceLine"]}" stroke-width="1.4" stroke-opacity="0.8"/>'
-                   f'<path d="M{f1(x + 152)} {f1(yy - 6)}l10 6l-10 6" fill="none" stroke="{P["iceLine"]}" stroke-width="1.4" stroke-opacity="0.8"/>')
+        yy = y + k * 26
+        rise = 54 - k * 10
+        lay.append(f'<path d="M{f1(x)} {f1(yy)}q60 -8 120 -2t150 {f1(-rise)}" fill="none" stroke="{P["iceLine"]}" '
+                   f'stroke-width="1.4" stroke-opacity="0.8"/>'
+                   f'<path d="M{f1(x + 262)} {f1(yy - rise - 7)}l10 5l-8 7" fill="none" stroke="{P["iceLine"]}" '
+                   f'stroke-width="1.4" stroke-opacity="0.8"/>')
 
 
 ICECLS = [None, ()]
@@ -92,11 +97,13 @@ def isolines(doc, G, P, cls=None):
     dd = np.abs(np.diff(np.nan_to_num(D, nan=9), axis=0)) > 0.012
     jump[1:] |= dd; jump[:-1] |= dd
     Z = np.where(G.mask & ~jump, G.pz, np.nan)
-    iso = K.lines(Z, [LC.SNOWLINE, LC.TREELINE])
-    for lv, col, name in [(LC.SNOWLINE, P['snowlineInk'], 'snowline'), (LC.TREELINE, P['treelineInk'], 'treeline')]:
+    iso = K.lines(Z, [LC.SNOWLINE, LC.TREELINE, LC.PERMAFROST_LOW])
+    for lv, col, name in [(LC.SNOWLINE, P['snowlineInk'], 'snowline'), (LC.TREELINE, P['treelineInk'], 'treeline'),
+                          (LC.PERMAFROST_LOW, P['permafrost'], 'permafrost')]:
         segs = [s for s in iso[lv] if len(s) > 25]
         d = ''.join(K.d_smooth(s, False, 2.0) for s in segs)
-        dash = '9 5' if lv == LC.SNOWLINE else '1 4'             # snowline: long dash; treeline: dots
+        # snowline: long dash; treeline: dots; permafrost limit: dash-dot
+        dash = '9 5' if lv == LC.SNOWLINE else ('1 4' if lv == LC.TREELINE else '11 3 2 3')
         cap = ' stroke-linecap="round"' if lv == LC.TREELINE else ''
         lay.append(f'<path d="{d}" fill="none" stroke="{col}" stroke-width="1.5" stroke-dasharray="{dash}" stroke-opacity="0.9"{cap}/>')
         if segs:
@@ -106,7 +113,8 @@ def isolines(doc, G, P, cls=None):
                 for q in sg[len(sg) // 5: 4 * len(sg) // 5: 6]:
                     xi, yi = int(q[0]), int(q[1])
                     # the label's whole run of text must lie on plain ground
-                    ok = q[0] < 1500
+                    # keep each name in its own part of the page
+                    ok = q[0] < (820 if lv == LC.PERMAFROST_LOW else 1500)
                     for dx in range(0, 200, 25):
                         xx = xi + dx
                         if not (0 <= yi < G.h and 0 <= xx < G.w and G.mask[yi, xx]):
@@ -120,7 +128,9 @@ def isolines(doc, G, P, cls=None):
             if best is None:
                 continue
             x, y = best
-            names.append(text(x + 6, y - 6, f'{name} ~{lv:,} m'.replace(',', ' '), P, TYPE['feature'] - 1, col=col))
+            txt = (f'permafrost below ~{lv:,} m' if lv == LC.PERMAFROST_LOW
+                   else f'{name} ~{lv:,} m').replace(',', ' ')
+            names.append(text(x + 6, y - 6, txt, P, TYPE['feature'] - 1, col=col))
 
 
 def spot_heights(doc, G, H, P):

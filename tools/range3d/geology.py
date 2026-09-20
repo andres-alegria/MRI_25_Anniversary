@@ -26,10 +26,12 @@ UNITS = ['gneiss', 'limestone', 'shale', 'sandstone', 'granite', 'hornfels', 'al
 
 STRUCTURE = dict(
     fold_amp=650, fold_wl=0.42, fold_phase=0.6,       # folds: amplitude m, wavelength (world), phase
+    cross_amp=300, cross_wl=0.62,                      # a gentler cross-fold, so the front face undulates too
     regional_dip=1200,                                 # beds sink this much from front to back, m
     sand_base=-150, shale_thick=330, lime_thick=430,   # beds: sandstone 420 m, shale, limestone (m)
     thrust_z0=2600, thrust_dip=14400, thrust_y=0.45,   # thrust plane z = z0 - dip*(y - y0): ~30° true dip
     thrust_throw=1100,                                 # the hanging wall (north) is lifted this much
+    vergence=0.045,                                    # fold axial planes lean toward the plain
     pluton=(0.02, 0.90, 0.24, 0.20, -2700, 4600),      # granite dome: cx, cy, rx, ry, base z, rise
     aureole=380,                                       # baked zone around the granite, m
     gravel_top=950, gravel_max=380,                    # river gravels under ground below this height, max thickness
@@ -47,25 +49,40 @@ def unit_at(x, y, z, ztop):
     # folds with their axes running east-west, so the west face cuts across
     # them (anticlines and synclines) and the south face runs along them;
     # a regional dip to the north makes the beds cut the slopes at an angle
-    fold = S['fold_amp'] * np.sin(2 * np.pi * (0.30 * x + 0.95 * y) / S['fold_wl'] + S['fold_phase']) \
+    # the axial planes lean toward the foreland, as folds in front of a thrust do
+    verge = S['vergence'] * z / 1000.0
+    fold = S['fold_amp'] * np.sin(2 * np.pi * (0.30 * x + 0.95 * y + verge) / S['fold_wl'] + S['fold_phase']) \
         + 230 * np.sin(2 * np.pi * (0.95 * y) / 0.23 + 1.3) * np.exp(z / 5000.0) \
+        + S['cross_amp'] * np.sin(2 * np.pi * (0.94 * x - 0.24 * y) / S['cross_wl'] + 2.1) \
         - S['regional_dip'] * y
     # the thrust: a plane dipping ~30° north, surfacing near y = 0.45
     zf = S['thrust_z0'] - S['thrust_dip'] * (y - S['thrust_y'])
     lift = np.where(z > zf, S['thrust_throw'], 0.0)          # the hanging wall rides up
     zr = z - fold - lift                                      # height within the unfolded pile
-    period = S['shale_thick'] + S['lime_thick'] + 420         # one sandstone-shale-limestone cycle
+    # the pile thickens and thins across the range, as real beds do, so the
+    # cut faces never show a stack of identical parallel bands
+    wedge = 1 + 0.16 * np.sin(2 * np.pi * (0.7 * x + 0.35 * y) / 0.9 + 0.8)
+    period = (S['shale_thick'] + S['lime_thick'] + 420) * wedge   # one sandstone-shale-limestone cycle
     ph = np.mod(zr - S['sand_base'], period)
-    code = np.where(ph < 420, 3, np.where(ph < 420 + S['shale_thick'], 2, 1))
+    code = np.where(ph < 420 * wedge, 3, np.where(ph < (420 + S['shale_thick']) * wedge, 2, 1))
+    # one thin, distinctive bed near the base of each limestone: a marker the
+    # eye can follow round the folds and across the fault
+    marker = np.abs(ph - (420 + S['shale_thick'] + 90) * wedge) < 45 * wedge
     code = np.where(zr < -1700, 0, code)                      # the basement
     cx, cy, rx, ry, zb, rise = S['pluton']
-    zg = zb + rise * np.exp(-(((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2))
+    bump = (1 + 0.17 * np.sin(11.0 * x + 1.7) + 0.13 * np.sin(15.0 * y - 0.6)
+            + 0.10 * np.sin(23.0 * x + 7.0 * y))          # cupolas and hollows in the roof
+    zg = zb + rise * bump * np.exp(-(((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2))
+    # two apophyses: narrow tongues of granite pushing up into the cover
+    for ax_, ay_, aw in ((0.10, 0.84, 0.030), (0.21, 0.93, 0.024)):
+        zg = np.maximum(zg, zb + rise * 1.22 * np.exp(-(((x - ax_) / aw) ** 2 + ((y - ay_) / (aw * 2.4)) ** 2)))
     code = np.where((z < zg + S['aureole']) & (z >= zg), 5, code)
     code = np.where(z < zg, 4, code)
     gravel = np.clip((S['gravel_top'] - ztop) / 650, 0, 1) * S['gravel_max']
     code = np.where(z > ztop - gravel - 60, 6, code)
     code = np.where(z > ztop - 55, 7, code)
-    return code, zf
+    marker = marker & (code == 1)
+    return code, zf, marker
 
 
 def face_geometry(face):
@@ -93,7 +110,7 @@ def draw(doc, H, P, rng, tone_of, frame=(0.0, 0.0, 1.0)):
         Xg = np.broadcast_to(x, Zg.shape); Yg = np.broadcast_to(y, Zg.shape)
         top = np.broadcast_to(ztop, Zg.shape)
         fx0, fy0, fsz = frame                                  # clips: local -> world coordinates
-        code, zf = unit_at(fx0 + Xg * fsz, fy0 + Yg * fsz, Zg, top)
+        code, zf, marker = unit_at(fx0 + Xg * fsz, fy0 + Yg * fsz, Zg, top)
         below = Zg <= top
         # raster (row = z index, col = s index) -> screen: the face is planar
         def to_screen(pts):
@@ -119,6 +136,19 @@ def draw(doc, H, P, rng, tone_of, frame=(0.0, 0.0, 1.0)):
                     d.append(K.d_poly(ring, True, 1.0))
             lay.append(f'<path d="{"".join(d)}" fill="{tone_of(P[name], tone)}" fill-rule="evenodd" '
                        f'stroke="{P["shade"]}" stroke-width="0.35" stroke-opacity="0.6"/>')
+        # the marker bed, painted last over the units so it reads as one band
+        mk = marker & below
+        if mk.sum() > 20:
+            m = np.pad(mk.astype(float), 1)
+            gen = contourpy.contour_generator(z=m, fill_type='OuterOffset')
+            polys, offs = gen.filled(0.5, 9)
+            d = []
+            for pts, off in zip(polys, offs):
+                pts = pts - 1
+                for i in range(len(off) - 1):
+                    d.append(K.d_poly(to_screen(pts[off[i]:off[i + 1]]), True, 1.0))
+            lay.append(f'<path d="{"".join(d)}" fill="{tone_of(P["marker"], tone)}" fill-rule="evenodd" '
+                       f'stroke="{P["shade"]}" stroke-width="0.3" stroke-opacity="0.5"/>')
         # symbols, on a jittered grid in (s, z)
         marks = {n: [] for n in UNITS}
         for si in range(4, len(s) - 4, 7):
@@ -175,7 +205,16 @@ def draw(doc, H, P, rng, tone_of, frame=(0.0, 0.0, 1.0)):
         # the water table in the gravels under the plain
         plain = ztop < S['gravel_top'] - 150
         if face == 'south' and plain.sum() > 10:
-            wt = ztop - 45 - 25 * np.sin(s * 11)
+            # a subdued replica of the surface — deep under high ground, rising
+            # to daylight at the river, as a gaining stream requires
+            kern = np.ones(31) / 31
+            zsm = np.convolve(np.pad(ztop, (15, 15), mode='edge'), kern, 'valid')
+            z0 = float(ztop[plain].min())
+            wt = z0 + 0.30 * (zsm - z0) - 8
+            i0 = int(np.argmin(np.where(plain, ztop, 1e9)))          # the river: the lowest ground
+            pull = np.exp(-((np.arange(len(ztop)) - i0) / 16.0) ** 2)
+            wt = wt * (1 - pull) + (ztop - 3) * pull
+            wt = np.minimum(wt, ztop - 3)
             pts = np.stack(V.project(x[plain], y[plain], wt[plain]), 1)
             lay.append(f'<path d="{K.d_poly(pts, False, 1)}" fill="none" stroke="{P["waterLine"]}" stroke-width="1.1" stroke-dasharray="6 3"/>')
             j = int(len(pts) * 0.30)

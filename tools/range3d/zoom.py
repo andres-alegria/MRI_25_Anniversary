@@ -231,9 +231,13 @@ def agri_cover(wc, Lc):
     water = cls == LC.WATER
     cls[:] = LC.FIELD
     cls[(sl < 3.5) & (H < lo + 60 + 25 * noise)] = LC.PADDY
-    ter = (H > lo + 70) & (H < lo + 560 + 120 * noise) & (sl > 4) & (sl < 32) & (noise > -0.2)
+    # terraces are cut where a village can work them: a band on the foot-slope,
+    # in blocks rather than over every hillside, with rough ground between
+    blocks = T.fbm(X * 11, Y * 11, 4, seed=407)
+    ter = ((H > lo + 110) & (H < lo + 430 + 90 * noise) & (sl > 6) & (sl < 26)
+           & (blocks > 0.02))
     cls[ter] = LC.TERRACE
-    cls[(H > lo + 560 + 120 * noise) | (sl > 34) | ((sl > 8) & ~ter & (H > lo + 70))] = LC.FOREST
+    cls[(H > lo + 620 + 90 * noise) | (sl > 30) | ((sl > 17) & ~ter & (H > lo + 150))] = LC.FOREST
     cls[water] = LC.WATER
     return cls
 
@@ -263,7 +267,7 @@ def agriculture(out):
     lo = float(np.percentile(H, 2))
     F.fields(doc, G, H, Lc, P, rng, k=1 / cfg['size'] * 0.75, v_range=(-0.3, 1.3))
     terraces_clip(doc, G, H, Lc)
-    F.trees(doc, G, H, Lc, P, rng, scale=2.1, step=0.017)
+    F.trees(doc, G, H, Lc, P, rng, scale=1.45, step=0.0215)
     # the canal: it follows a contour just above the paddies, as a real one must
     lay = doc.layer('Streams')
     segs = [seg for lv, seg in R.world_lines(H, [lo + 72]) if len(seg) > 40]
@@ -289,12 +293,12 @@ def agriculture(out):
     for k, (x, y) in enumerate(sorted(spots, key=lambda q: -q[1])):
         sx, sy = at(H, x, y)
         if k % 4 == 3:
-            pl.append(buffalo(sx, sy, 2.4, 1 if k % 2 else -1))
+            pl.append(buffalo(sx, sy, 1.5, 1 if k % 2 else -1))
             pl.append(ST.person(sx + 26, sy, P, staff=True, k=2.4))
         else:
-            pl.append(farmer_bent(sx, sy, 2.5, 1 if k % 2 else -1))
-            pl.append(farmer_bent(sx + 18, sy + 5, 2.3, -1 if k % 2 else 1))
-            pl.append(farmer_bent(sx - 16, sy + 3, 2.2, 1))
+            pl.append(farmer_bent(sx, sy, 1.6, 1 if k % 2 else -1))
+            pl.append(farmer_bent(sx + 13, sy + 4, 1.5, -1 if k % 2 else 1))
+            pl.append(farmer_bent(sx - 11, sy + 2, 1.4, 1))
     # the village on the foot-slope between the paddies and the terraces
     vsites = find(Lc, H, G, (H > lo + 85) & (H < lo + 200) & (sl < 12), rng, n=1)
     sl_ = doc.layer('Settlements')
@@ -309,8 +313,13 @@ def agriculture(out):
     tsites = find(Lc, H, G, (cls == LC.FIELD) & (sl < 3), rng, n=1)
     if tsites:
         tw = at(H, *tsites[0])
-        sl_.append(f'<path d="M{f1(tw[0])} {f1(tw[1])}l0 -18" stroke="{P["concrete"]}" stroke-width="2.2"/>'
-                   f'<path d="M{f1(tw[0] + 4)} {f1(tw[1] - 5)}l16 -5l0 -9l-16 5Z" fill="{P["solar"]}" stroke="{P["solarFrame"]}" stroke-width="0.8"/>')
+        x_, y_ = tw
+        sl_.append(
+            f'<path d="M{f1(x_)} {f1(y_)}l0 -30" stroke="{P["concrete"]}" stroke-width="3"/>'
+            f'<path d="M{f1(x_ + 5)} {f1(y_ - 12)}l26 -8l0 -15l-26 8Z" fill="{P["solar"]}" stroke="{P["solarFrame"]}" stroke-width="1.2"/>'
+            f'<rect x="{f1(x_ - 22)}" y="{f1(y_ - 20)}" width="15" height="13" rx="2" fill="{P["sheet"]}" stroke="{P["concrete"]}" stroke-width="1"/>'
+            f'<path d="M{f1(x_ - 22)} {f1(y_ - 20)}l7 -5l15 0l-7 5Z" fill="{P["concrete"]}"/>'
+            f'<path d="M{f1(x_ - 15)} {f1(y_ - 7)}l0 5l-16 3" stroke="{P["waterLine"]}" stroke-width="2" fill="none"/>')
         callout(doc, *tw, 'solar-powered tube well', 70, 60)
     # labels, anchored on what they name
     if spots:
@@ -321,7 +330,7 @@ def agriculture(out):
     ts = find(Lc, H, G, cls == LC.TERRACE, rng, n=1)
     if ts:
         callout(doc, *at(H, *ts[0]), 'terraced slopes: millet, maize, vegetables', -50, -90)
-    title(doc, cfg, 'Food from the plain below the range: rice fed by glacier and monsoon water, a contour canal, terraced foot-slopes', 10)
+    title(doc, cfg, 'Food from the plain below the range: rice fed by glacier and monsoon water, a contour canal, terraced foot-slopes', 2)
     scale_bar(doc, cfg)
     open(out, 'w').write(doc.svg())
     return doc
@@ -333,7 +342,7 @@ def urban(out):
     fr = wc['frame']
     cls, sl = Lc['cls'], Lc['slope']
     F.fields(doc, G, H, Lc, P, rng, k=1 / cfg['size'] * 0.75, v_range=(-0.3, 1.3))
-    F.trees(doc, G, H, Lc, P, rng, scale=2.0, step=0.018)
+    F.trees(doc, G, H, Lc, P, rng, scale=1.4, step=0.0215)
     # the river through town, in the clip's own coordinates
     riv = F.densify(world_to_local(T.MAIN_RIVER, fr), 0.003)
     riv = riv[(riv[:, 0] > 0.0) & (riv[:, 0] < 1.0) & (riv[:, 1] > 0.0) & (riv[:, 1] < 1.0)]
@@ -364,7 +373,7 @@ def urban(out):
     lay.append(f'<path d="M{f1(pa[0])} {f1(pa[1])}L{f1(pb[0])} {f1(pb[1])}" stroke="{P["shade"]}" stroke-width="9" stroke-linecap="round"/>'
                f'<path d="M{f1(pa[0])} {f1(pa[1])}L{f1(pb[0])} {f1(pb[1])}" stroke="{P["concrete"]}" stroke-width="6" stroke-linecap="round"/>')
     # the flood embankment along the town bank
-    emb = np.clip(riv + np.array([0.0, -0.042]), 0.01, 0.99)
+    emb = np.clip(riv + np.array([0.0, -0.062]), 0.01, 0.99)   # on the town's bank, between water and houses
     for r in draped(G, H, emb, 10):
         lay.append(f'<path d="{K.d_smooth(r, False, 1.5)}" fill="none" stroke="{P["shade"]}" stroke-width="6" stroke-opacity="0.6"/>'
                    f'<path d="{K.d_smooth(r, False, 1.5)}" fill="none" stroke="{P["concrete"]}" stroke-width="3.4" stroke-linecap="round"/>')
@@ -375,7 +384,7 @@ def urban(out):
     oc = np.array([np.percentile(tx, 35), ty.mean()])                 # the old core, west part of the town ground
     F.settlement(doc, G, H, Lc, P, rng, oc[0], oc[1], 0.17, 360, 'town', k=1.7, gap=(11, 7))
     # the new quarter across the river: mid-rise blocks and a crane
-    nq = np.array([np.percentile(tx, 88), np.percentile(ty, 55)])     # the new quarter, east end of town
+    nq = np.array([np.percentile(tx, 78), np.percentile(ty, 55)])     # the new quarter, east end of town
     blocks = []
     for i in range(4):
         for j in range(3):
@@ -407,7 +416,7 @@ def urban(out):
     for p_ in sorted(placed, key=lambda q: q[1]):
         sl_.append(shack(p_[0], p_[1], 1.6, [P['wallLit'], P['shackB'], P['shackC']][int(rng.integers(3))]))
     # water treatment and the bus station
-    wt = at(H, *(mid + np.array([0.26, -0.05])))
+    wt = at(H, *(mid + np.array([0.20, -0.21])))              # on land, downstream of the town
     for dx in (0, 22, 44):
         lay.append(f'<ellipse cx="{f1(wt[0] + dx)}" cy="{f1(wt[1])}" rx="9" ry="4.5" fill="{P["water"]}" stroke="{P["concrete"]}" stroke-width="2"/>')
     bs = at(H, *(mid + np.array([-0.20, -0.16])))
