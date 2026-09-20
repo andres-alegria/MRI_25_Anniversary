@@ -474,17 +474,18 @@ def pictograms(doc, G, H, P):
     # trekkers with packs on the trail above the lodge, and the lodge
     lx, ly = 0.335, 0.505
     p_ = V.project(lx, ly, V.sample(H, lx, ly))
-    out.append(F.box(p_[0] - 14, p_[1] + 2, 22, 12, 9, 'gable', dict(P, roof=P['metalRoof'])))
-    for i, (dx, dy) in enumerate([(0.012, 0.010), (0.018, 0.016), (0.024, 0.021)]):
+    out.append(F.box(p_[0] - 30, p_[1] + 8, 22, 12, 9, 'gable', dict(P, roof=P['metalRoof'])))
+    for i, (dx, dy) in enumerate([(0.021, 0.018), (0.027, 0.024), (0.033, 0.030)]):
         q = V.project(lx + dx, ly + dy, V.sample(H, lx + dx, ly + dy))
         out.append(person(q[0], q[1], P, staff=True, load=True, k=2.3))
     # the painter at an easel, at the viewpoint
     vx, vy = 0.545, 0.275
     q = V.project(vx, vy, V.sample(H, vx, vy))
-    out.append(person(q[0] - 10, q[1], P, k=2.5))
-    out.append(f'<path d="M{f1(q[0] + 2)} {f1(q[1])}L{f1(q[0] + 8)} {f1(q[1] - 24)}L{f1(q[0] + 14)} {f1(q[1])}M{f1(q[0] + 8)} {f1(q[1] - 24)}l0 24" '
+    ex = q[0] + 30                                       # aside from the station number above the anchor
+    out.append(person(ex - 10, q[1] + 4, P, k=2.5))
+    out.append(f'<path d="M{f1(ex + 2)} {f1(q[1] + 4)}L{f1(ex + 8)} {f1(q[1] - 20)}L{f1(ex + 14)} {f1(q[1] + 4)}M{f1(ex + 8)} {f1(q[1] - 20)}l0 24" '
                f'stroke="{P["figure"]}" stroke-width="1.3" fill="none"/>')
-    out.append(f'<rect x="{f1(q[0] + 1)}" y="{f1(q[1] - 24)}" width="15" height="11" fill="{P["light"]}" stroke="{P["shade"]}" stroke-width="0.8"/>')
+    out.append(f'<rect x="{f1(ex + 1)}" y="{f1(q[1] - 20)}" width="15" height="11" fill="{P["light"]}" stroke="{P["shade"]}" stroke-width="0.8"/>')
     # rows of planted saplings and check dams on the restored slope
     rx, ry = 0.205, 0.44
     for row in range(3):
