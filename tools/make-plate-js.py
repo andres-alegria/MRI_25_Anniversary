@@ -132,6 +132,7 @@ js = '''/* ---------------------------------------------------------------------
     var placed = [];
     document.querySelectorAll('button').forEach(function (btn) {
       if (!/border-radius:\\s*50%%/.test(btn.getAttribute('style') || '')) return;
+      if (!/^\\d{1,2}$/.test((btn.textContent || '').trim())) return;   /* not a station */
       var num = parseInt(btn.textContent.trim(), 10);
       var node = plate.byClimb[num] || plate.nodes[num];
       var wrap = btn.parentElement;
@@ -220,6 +221,11 @@ js = '''/* ---------------------------------------------------------------------
   window.MRI_PLATE.relayout = relayout;
 })();
 ''' % dict(W=W, H=H, table=table)
+
+# the reading aids live in their own file, appended so the page gets one script
+extra = (ROOT / 'tools' / 'plate-enhance.js')
+if extra.exists():
+    js = js + '\n' + extra.read_text()
 
 (ROOT / 'plate.js').write_text(js)
 print('wrote plate.js — %d stations' % len(st['stations']))

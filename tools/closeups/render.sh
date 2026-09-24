@@ -5,7 +5,8 @@ HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"
 THEME=${1:-light}
 OUT="$ROOT/closeups"; mkdir -p "$OUT"
 TMP="$(mktemp -d)"
-cat "$HERE"/{figures,built,instruments,ice,land}.js "$HERE/compositions.js" "$HERE/composer.js" > "$TMP/vignettes.js"
+# ink.js FIRST: the composer passes every motif through the ink engine
+cat "$HERE/ink.js" "$HERE"/{figures,built,instruments,ice,land}.js "$HERE/compositions.js" "$HERE/composer.js" > "$TMP/vignettes.js"
 cat > "$TMP/stub.js" <<JS
 const hex=c=>{const m=/^#([0-9a-f]{6})$/i.exec(String(c).trim());return m?[0,2,4].map(i=>parseInt(m[1].substr(i,2),16)):null;};
 const toHex=a=>'#'+a.map(v=>Math.round(Math.max(0,Math.min(255,v))).toString(16).padStart(2,'0')).join('');
@@ -17,6 +18,7 @@ global.MRI_SURVEY_FOCUS=Number(process.env.FOCUS);
 global.document={querySelector:()=>null,querySelectorAll:()=>[],createElement:()=>({set innerHTML(v){},get firstElementChild(){return null;}}),createElementNS:()=>({setAttribute(){},appendChild(){}})};
 require('$ROOT/stories-data.js'); require('$TMP/vignettes.js'); require('$ROOT/plate.js');
 process.stdout.write(window.MRI_PLATE.svg);
+process.exit(0);   // plate.js leaves a timer running; do not wait it out
 JS
 cat > "$TMP/frame.html" <<'HTML'
 <!doctype html><meta charset=utf-8><style>body{margin:0;background:#000}</style><img id=i style="width:1800px;display:block"><script>document.getElementById('i').src=location.search.slice(1);</script>

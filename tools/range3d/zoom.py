@@ -21,7 +21,8 @@ import story as ST
 f1 = K.f1
 P = R.PAL
 CANVAS = (1800, 1300)          # clip canvas, px — adjust here
-CLIP_VE = 1.8                  # true vertical exaggeration of the clips — adjust here
+CLIP_VE = 1.0                  # true vertical exaggeration of the clips (1 = none) — adjust here
+ICON = 2.1                     # how much larger the motifs are than on the whole plate
 
 
 def world_to_local(pts, frame):
@@ -464,13 +465,13 @@ MOTIFS = {                      # story number -> the things drawn on its clip
     25: ('boulders', 'mast'),               # Permafrost
 }
 BESPOKE = {10: 'agriculture', 16: 'urban'}      # the two clips drawn by hand
-CLIP_SIZE = {1: 0.17, 3: 0.17, 20: 0.15, 24: 0.18, 25: 0.17}   # tighter windows
+CLIP_SIZE = {1: 0.12, 3: 0.12, 20: 0.11, 24: 0.13, 25: 0.12}   # tighter still
 
 
 def story_cfg(num):
     """The window for one story: centred on its station, inside the block."""
     st = [s for s in ST.STATIONS if s[0] == num][0]
-    size = CLIP_SIZE.get(num, 0.21)
+    size = CLIP_SIZE.get(num, 0.13)   # a tighter window: the motifs carry the clip
     x0 = float(np.clip(st[1] - size / 2, 0.0, 1.0 - size))
     y0 = float(np.clip(st[2] - size / 2, 0.0, 1.0 - size))
     return dict(x0=x0, y0=y0, size=size, title=ST.TOPICS[num])
@@ -549,25 +550,25 @@ def motif(doc, kind, Lc, H, G, rng, P_):
     farm = [LC.FIELD, LC.TERRACE, LC.PADDY, LC.ALPINE, LC.DRY, LC.GROUND]
     if kind == 'village':
         for (x, y) in _sites(Lc, H, G, rng, farm, 1, smax=14):
-            F.settlement(doc, G, H, Lc, P_, rng, x, y, 0.055, 16, 'village', k=2.2, gap=(20, 13))
+            F.settlement(doc, G, H, Lc, P_, rng, x, y, 0.09, 20, 'village', k=2.2 * ICON, gap=(5.5, 3.5))
             for dx, dy in ((-0.02, 0.012), (0.022, -0.008)):
                 q = at(H, np.clip(x + dx, 0.02, 0.98), np.clip(y + dy, 0.02, 0.98))
-                sl_.append(granary(q[0], q[1], 1.3))
+                sl_.append(granary(q[0], q[1], 1.3 * ICON))
     elif kind == 'village-emptying':
         for (x, y) in _sites(Lc, H, G, rng, farm, 1, smax=14):
-            F.settlement(doc, G, H, Lc, P_, rng, x, y, 0.05, 9, 'village', k=2.2, gap=(26, 17))
+            F.settlement(doc, G, H, Lc, P_, rng, x, y, 0.08, 11, 'village', k=2.2 * ICON, gap=(7, 4.5))
             for dx, dy in ((-0.03, 0.02), (0.03, 0.015), (0.01, -0.03)):   # roofless, abandoned
                 q = at(H, np.clip(x + dx, 0.02, 0.98), np.clip(y + dy, 0.02, 0.98))
-                sl_.append(f'<rect x="{f1(q[0] - 7)}" y="{f1(q[1] - 7)}" width="14" height="7" fill="none" '
+                sl_.append(f'<rect x="{f1(q[0] - 7)}" y="{f1(q[1] - 7)}" width="{f1(14 * ICON)}" height="{f1(7 * ICON)}" fill="none" '
                            f'stroke="{P_["wallShade"]}" stroke-width="1.3"/>')
     elif kind == 'market':
         for (x, y) in _sites(Lc, H, G, rng, farm, 1, smax=12):
             q = at(H, x, y)
-            sl_.append(market(q[0], q[1], 1.4))
+            sl_.append(market(q[0], q[1], 1.4 * ICON))
     elif kind == 'people':
         for (x, y) in _sites(Lc, H, G, rng, farm + [LC.FOREST], 3, spacing=0.05, smax=22):
             q = at(H, x, y)
-            pl.append(ST.person(q[0], q[1], P_, staff=rng.random() < 0.5, k=1.3))
+            pl.append(ST.person(q[0], q[1], P_, staff=rng.random() < 0.5, k=1.3 * ICON))
     elif kind == 'herd':
         for (x, y) in _sites(Lc, H, G, rng, [LC.ALPINE, LC.DRY], 1, smax=18):
             ST.herd(doc, G, H, Lc, P_, rng, x, y, 8, 'yak' if rng.random() < 0.5 else 'llama')
@@ -575,61 +576,61 @@ def motif(doc, kind, Lc, H, G, rng, P_):
         for (x, y) in _sites(Lc, H, G, rng, [LC.ALPINE, LC.DRY, LC.GROUND], 1, smax=16):
             c = at(H, x, y)
             ux, vy = F.axes()
-            ring = np.array([c + ux * 22 * np.cos(t) + vy * 14 * np.sin(t) for t in np.linspace(0, 2 * np.pi, 26)])
+            ring = np.array([c + ux * 22 * ICON * np.cos(t) + vy * 14 * ICON * np.sin(t) for t in np.linspace(0, 2 * np.pi, 26)])
             sl_.append(f'<path d="{K.d_poly(ring, True, 0.6)}" fill="{P_["alpine"]}" fill-opacity="0.35" '
                        f'stroke="{P_["wallLit"]}" stroke-width="1.6"/>')
-            sl_.append(F.box(c[0] - 34, c[1] - 4, 18, 11, 8, 'flat', dict(P_, roofFlat=P_['thatch'])))
-            for k_, (dx_, dy_) in enumerate(((-8, 3), (4, -2), (10, 5))):
-                pl.append(ST.animal(c[0] + dx_, c[1] + dy_, 'yak' if k_ else 'llama', 1 if k_ % 2 else -1, P_, 0.75))
+            sl_.append(F.box(c[0] - 34 * ICON, c[1] - 4, 18 * ICON, 11 * ICON, 8 * ICON, 'flat', dict(P_, roofFlat=P_['thatch'])))
+            for k_, (dx_, dy_) in enumerate(((-8 * ICON, 3 * ICON), (4 * ICON, -2 * ICON), (10 * ICON, 5 * ICON))):
+                pl.append(ST.animal(c[0] + dx_, c[1] + dy_, 'yak' if k_ else 'llama', 1 if k_ % 2 else -1, P_, 0.75 * ICON))
     elif kind == 'camp':
         for (x, y) in _sites(Lc, H, G, rng, [LC.ALPINE, LC.DRY, LC.SCREE, LC.GROUND], 1, smax=16):
             q = at(H, x, y)
-            pl.append(f'<path d="M{f1(q[0] - 9)} {f1(q[1])}L{f1(q[0])} {f1(q[1] - 12)}L{f1(q[0] + 9)} {f1(q[1])}Z" '
+            pl.append(f'<path d="M{f1(q[0] - 9 * ICON)} {f1(q[1])}L{f1(q[0])} {f1(q[1] - 12 * ICON)}L{f1(q[0] + 9 * ICON)} {f1(q[1])}Z" '
                       f'fill="{P_["tentWhite"]}" stroke="{P_["shade"]}" stroke-width="0.6"/>')
-            pl.append(f'<path d="M{f1(q[0] - 2)} {f1(q[1])}L{f1(q[0])} {f1(q[1] - 5)}L{f1(q[0] + 2)} {f1(q[1])}Z" fill="{P_["tent"]}"/>')
-            pl.append(ST.person(q[0] + 15, q[1], P_, staff=True, k=1.3))
+            pl.append(f'<path d="M{f1(q[0] - 2 * ICON)} {f1(q[1])}L{f1(q[0])} {f1(q[1] - 5 * ICON)}L{f1(q[0] + 2 * ICON)} {f1(q[1])}Z" fill="{P_["tent"]}"/>')
+            pl.append(ST.person(q[0] + 15 * ICON, q[1], P_, staff=True, k=1.3 * ICON))
     elif kind == 'trekkers':
         for (x, y) in _sites(Lc, H, G, rng, [LC.ALPINE, LC.FOREST, LC.DRY], 1, smax=22):
             for i in range(3):
                 q = at(H, np.clip(x + i * 0.012, 0.02, 0.98), np.clip(y + i * 0.01, 0.02, 0.98))
-                pl.append(ST.person(q[0], q[1], P_, staff=True, load=True, k=1.35))
+                pl.append(ST.person(q[0], q[1], P_, staff=True, load=True, k=1.35 * ICON))
     elif kind == 'lodge':
         for (x, y) in _sites(Lc, H, G, rng, [LC.ALPINE, LC.FOREST, LC.DRY], 1, smax=14):
             q = at(H, x, y)
-            sl_.append(F.box(q[0], q[1], 30, 17, 12, 'gable', dict(P_, roof=P_['metalRoof'])))
+            sl_.append(F.box(q[0], q[1], 30 * ICON, 17 * ICON, 12 * ICON, 'gable', dict(P_, roof=P_['metalRoof'])))
     elif kind == 'stupa':
         for (x, y) in _sites(Lc, H, G, rng, farm + [LC.FOREST], 1, smax=16):
             q = at(H, x, y)
-            sl_.append(stupa(q[0], q[1], 1.2))
+            sl_.append(stupa(q[0], q[1], 1.2 * ICON))
     elif kind == 'mast':
         for (x, y) in _sites(Lc, H, G, rng, [LC.ROCK, LC.SCREE, LC.ALPINE, LC.DRYROCK, LC.SNOW], 1, smax=26):
             q = at(H, x, y)
-            inf.append(mast(q[0], q[1], 1.15))
+            inf.append(mast(q[0], q[1], 1.15 * ICON))
     elif kind == 'hut':
         for (x, y) in _sites(Lc, H, G, rng, [LC.ROCK, LC.SCREE, LC.ALPINE, LC.DRYROCK], 1, smax=20):
             q = at(H, x, y)
-            sl_.append(F.box(q[0], q[1], 20, 12, 9, 'flat', dict(P_, roofFlat=P_['metalRoof'])))
+            sl_.append(F.box(q[0], q[1], 20 * ICON, 12 * ICON, 9 * ICON, 'flat', dict(P_, roofFlat=P_['metalRoof'])))
     elif kind == 'pillar':
         j, i = np.unravel_index(H.argmax(), H.shape)
         q = at(H, i / (H.shape[0] - 1), j / (H.shape[0] - 1))
-        sl_.append(pillar(q[0], q[1], 1.2))
+        sl_.append(pillar(q[0], q[1], 1.2 * ICON))
     elif kind == 'stakes':
         for (x, y) in _sites(Lc, H, G, rng, [LC.SNOW, LC.GLACIER, LC.SCREE], 4, spacing=0.035, smax=26):
             q = at(H, x, y)
-            inf.append(stake(q[0], q[1], 1.1))
+            inf.append(stake(q[0], q[1], 1.1 * ICON))
     elif kind == 'roped-party':
         for (x, y) in _sites(Lc, H, G, rng, [LC.GLACIER, LC.SNOW], 1, smax=24):
             pts = [at(H, np.clip(x + i * 0.01, 0.02, 0.98), np.clip(y + i * 0.008, 0.02, 0.98)) for i in range(3)]
             for a_, b_ in zip(pts[:-1], pts[1:]):
                 pl.append(f'<path d="M{f1(a_[0])} {f1(a_[1] - 6)}L{f1(b_[0])} {f1(b_[1] - 6)}" stroke="{P_["red"]}" stroke-width="1.1"/>')
             for q in pts:
-                pl.append(ST.person(q[0], q[1], P_, staff=True, k=1.3))
+                pl.append(ST.person(q[0], q[1], P_, staff=True, k=1.3 * ICON))
     elif kind == 'boulders':
         for (x, y) in _sites(Lc, H, G, rng, [LC.SCREE, LC.ROCK, LC.DRYROCK], 1, smax=30):
             c = at(H, x, y)
             for i in range(26):
-                a_ = c + np.array([rng.normal(0, 26), rng.normal(0, 11)])
-                r_ = 1.6 + rng.random() * 2.4
+                a_ = c + np.array([rng.normal(0, 26 * ICON), rng.normal(0, 11 * ICON)])
+                r_ = (1.6 + rng.random() * 2.4) * ICON
                 inf.append(f'<ellipse cx="{f1(a_[0])}" cy="{f1(a_[1])}" rx="{f1(r_ * 1.5)}" ry="{f1(r_)}" '
                            f'fill="{P_["rockGlacier"]}" fill-opacity="0.8" stroke="{P_["shade"]}" stroke-width="0.4"/>')
     elif kind == 'saplings':
@@ -637,11 +638,11 @@ def motif(doc, kind, Lc, H, G, rng, P_):
             for r_ in range(3):
                 for c_ in range(5):
                     q = at(H, np.clip(x + c_ * 0.009 - 0.018, 0.02, 0.98), np.clip(y + r_ * 0.009 - 0.009, 0.02, 0.98))
-                    pl.append(sapling(q[0], q[1], 1.1))
+                    pl.append(sapling(q[0], q[1], 1.1 * ICON))
     elif kind == 'checkdams':
         for (x, y) in _sites(Lc, H, G, rng, [LC.GROUND, LC.ALPINE, LC.DRY, LC.SCREE], 3, spacing=0.03, smax=30):
             q = at(H, x, y)
-            inf.append(checkdam(q[0], q[1], 1.2))
+            inf.append(checkdam(q[0], q[1], 1.2 * ICON))
     elif kind == 'border':
         n_ = H.shape[0] - 1
         col = int(np.clip(np.argmax(H.max(0)), 0.15 * n_, 0.85 * n_))
@@ -655,7 +656,7 @@ def motif(doc, kind, Lc, H, G, rng, P_):
             inf.append(f'<path d="{K.d_smooth(np.array(pts), False, 1.4)}" fill="none" stroke="{P_["ink"]}" '
                        f'stroke-width="1.6" stroke-dasharray="10 4 2 4" stroke-opacity="0.85"/>')
             for q in (pts[2], pts[-3]):
-                inf.append(post(q[0], q[1], 1.1))
+                inf.append(post(q[0], q[1], 1.1 * ICON))
     elif kind == 'mine':
         for (x, y) in _sites(Lc, H, G, rng, [LC.ROCK, LC.SCREE, LC.DRY, LC.DRYROCK, LC.ALPINE], 1, smax=24):
             ST.mine(doc, G, H, Lc, P_, x, y)
@@ -664,7 +665,7 @@ def motif(doc, kind, Lc, H, G, rng, P_):
             tops = []
             for i in range(4):
                 q = at(H, np.clip(x + i * 0.035 - 0.05, 0.03, 0.97), np.clip(y + i * 0.02 - 0.03, 0.03, 0.97))
-                hh = 26
+                hh = 26 * ICON
                 inf.append(f'<path d="M{f1(q[0] - 5)} {f1(q[1])}L{f1(q[0])} {f1(q[1] - hh)}L{f1(q[0] + 5)} {f1(q[1])}'
                            f'M{f1(q[0] - 7)} {f1(q[1] - hh + 5)}L{f1(q[0] + 7)} {f1(q[1] - hh + 5)}" fill="none" '
                            f'stroke="{P_["pylon"]}" stroke-width="1" stroke-opacity="0.85"/>')
@@ -675,7 +676,7 @@ def motif(doc, kind, Lc, H, G, rng, P_):
     elif kind == 'powerhouse':
         for (x, y) in _sites(Lc, H, G, rng, farm + [LC.FOREST], 1, smax=12):
             q = at(H, x, y)
-            sl_.append(F.box(q[0], q[1], 26, 15, 11, 'flat', dict(P_, roofFlat=P_['metalRoof'])))
+            sl_.append(F.box(q[0], q[1], 26 * ICON, 15 * ICON, 11 * ICON, 'flat', dict(P_, roofFlat=P_['metalRoof'])))
             inf.append(f'<rect x="{f1(q[0] + 18)}" y="{f1(q[1] - 6)}" width="20" height="10" fill="{P_["shade"]}" '
                        f'fill-opacity="0.45" stroke="{P_["pylon"]}" stroke-width="0.8"/>')
     elif kind == 'canal':
@@ -704,11 +705,11 @@ def motif(doc, kind, Lc, H, G, rng, P_):
     elif kind == 'terrace-farmers':
         for (x, y) in _sites(Lc, H, G, rng, [LC.TERRACE, LC.FIELD, LC.DRY], 3, spacing=0.04, smax=26):
             q = at(H, x, y)
-            pl.append(farmer_bent(q[0], q[1], 1.5, 1 if rng.random() < 0.5 else -1))
+            pl.append(farmer_bent(q[0], q[1], 1.5 * ICON, 1 if rng.random() < 0.5 else -1))
     elif kind == 'painter':
         for (x, y) in _sites(Lc, H, G, rng, [LC.ALPINE, LC.FOREST, LC.DRY, LC.SCREE], 1, smax=22):
             q = at(H, x, y)
-            pl.append(ST.person(q[0] - 8, q[1], P_, k=1.5))
+            pl.append(ST.person(q[0] - 8 * ICON, q[1], P_, k=1.5 * ICON))
             pl.append(f'<path d="M{f1(q[0] + 4)} {f1(q[1])}L{f1(q[0] + 8)} {f1(q[1] - 14)}L{f1(q[0] + 12)} {f1(q[1])}'
                       f'M{f1(q[0] + 8)} {f1(q[1] - 14)}l0 14" stroke="{P_["figure"]}" stroke-width="1" fill="none"/>')
             pl.append(f'<rect x="{f1(q[0] + 2.5)}" y="{f1(q[1] - 14)}" width="11" height="8" fill="{P_["light"]}" '
@@ -729,7 +730,7 @@ def story(order, out):
         cfg, wc, Lc, H, G, doc, hs = base_block(cfg, rng)
         F.fields(doc, G, H, Lc, P, rng, k=1 / cfg['size'] * 0.75, v_range=(-0.3, 1.3))
         terraces_clip(doc, G, H, Lc, step=30)          # a quieter hillside at story scale
-        F.trees(doc, G, H, Lc, P, rng, scale=1.2, step=0.026)
+        F.trees(doc, G, H, Lc, P, rng, scale=2.0, step=0.032)
         for kind in MOTIFS.get(num, ('village',)):
             motif(doc, kind, Lc, H, G, rng, P)
         title(doc, cfg, order)
