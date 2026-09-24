@@ -311,8 +311,6 @@
     '  background: linear-gradient(0deg, rgba(4,14,22,.94) 0%, rgba(4,14,22,.55) 58%, rgba(4,14,22,0) 100%);',
     '  font: 500 14px/1.25 Inter, system-ui, sans-serif; }',
     '.mri-tile figcaption b { font: 600 12px/1 "IBM Plex Mono", monospace; opacity: .85; }',
-    '.mri-tile em { font-style: normal; margin-left: auto; font-size: 11px; letter-spacing: .06em;',
-    '  text-transform: uppercase; opacity: .75; white-space: nowrap; }',
     '.mri-tile:focus-visible { outline: 3px solid var(--mri-accent); outline-offset: 3px; }',
     '.mri-index [data-soon] img { filter: grayscale(.55); }',
     '.mri-index [data-off] { opacity: .32; }',
@@ -529,8 +527,7 @@
       b.href = '#story/' + slug(name);
       b.setAttribute('data-for', n);
       b.innerHTML = '<img loading="lazy" alt="" src="art/thumbs/story-' + n + '-' + theme() + '.png">'
-        + '<figcaption><b>' + n + '</b><span>' + name + '</span>'
-        + (soon ? '<em>to come</em>' : '') + '</figcaption>';
+        + '<figcaption><b>' + n + '</b><span>' + name + '</span></figcaption>';
       b.setAttribute('aria-label', 'Station ' + n + ': ' + name
         + (soon ? ' \u2014 story still to come' : ''));
       var img = b.querySelector('img');
