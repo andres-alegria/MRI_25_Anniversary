@@ -33,6 +33,16 @@
       + 'composite mountain landscape — from the lowlands to the cryosphere.';
     document.head.appendChild(meta);
   }
+  [['og:title', SITE], ['og:type', 'website'],
+   ['og:description', 'Twenty-five stories from a quarter-century of mountain research, told across one '
+     + 'composite mountain landscape.'],
+   ['twitter:card', 'summary_large_image']].forEach(function (pair) {
+    if (document.querySelector('meta[property="' + pair[0] + '"], meta[name="' + pair[0] + '"]')) return;
+    var m = document.createElement('meta');
+    m.setAttribute(pair[0].indexOf('og:') === 0 ? 'property' : 'name', pair[0]);
+    m.content = pair[1];
+    document.head.appendChild(m);
+  });
 
   /* --- styles: focus clear of the sticky header, a dimmed state that keeps
          its contrast, the index, and touch-sized stations on a phone ------ */
@@ -50,6 +60,7 @@
     '[data-mri-marker] button:focus-visible { outline: 3px solid var(--mri-accent); outline-offset: 3px; }',
     /* a station whose story is still to come: lighter, dashed ring */
     '[data-mri-soon] button { opacity: .72; border-style: dashed !important; }',
+    'aside[role="dialog"] button { min-width: 44px; min-height: 44px; }',
     /* the index: plain titles, which every reader asked for before anything else */
     '.mri-index { margin: 26px auto 8px; max-width: 1180px; padding: 0 22px; }',
     '.mri-index h2 { font: 600 13px/1 "IBM Plex Mono", monospace; letter-spacing: .14em;',
@@ -74,6 +85,19 @@
     '}'
   ].join('\n');
   document.head.appendChild(css);
+
+  var touched = false;
+  ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(function (ev) {
+    window.addEventListener(ev, function () { touched = true; }, { passive: true, once: true });
+  });
+  function startAtTop() {
+    if (ARRIVED.indexOf('#story/') === 0) return;
+    [500, 1100, 1900].forEach(function (d) {
+      setTimeout(function () {
+        if (!touched && !panel() && window.scrollY > 40) window.scrollTo(0, 0);
+      }, d);
+    });
+  }
 
   function onBody(fn) {
     if (document.body) { fn(); return; }
@@ -121,7 +145,9 @@
     return node ? node.num : climb;
   }
   function titleOf(btn) {
-    return (btn.getAttribute('aria-label') || '').replace(/^Station \d+:\s*/, '');
+    return (btn.getAttribute('aria-label') || '')
+      .replace(/^Station \d+:\s*/, '')
+      .replace(/\s*\u2014 story still to come$/, '');   /* the note is not part of the name */
   }
 
   /* --- the artwork is decoration with a description ---------------------- */
@@ -139,10 +165,44 @@
   function labelsForWidth() {
     var h = document.querySelector('svg[data-mri-plate="done"]');
     if (!h) return;
-    var small = h.getBoundingClientRect().width < 1100;
-    ['Labels', 'Face-labels', 'Face-symbols', 'Key'].forEach(function (id) {
+    var w = h.getBoundingClientRect().width;
+    if (!w) return;
+    var small = w < 1100;
+    var k = 2400 / w;                       /* SVG units per CSS pixel */
+    ['Labels', 'Face-labels', 'Face-symbols'].forEach(function (id) {
       var g = h.querySelector('#' + id);
-      if (g) g.style.display = small ? 'none' : '';
+      if (!g) return;
+      g.style.display = small ? 'none' : '';
+      if (small) return;
+      /* a label drawn at 12 units renders at 12/k pixels; grow it until it
+         reaches 12 px, but never past 1.7x its drawn size or the plate
+         becomes a page of type */
+      g.querySelectorAll('text').forEach(function (t) {
+        var base = t.getAttribute('data-size') || t.getAttribute('font-size');
+        if (!base) return;
+        t.setAttribute('data-size', base);
+        var want = Math.min(parseFloat(base) * 1.7, 12 * k);
+        t.style.fontSize = Math.max(parseFloat(base), want) + 'px';
+      });
+    });
+  }
+
+  function luminance(c) {
+    var v = rgbOf(c);
+    if (!v) return null;
+    var f = v.map(function (x) {
+      x /= 255;
+      return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * f[0] + 0.7152 * f[1] + 0.0722 * f[2];
+  }
+  /* the highlighted markers take the theme's own colour as their fill, and in
+     light mode a dark numeral on it fell to 2.6:1 — pick the numeral to suit */
+  function markerContrast() {
+    markers().forEach(function (btn) {
+      var l = luminance(getComputedStyle(btn).backgroundColor);
+      if (l === null) return;
+      btn.style.color = l > 0.42 ? '#0B2740' : '#FFFFFF';
     });
   }
 
@@ -175,6 +235,7 @@
     var wrap = document.createElement('nav');
     wrap.className = 'mri-index';
     wrap.id = 'mri-index';
+    wrap.setAttribute('tabindex', '-1');
     wrap.setAttribute('aria-label', 'The 25 stories, in order along the route');
     var done = 0;
     ms.forEach(function (b) { if (!pending(storyNum(b))) done++; });
@@ -227,6 +288,7 @@
     }
     var h = p.querySelector('h1, h2');
     var title = h ? h.textContent.trim() : '';
+    if (!title || title.indexOf('{{') !== -1) return;   /* the panel is still a template */
     if (!p.hasAttribute('role')) {
       p.setAttribute('role', 'dialog');
       p.setAttribute('aria-modal', 'true');
@@ -244,7 +306,8 @@
            again on the next tick rather than only now */
         [0, 150, 400].forEach(function (d) {
           setTimeout(function () {
-            if (panel() && document.activeElement === document.body) {
+            var q = panel();
+            if (q && !q.contains(document.activeElement)) {
               try { h.focus({ preventScroll: true }); } catch (e) { try { h.focus(); } catch (e2) {} }
             }
           }, d);
@@ -254,7 +317,10 @@
     /* the label that follows the cursor on the mountain must not lie across
        the story it opened: anything outside the panel repeating its title goes */
     if (title) {
-      document.querySelectorAll('div, span').forEach(function (n) {
+      var scope = (document.querySelector('svg[data-mri-plate="done"]') || {}).closest
+        ? document.querySelector('svg[data-mri-plate="done"]').closest('section') || document
+        : document;
+      scope.querySelectorAll('div, span').forEach(function (n) {
         if (n.children.length || p.contains(n)) return;
         if ((n.textContent || '').trim() !== title) return;
         var cs = getComputedStyle(n);
@@ -264,7 +330,7 @@
     document.body.style.overflow = 'hidden';
     /* the page re-renders the panel a moment after it opens, which throws
        focus back to the body; put it on the heading whenever that happens */
-    if (h && document.activeElement === document.body) {
+    if (h && !p.contains(document.activeElement)) {
       try { h.focus({ preventScroll: true }); } catch (e) { try { h.focus(); } catch (e2) {} }
     }
     var s = slug(title);
@@ -273,7 +339,7 @@
       document.title = title + ' — ' + SITE;
       history.replaceState(null, '', '#story/' + s);
       p.scrollTop = 0;
-      say(title + ' opened');
+      if (title.indexOf('{{') === -1) say(title + ' opened');
     }
   }
 
@@ -294,6 +360,9 @@
     var f = p.querySelectorAll('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])');
     if (!f.length) return;
     var first = f[0], last = f[f.length - 1];
+    if (!p.contains(document.activeElement)) {        /* focus left behind outside */
+      e.preventDefault(); (e.shiftKey ? last : first).focus(); return;
+    }
     if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   }, true);
@@ -302,6 +371,18 @@
     var b = e.target && e.target.closest && e.target.closest('button');
     if (isMarker(b)) opener = b;
   }, true);
+
+  /* the story's zoom carries the story's name, not a template */
+  function clipAlt() {
+    var p = panel();
+    if (!p) return;
+    var h = p.querySelector('h1, h2');
+    var title = h ? h.textContent.trim() : '';
+    if (!title || title.indexOf('{{') !== -1) return;
+    p.querySelectorAll('img[src*="art/clips/"]').forEach(function (img) {
+      img.alt = 'A close view of the mountain where this story sits: ' + title;
+    });
+  }
 
   /* --- the promised PDF is not a link until it exists -------------------- */
   function fixPdf() {
@@ -352,8 +433,32 @@
     document.querySelectorAll('button[data-dc-tpl]').forEach(function (c) {
       var style = c.getAttribute('style') || '';
       if (!/gap:\s*7px/.test(style)) return;
-      c.setAttribute('aria-pressed', /font-weight:\s*600/.test(style) ? 'true' : 'false');
+      var cs = getComputedStyle(c);
+      var bg = rgbOf(cs.backgroundColor) || [0, 0, 0];
+      var clear = /rgba\(0, 0, 0, 0\)|transparent/.test(cs.backgroundColor);
+      var ground = rgbOf(getComputedStyle(document.documentElement).getPropertyValue('--mri-ground')) || [0, 0, 0];
+      var panelC = rgbOf(getComputedStyle(document.documentElement).getPropertyValue('--mri-panel')) || [0, 0, 0];
+      var on = !clear && !sameColour('rgb(' + bg.join(',') + ')', 'rgb(' + ground.join(',') + ')')
+        && !sameColour('rgb(' + bg.join(',') + ')', 'rgb(' + panelC.join(',') + ')');
+      c.setAttribute('aria-pressed', on || /font-weight:\s*600/.test(style) ? 'true' : 'false');
     });
+  }
+
+  /* the page prints its own count when a theme is chosen; read it back out */
+  function watchFilter() {
+    document.addEventListener('click', function (e) {
+      var c = e.target && e.target.closest && e.target.closest('button[data-dc-tpl]');
+      if (!c || !/gap:\s*7px/.test(c.getAttribute('style') || '')) return;
+      setTimeout(function () {
+        var said = null;
+        document.querySelectorAll('p, div, span').forEach(function (n) {
+          if (n.children.length) return;
+          var t = (n.textContent || '').trim();
+          if (/^Showing \d+ stor/i.test(t) || /^All 25 stories are/i.test(t)) said = t;
+        });
+        if (said) say(said);
+      }, 260);
+    }, true);
   }
 
   /* --- open the story named in the address ------------------------------ */
@@ -369,6 +474,34 @@
     })();
   }
 
+  /* the instructions follow the layout: no markers, no "find them on the
+     mountain" */
+  var COPY = [
+    ['Find the stories on the mountain', 'Pick a story from the list'],
+    ['All 25 stories are marked on the mountain. Choose a theme to highlight a thread.',
+     'All 25 stories are listed below. Choose a theme to narrow the list.']
+  ];
+  function copyForWidth() {
+    var narrow = window.innerWidth < 900;
+    COPY.forEach(function (pair) {
+      var from = narrow ? pair[0] : pair[1], to = narrow ? pair[1] : pair[0];
+      document.querySelectorAll('h1,h2,h3,p,span,div,li').forEach(function (n) {
+        if (n.children.length) return;
+        if ((n.textContent || '').trim() === from) n.textContent = to;
+      });
+    });
+  }
+
+  /* the page ships header, nav and footer but no main landmark */
+  function mainLandmark() {
+    if (document.querySelector('main, [role="main"]')) return;
+    var h = document.querySelector('svg[data-mri-plate="done"]');
+    var n = h;
+    while (n && n.tagName !== 'SECTION') n = n.parentElement;
+    var host = n && n.parentElement;
+    if (host) host.setAttribute('role', 'main');
+  }
+
   var busy = false;
   function enhance() {
     if (busy) return;
@@ -380,13 +513,19 @@
     try { dressPanel(); } catch (e) {}
     try { dressChips(); } catch (e) {}
     try { syncIndexToFilter(); } catch (e) {}
+    try { markerContrast(); } catch (e) {}
+    try { clipAlt(); } catch (e) {}
+    try { copyForWidth(); } catch (e) {}
+    try { mainLandmark(); } catch (e) {}
     try { fixPdf(); } catch (e) {}
     busy = false;
   }
 
   onBody(function () {
     new MutationObserver(enhance).observe(document.body, { childList: true, subtree: true });
+    watchFilter();
     setTimeout(function () { enhance(); openFromHash(ARRIVED); }, 600);
+    startAtTop();
   });
   window.addEventListener('resize', function () { try { labelsForWidth(); } catch (e) {} });
   window.addEventListener('popstate', function () {
