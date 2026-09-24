@@ -13,7 +13,7 @@ import landcover as LC
 import svgkit as K
 
 f1 = K.f1
-TYPE = dict(tick=13, zone=15, feature=15, face=12.5, spot=13)     # px — adjust type sizes here
+TYPE = dict(tick=12, zone=14, feature=16.5, face=12, spot=13.5)   # px — adjust type sizes here
 
 
 def text(x, y, s, P, size, italic=True, anchor='start', col=None, op=1.0, weight=None, spacing=None):
@@ -69,8 +69,9 @@ def ruler(doc, P, corner=(1.0, 0.0)):
 def winds(doc, P, x=150, y=330):
     """Moist winds arrive from the west; the east side lies in the rain shadow."""
     lay = doc.layer('Labels')
-    lay.append(text(x, y - 22, 'moist winds from the west \u2192 forest on the windward side; open woodland in the rain shadow (east)',
-                    P, TYPE['tick'], col=P['iceLine']))
+    lay.append(text(x, y - 22, 'moist winds from the west \u2192 forest on the windward side; '
+                    'dry grass, bare rock and open woodland in the rain shadow (east)',
+                    P, TYPE['tick'] + 1, col=P['ink'], op=0.9))
     for k in range(3):
         yy = y + k * 22
         lay.append(f'<path d="M{f1(x)} {f1(yy)}q40 -10 80 0t80 0" fill="none" stroke="{P["iceLine"]}" stroke-width="1.4" stroke-opacity="0.8"/>'
@@ -120,7 +121,7 @@ def isolines(doc, G, P, cls=None):
             if best is None:
                 continue
             x, y = best
-            names.append(text(x + 6, y - 6, f'{name} ~{lv:,} m'.replace(',', ' '), P, TYPE['feature'] - 1, col=col))
+            names.append(halo(x + 6, y - 6, f'{name} ~{lv:,} m'.replace(',', ' '), P, TYPE['feature'] - 3, col=col))
 
 
 def spot_heights(doc, G, H, P):
@@ -178,3 +179,7 @@ def compass_and_scale(doc, P, x, y):
     ve = V.ZK / (np.cos(V.PHI) * V.SCALE / LC.SPAN_M)          # the view's true vertical exaggeration
     lay.append(text(mid[0], mid[1] + 34, f'heights exaggerated about \u00d7{ve:.1f}', P, TYPE['tick'] - 1, anchor='middle',
                     col=P['inkSoft']))
+    lay.append(text(mid[0], mid[1] + 52, 'a composite mountain landscape: environments and processes', P,
+                    TYPE['tick'] - 1, anchor='middle', col=P['inkSoft']))
+    lay.append(text(mid[0], mid[1] + 68, 'drawn from several mountain regions, not one real place', P,
+                    TYPE['tick'] - 1, anchor='middle', col=P['inkSoft']))

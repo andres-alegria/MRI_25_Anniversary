@@ -291,7 +291,7 @@ def animal(sx, sy, kind, fl, P, k=1.0):
              f'L{pt(-4.2, 3)}L{pt(-5.4, 0)}Z'
              f'M{pt(7, 9)}Q{pt(8.5, 12)} {pt(10.5, 11.5)}L{pt(8.4, 9.4)}Z')
         col = P['yak']
-    return f'<path d="{d}" fill="{col}" stroke="{P["shade"]}" stroke-width="0.4"/>'
+    return f'<path d="{d}" fill="{col}" stroke="{P["shade"]}" stroke-width="0.25" stroke-opacity="0.7"/>'
 
 
 def herd(doc, G, H, L, P, rng, x0, y0, n=9, kind='llama'):
@@ -305,17 +305,17 @@ def herd(doc, G, H, L, P, rng, x0, y0, n=9, kind='llama'):
         if not G.visible(x, y, z + 1):
             continue
         sx, sy = V.project(x, y, z)
-        if any(abs(sx - a) < 14 and abs(sy - b) < 8 for a, b, _ in items):
+        if any(abs(sx - a) < 10 and abs(sy - b) < 6 for a, b, _ in items):
             continue
         items.append((sx, sy, -1 if rng.random() < 0.5 else 1))
     for sx, sy, fl in sorted(items, key=lambda q: q[1]):
-        out.append(animal(sx, sy, kind, fl, P, 1.0 if kind == 'llama' else 1.4))
+        out.append(animal(sx, sy, kind, fl, P, 0.68 if kind == 'llama' else 0.82))
     # the herder and a tent (a white cone with a dark door)
     tx, ty = x0 + 0.024, y0 - 0.006
     z = V.sample(H, tx, ty); sx, sy = V.project(tx, ty, z)
-    out.append(f'<path d="M{f1(sx - 11)} {f1(sy)}L{f1(sx)} {f1(sy - 15)}L{f1(sx + 11)} {f1(sy)}Z" fill="{P["tentWhite"]}" stroke="{P["shade"]}" stroke-width="0.6"/>')
-    out.append(f'<path d="M{f1(sx - 2.5)} {f1(sy)}L{f1(sx)} {f1(sy - 6)}L{f1(sx + 2.5)} {f1(sy)}Z" fill="{P["tent"]}"/>')
-    out.append(person(sx + 18, sy, P, staff=True, k=1.7))
+    out.append(f'<path d="M{f1(sx - 7.5)} {f1(sy)}L{f1(sx)} {f1(sy - 10.5)}L{f1(sx + 7.5)} {f1(sy)}Z" fill="{P["tentWhite"]}" stroke="{P["shade"]}" stroke-width="0.45"/>')
+    out.append(f'<path d="M{f1(sx - 1.8)} {f1(sy)}L{f1(sx)} {f1(sy - 4.2)}L{f1(sx + 1.8)} {f1(sy)}Z" fill="{P["tent"]}"/>')
+    out.append(person(sx + 13, sy, P, staff=True, k=1.2))
     lay.append(''.join(out))
 
 
@@ -477,15 +477,38 @@ def pictograms(doc, G, H, P):
     out.append(F.box(p_[0] - 30, p_[1] + 8, 22, 12, 9, 'gable', dict(P, roof=P['metalRoof'])))
     for i, (dx, dy) in enumerate([(0.021, 0.018), (0.027, 0.024), (0.033, 0.030)]):
         q = V.project(lx + dx, ly + dy, V.sample(H, lx + dx, ly + dy))
-        out.append(person(q[0], q[1], P, staff=True, load=True, k=2.3))
+        out.append(person(q[0], q[1], P, staff=True, load=True, k=1.55))
     # the painter at an easel, at the viewpoint
     vx, vy = 0.545, 0.275
     q = V.project(vx, vy, V.sample(H, vx, vy))
     ex = q[0] + 30                                       # aside from the station number above the anchor
-    out.append(person(ex - 10, q[1] + 4, P, k=2.5))
-    out.append(f'<path d="M{f1(ex + 2)} {f1(q[1] + 4)}L{f1(ex + 8)} {f1(q[1] - 20)}L{f1(ex + 14)} {f1(q[1] + 4)}M{f1(ex + 8)} {f1(q[1] - 20)}l0 24" '
-               f'stroke="{P["figure"]}" stroke-width="1.3" fill="none"/>')
-    out.append(f'<rect x="{f1(ex + 1)}" y="{f1(q[1] - 20)}" width="15" height="11" fill="{P["light"]}" stroke="{P["shade"]}" stroke-width="0.8"/>')
+    out.append(person(ex - 8, q[1] + 4, P, k=1.7))
+    out.append(f'<path d="M{f1(ex + 2)} {f1(q[1] + 4)}L{f1(ex + 6)} {f1(q[1] - 14)}L{f1(ex + 10)} {f1(q[1] + 4)}M{f1(ex + 6)} {f1(q[1] - 14)}l0 18" '
+               f'stroke="{P["figure"]}" stroke-width="1" fill="none"/>')
+    out.append(f'<rect x="{f1(ex + 0.5)}" y="{f1(q[1] - 14)}" width="11" height="8" fill="{P["light"]}" stroke="{P["shade"]}" stroke-width="0.6"/>')
+    # a herders' corral on the dry side: a stone fold, a hut and a few stock,
+    # so the lee slopes carry a livelihood of their own — adjust the site here
+    for cand in ((0.880, 0.360), (0.860, 0.350), (0.900, 0.330), (0.700, 0.510)):
+        cxw, cyw = cand
+        if G.visible(cxw, cyw, float(V.sample(H, cxw, cyw)) + 2):
+            break
+    else:
+        cxw = None
+    if cxw is not None:
+        c = np.array(V.project(cxw, cyw, float(V.sample(H, cxw, cyw))))
+        ux, vy = F.axes()
+        ring = [c + ux * 17 * np.cos(t) + vy * 11 * np.sin(t) for t in np.linspace(0, 2 * np.pi, 26)]
+        ring = np.array(ring)
+        out.append(f'<path d="{K.d_poly(ring, True, 0.6)}" fill="{P["alpine"]}" fill-opacity="0.35" '
+                   f'stroke="{P["wallLit"]}" stroke-width="1.3" stroke-opacity="0.9"/>')
+        out.append(f'<path d="{K.d_poly(ring * 0.97 + c * 0.03, True, 0.6)}" fill="none" '
+                   f'stroke="{P["shade"]}" stroke-width="0.6" stroke-opacity="0.5"/>')
+        gap = c + ux * 17                                    # the gateway in the wall
+        out.append(f'<path d="M{f1(gap[0] - 0.5)} {f1(gap[1] - 2)}l0 4" stroke="{P["paper"]}" stroke-width="1.6"/>')
+        out.append(F.box(c[0] - 26, c[1] - 4, 15, 9, 6, 'flat', dict(P, roofFlat=P['thatch'])))
+        for k_, (dx_, dy_) in enumerate(((-6, 2), (3, -1), (8, 4))):
+            out.append(animal(c[0] + dx_, c[1] + dy_, 'yak' if k_ else 'llama', 1 if k_ % 2 else -1, P, 0.6))
+        out.append(person(c[0] - 15, c[1] + 6, P, staff=True, k=1.1))
     # rows of planted saplings and check dams on the restored slope
     rx, ry = 0.205, 0.44
     for row in range(3):

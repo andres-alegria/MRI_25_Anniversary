@@ -23,14 +23,22 @@ ROCK_SLOPE = 38          # degrees: steeper than this, bare rock (above 2,300 m)
 SPAN_M = 25000.0         # the block is 25 km across on the ground
 
 # class codes, in drawing order (low to high)
-GROUND, ALPINE, SCREE, FOREST, TERRACE, FIELD, PADDY, TOWN, FOREFIELD, ROCK, SNOW, GLACIER, WATER = range(13)
+GROUND, ALPINE, SCREE, FOREST, TERRACE, FIELD, PADDY, TOWN, FOREFIELD, ROCK, SNOW, GLACIER, WATER, DRY, DRYROCK = range(15)
 NAMES = ['ground', 'alpine', 'scree', 'forest', 'terrace', 'field', 'paddy', 'town', 'forefield',
-         'rock', 'snow', 'glacier', 'water']
+         'rock', 'snow', 'glacier', 'water', 'dry', 'dryrock']
+
+# the rain shadow: how far east the dry side reaches — adjust its extent here
+DRY_FROM, DRY_FULL = 0.56, 0.74
 
 # designed places (world coordinates)
 TOWN_AREAS = [(0.47, 0.085, 0.085, 0.042), (0.60, 0.075, 0.05, 0.03)]  # ellipses: cx, cy, rx, ry
 TERRACE_ZONES = [(0.27, 0.36, 0.13, 0.09), (0.80, 0.30, 0.12, 0.10), (0.12, 0.30, 0.10, 0.10)]
 PADDY_ZONES = [(0.70, 0.095, 0.10, 0.038), (0.37, 0.175, 0.075, 0.032), (0.58, 0.155, 0.05, 0.03)]
+
+
+def rng_dry(noise, noise2, dryness):
+    """Where the dry ground wins: a noisy front that advances with dryness."""
+    return dryness - 0.28 + 0.22 * noise + 0.16 * noise2
 
 
 def _ellipse(X, Y, c, soft=0.25):
@@ -55,12 +63,21 @@ def classify(w, seed=T.SEED):
     treeline = TREELINE + 150 * noise * 3 - 120 * north
     # the humid side (west, facing the moist winds) carries closed forest; the
     # dry side (east) only open woodland — the trees module thins it out
+    # how deep into the rain shadow a place lies, 0 on the wet west flank to 1
+    dryness = np.clip((X - DRY_FROM) / (DRY_FULL - DRY_FROM), 0, 1)
     forest = (H > 650 + 250 * noise) & (H < treeline) & (slope < 50) & (noise2 > -0.18 - 0.2 * (X < 0.5)) \
-        & ~((X > 0.58) & (noise2 < 0.04))                   # the dry east: open woodland, grass between the trees
+        & ~((X > 0.58) & (noise2 < 0.04 + 0.5 * dryness))   # the dry east: only gullies keep their trees
     cls[forest] = FOREST
     alpine = (H >= treeline) & (H < ALPINE_TOP - 150 * north)
     cls[alpine] = ALPINE
     cls[(X > 0.58) & (H > 700) & (H < treeline) & (cls == GROUND)] = ALPINE   # grassland between the dry-side trees
+    # the lee side: dry grass on the gentler ground, bare warm rock on the rest
+    dry = (dryness > 0.12) & (H > 620) & (H < ALPINE_TOP - 250) & np.isin(cls, [GROUND, ALPINE, FOREST]) \
+        & (rng_dry(noise, noise2, dryness) > 0)
+    cls[dry] = DRY
+    bare = (dryness > 0.3) & (H > 1100) & (H < SNOWLINE - 250) & (slope > 31) \
+        & np.isin(cls, [GROUND, ALPINE, FOREST, DRY, SCREE]) & (noise2 > -0.3)
+    cls[bare] = DRYROCK
     scree = (H > SCREE_LOW + 200 * noise) & (slope > 22) & (slope < ROCK_SLOPE + 8)
     cls[scree & (H < SNOWLINE + 300)] = SCREE
 
@@ -110,7 +127,7 @@ def classify(w, seed=T.SEED):
 
     # --- coherent belts: a majority filter over the natural classes, so the
     #     cover reads as zones rather than following every bump of noise
-    natural = [GROUND, ALPINE, SCREE, FOREST, ROCK, SNOW, FIELD]
+    natural = [GROUND, ALPINE, SCREE, FOREST, ROCK, SNOW, FIELD, DRY, DRYROCK]
     stack = np.stack([T.blur((cls == k).astype(float), 3) for k in natural])
     smooth = np.array(natural, dtype=np.int8)[stack.argmax(0)]
     keep = np.isin(cls, [GLACIER, TERRACE, PADDY])

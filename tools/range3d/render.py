@@ -26,6 +26,7 @@ PAL = dict(
     ink='#C3D3DD', inkSoft='#8AA2B2', inkFaint='#5E788A',
     ground='#2B4046',
     alpine='#46584A', scree='#394C5B', forest='#1F3B32', terrace='#4E5E3A',
+    dry='#5E5539', dryrock='#6A5A45',          # the lee side: dry grass, and its bare warm rock
     field='#3C4B34', paddy='#34504A', town='#4B5157', rock='#3C5266',
     snow='#E1EAF1', glacier='#B4CADC', water='#2F6F9E',
     waterLine='#5FA8D8', iceLine='#7FACCA', crevasse='#3E6E8E', treeInk='#6D9179',
@@ -58,6 +59,7 @@ PAL_LIGHT = dict(
     ink='#2B3A45', inkSoft='#64798A', inkFaint='#93A7B4',
     ground='#CBD5CE',
     alpine='#B7C6A6', scree='#C2CAD2', forest='#7E9E85', terrace='#C4CB98',
+    dry='#CFBF8E', dryrock='#C0AB8E',
     field='#BAC598', paddy='#A7C6BC', town='#C4C7C9', rock='#A9B8C4',
     snow='#FFFFFF', glacier='#DCEAF4', water='#7FB0D6',
     waterLine='#4E86AE', iceLine='#79A3C0', crevasse='#5E87A6', treeInk='#4F7A5C',
@@ -571,12 +573,19 @@ def faces(doc, H, rng=None):
         tx, ty = V.project(x, y, ztop); bx, by = V.project(x, y, base)
         outline = np.concatenate([np.stack([tx, ty], 1), np.stack([bx, by], 1)[::-1]])
         lay.append(f'<path d="{K.d_poly(outline, True, 1.0)}" fill="none" stroke="{PAL["ink"]}" '
-                   f'stroke-width="{WEIGHT["face"]}" stroke-opacity="0.8" stroke-linejoin="round"/>')
+                   f'stroke-width="{WEIGHT["face"]}" stroke-opacity="0.6" stroke-linejoin="round"/>')
+
+
+# how far the cut faces step back behind the landscape: 0 keeps them at full
+# strength, 1 washes them out into the sky — adjust the recession here
+FACE_RECEDE = 0.26
 
 
 def _tone(hexc, k):
     c = [int(hexc[i:i + 2], 16) for i in (1, 3, 5)]
     c = [max(0, min(255, int(round(v * k)))) for v in c]
+    b = [int(PAL['sky1'][i:i + 2], 16) for i in (1, 3, 5)]        # toward the page behind them
+    c = [int(round(v + (w - v) * FACE_RECEDE)) for v, w in zip(c, b)]
     return '#%02X%02X%02X' % tuple(c)
 
 

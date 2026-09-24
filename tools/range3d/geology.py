@@ -124,7 +124,7 @@ def draw(doc, H, P, rng, tone_of, frame=(0.0, 0.0, 1.0)):
                     ring = to_screen(pts[off[i]:off[i + 1]])
                     d.append(K.d_poly(ring, True, 1.0))
             lay.append(f'<path d="{"".join(d)}" fill="{tone_of(P[name], tone)}" fill-rule="evenodd" '
-                       f'stroke="{P["shade"]}" stroke-width="0.35" stroke-opacity="0.6"/>')
+                       f'stroke="{P["shade"]}" stroke-width="0.3" stroke-opacity="0.45"/>')
         # symbols, on a jittered grid in (s, z)
         marks = {n: [] for n in UNITS}
         for si in range(4, len(s) - 4, 7):
@@ -150,15 +150,15 @@ def draw(doc, H, P, rng, tone_of, frame=(0.0, 0.0, 1.0)):
             if d:
                 cap = ' stroke-linecap="round"' if name == 'sandstone' else ''
                 sym.append(f'<path d="{d}" fill="none" stroke="{P["ink"]}" stroke-width="{1.4 if name == "sandstone" else 0.6}" '
-                           f'stroke-opacity="0.28"{cap}/>')
+                           f'stroke-opacity="0.2"{cap}/>')
         # the thrust fault: a heavier line with a half-arrow for the sense of motion
         zfc = zf[0]
         ok = (zfc > V.ZBASE) & (zfc < ztop - 60)
         if ok.sum() > 10:
             pts = np.stack(V.project(x[ok], y[ok], zfc[ok]), 1)
-            lay.append(f'<path d="{K.d_poly(pts, False, 1)}" fill="none" stroke="{P["ink"]}" stroke-width="1.3" stroke-opacity="0.75"/>')
+            lay.append(f'<path d="{K.d_poly(pts, False, 1)}" fill="none" stroke="{P["ink"]}" stroke-width="1.1" stroke-opacity="0.6"/>')
             mid = pts[len(pts) // 2]
-            lab.append(LB.halo(mid[0] + 8, mid[1] - 8, 'thrust fault', P, LB.TYPE['face'], col=P['ink'], op=0.9))
+            lab.append(LB.halo(mid[0] + 8, mid[1] - 8, 'thrust fault', P, LB.TYPE['face'], col=P['ink'], op=0.72))
             PLACED.append((mid[0] + 50, mid[1] - 8))
         # frozen ground under the high slopes, with its thawing active layer left out
         hi = ztop > S['permafrost']
@@ -216,7 +216,7 @@ def draw(doc, H, P, rng, tone_of, frame=(0.0, 0.0, 1.0)):
             PLACED.append((q[0], q[1]))
             nice = {'granite': 'granite pluton', 'hornfels': 'baked contact rock', 'gneiss': 'gneiss basement',
                     'alluvium': 'river gravels'}.get(name, name)
-            lab.append(LB.halo(q[0], q[1] + 4, nice, P, LB.TYPE['face'], anchor='middle', col=P['ink'], op=0.9))
+            lab.append(LB.halo(q[0], q[1] + 4, nice, P, LB.TYPE['face'], anchor='middle', col=P['ink'], op=0.72))
         # outline of the face
         t_ = np.stack(V.project(x, y, ztop), 1); b_ = np.stack(V.project(x, y, np.full_like(ztop, V.ZBASE)), 1)
         lay.append(f'<path d="{K.d_poly(np.concatenate([t_, b_[::-1]]), True, 1.0)}" fill="none" stroke="{P["ink"]}" '
