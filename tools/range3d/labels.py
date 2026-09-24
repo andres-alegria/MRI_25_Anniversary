@@ -179,7 +179,3 @@ def compass_and_scale(doc, P, x, y):
     ve = V.ZK / (np.cos(V.PHI) * V.SCALE / LC.SPAN_M)          # the view's true vertical exaggeration
     lay.append(text(mid[0], mid[1] + 34, f'heights exaggerated about \u00d7{ve:.1f}', P, TYPE['tick'] - 1, anchor='middle',
                     col=P['inkSoft']))
-    lay.append(text(mid[0], mid[1] + 52, 'a composite mountain landscape: environments and processes', P,
-                    TYPE['tick'] - 1, anchor='middle', col=P['inkSoft']))
-    lay.append(text(mid[0], mid[1] + 68, 'drawn from several mountain regions, not one real place', P,
-                    TYPE['tick'] - 1, anchor='middle', col=P['inkSoft']))

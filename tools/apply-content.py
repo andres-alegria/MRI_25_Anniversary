@@ -293,8 +293,11 @@ REPLACEMENTS = [
         "        style: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' }\n"
         "      }) : null,",
         "openImg: openStory ? React.createElement('img', {\n"
-        "        src: (openStory.image && openStory.image.src) || this.placeholderImgs[(openStory.num - 1) % 4],\n"
-        "        alt: (openStory.image && openStory.image.alt) || 'Placeholder story photo',\n"
+        "        src: (openStory.image && openStory.image.src) || ('art/clips/story-' +\n"
+        "               String(openStory.num).padStart(2, '0') + '-' +\n"
+        "               (document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark') +\n"
+        "               '.svg'),\n"
+        "        alt: (openStory.image && openStory.image.alt) || ('A zoom on the mountain for story ' + openStory.num),\n"
         "        style: openStory.image\n"
         "          ? { maxWidth: '100%', maxHeight: '70vh', width: 'auto', height: 'auto', display: 'block' }\n"
         "          : { width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' },\n"

@@ -1,0 +1,231 @@
+{
+ "width": 2400,
+ "height": 1600,
+ "stations": [
+  {
+   "order": 1,
+   "story": 16,
+   "what": "town",
+   "x": 1269.8,
+   "y": 1058.8,
+   "anchor_x": 1269.8,
+   "anchor_y": 1084.8
+  },
+  {
+   "order": 2,
+   "story": 10,
+   "what": "paddies",
+   "x": 1508.2,
+   "y": 1001.1,
+   "anchor_x": 1508.2,
+   "anchor_y": 1027.1
+  },
+  {
+   "order": 3,
+   "story": 21,
+   "what": "mine",
+   "x": 1659.8,
+   "y": 821.1,
+   "anchor_x": 1659.8,
+   "anchor_y": 847.1
+  },
+  {
+   "order": 4,
+   "story": 12,
+   "what": "village",
+   "x": 1480.9,
+   "y": 788.1,
+   "anchor_x": 1480.9,
+   "anchor_y": 814.1
+  },
+  {
+   "order": 5,
+   "story": 18,
+   "what": "pastures",
+   "x": 1510.8,
+   "y": 689.0,
+   "anchor_x": 1510.8,
+   "anchor_y": 715.0
+  },
+  {
+   "order": 6,
+   "story": 19,
+   "what": "dam",
+   "x": 1397.3,
+   "y": 701.7,
+   "anchor_x": 1397.3,
+   "anchor_y": 727.7
+  },
+  {
+   "order": 7,
+   "story": 7,
+   "what": "forest",
+   "x": 1236.8,
+   "y": 717.8,
+   "anchor_x": 1236.8,
+   "anchor_y": 743.8
+  },
+  {
+   "order": 8,
+   "story": 22,
+   "what": "viewpoint",
+   "x": 1206.2,
+   "y": 817.5,
+   "anchor_x": 1206.2,
+   "anchor_y": 843.5
+  },
+  {
+   "order": 9,
+   "story": 11,
+   "what": "monastery",
+   "x": 1133.5,
+   "y": 871.1,
+   "anchor_x": 1133.5,
+   "anchor_y": 897.1
+  },
+  {
+   "order": 10,
+   "story": 5,
+   "what": "canal",
+   "x": 985.2,
+   "y": 927.2,
+   "anchor_x": 985.2,
+   "anchor_y": 953.2
+  },
+  {
+   "order": 11,
+   "story": 8,
+   "what": "terraces",
+   "x": 879.9,
+   "y": 856.0,
+   "anchor_x": 879.9,
+   "anchor_y": 882.0
+  },
+  {
+   "order": 12,
+   "story": 14,
+   "what": "abandoned terraces",
+   "x": 696.5,
+   "y": 887.2,
+   "anchor_x": 696.5,
+   "anchor_y": 913.2
+  },
+  {
+   "order": 13,
+   "story": 6,
+   "what": "restored slope",
+   "x": 693.0,
+   "y": 790.7,
+   "anchor_x": 693.0,
+   "anchor_y": 816.7
+  },
+  {
+   "order": 14,
+   "story": 17,
+   "what": "herders",
+   "x": 653.2,
+   "y": 713.3,
+   "anchor_x": 653.2,
+   "anchor_y": 739.3
+  },
+  {
+   "order": 15,
+   "story": 25,
+   "what": "rock glacier",
+   "x": 478.8,
+   "y": 530.1,
+   "anchor_x": 478.8,
+   "anchor_y": 556.1
+  },
+  {
+   "order": 16,
+   "story": 24,
+   "what": "snowfield",
+   "x": 551.7,
+   "y": 491.2,
+   "anchor_x": 551.7,
+   "anchor_y": 517.2
+  },
+  {
+   "order": 17,
+   "story": 2,
+   "what": "weather station",
+   "x": 716.7,
+   "y": 640.3,
+   "anchor_x": 716.7,
+   "anchor_y": 666.3
+  },
+  {
+   "order": 18,
+   "story": 13,
+   "what": "lodge",
+   "x": 802.0,
+   "y": 696.9,
+   "anchor_x": 802.0,
+   "anchor_y": 722.9
+  },
+  {
+   "order": 19,
+   "story": 4,
+   "what": "village",
+   "x": 952.7,
+   "y": 820.2,
+   "anchor_x": 952.7,
+   "anchor_y": 846.2
+  },
+  {
+   "order": 20,
+   "story": 9,
+   "what": "moraine lake",
+   "x": 935.3,
+   "y": 711.3,
+   "anchor_x": 935.3,
+   "anchor_y": 737.3
+  },
+  {
+   "order": 21,
+   "story": 23,
+   "what": "retreat lines",
+   "x": 965.0,
+   "y": 641.3,
+   "anchor_x": 965.0,
+   "anchor_y": 667.3
+  },
+  {
+   "order": 22,
+   "story": 1,
+   "what": "glacier",
+   "x": 906.0,
+   "y": 564.2,
+   "anchor_x": 906.0,
+   "anchor_y": 590.2
+  },
+  {
+   "order": 23,
+   "story": 3,
+   "what": "high station",
+   "x": 934.1,
+   "y": 465.3,
+   "anchor_x": 934.1,
+   "anchor_y": 491.3
+  },
+  {
+   "order": 24,
+   "story": 15,
+   "what": "border pass",
+   "x": 1292.9,
+   "y": 447.2,
+   "anchor_x": 1292.9,
+   "anchor_y": 473.2
+  },
+  {
+   "order": 25,
+   "story": 20,
+   "what": "summit",
+   "x": 1031.6,
+   "y": 117.2,
+   "anchor_x": 1031.6,
+   "anchor_y": 143.2
+  }
+ ]
+}

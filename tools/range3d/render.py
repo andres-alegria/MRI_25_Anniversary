@@ -168,7 +168,7 @@ def chains(edge, max_dy=3):
     return [np.array(ch) for ch in done if len(ch) >= 6]
 
 
-def render(zoom=None):
+def render(zoom=None, key=True):
     w = T.build()
     H = w['H']
     V.fit(H)
@@ -287,7 +287,8 @@ def render(zoom=None):
     LB.spot_heights(doc, G, H, PAL)
     LB.feature_labels(doc, G, H, PAL, FEATURES)
     LB.compass_and_scale(doc, PAL, 150, 1480)
-    ST.station_key(doc, PAL, 1995, 1112, cols=1, colw=380, lh=19.0)
+    if key:                                          # off for the web, where the key is live HTML
+        ST.station_key(doc, PAL, 1995, 1112, cols=1, colw=380, lh=19.0)
     doc.stations = stations
 
     # ------------------------------------------------------------------ aerial perspective
@@ -594,7 +595,7 @@ if __name__ == '__main__':
     out = sys.argv[1]
     if '--light' in sys.argv:
         use_light()
-    doc = render()
+    doc = render(key='--no-key' not in sys.argv)
     open(out, 'w').write(doc.svg())
     # the stations' positions on the canvas, for placing interactive markers on the web
     with open(out.rsplit('.', 1)[0] + '-stations.json', 'w') as fh:

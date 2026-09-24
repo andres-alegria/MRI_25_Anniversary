@@ -84,7 +84,7 @@ def face_geometry(face):
 PLACED = []
 
 
-def draw(doc, H, P, rng, tone_of, frame=(0.0, 0.0, 1.0)):
+def draw(doc, H, P, rng, tone_of, frame=(0.0, 0.0, 1.0), annotate=True):
     PLACED.clear()
     import labels as LB
     lay = doc.layer('Faces'); sym = doc.layer('Face-symbols'); lab = doc.layer('Face-labels')
@@ -150,7 +150,7 @@ def draw(doc, H, P, rng, tone_of, frame=(0.0, 0.0, 1.0)):
             if d:
                 cap = ' stroke-linecap="round"' if name == 'sandstone' else ''
                 sym.append(f'<path d="{d}" fill="none" stroke="{P["ink"]}" stroke-width="{1.4 if name == "sandstone" else 0.6}" '
-                           f'stroke-opacity="0.2"{cap}/>')
+                           f'stroke-opacity="{0.2 if annotate else 0.12}"{cap}/>')
         # the thrust fault: a heavier line with a half-arrow for the sense of motion
         zfc = zf[0]
         ok = (zfc > V.ZBASE) & (zfc < ztop - 60)
@@ -158,7 +158,8 @@ def draw(doc, H, P, rng, tone_of, frame=(0.0, 0.0, 1.0)):
             pts = np.stack(V.project(x[ok], y[ok], zfc[ok]), 1)
             lay.append(f'<path d="{K.d_poly(pts, False, 1)}" fill="none" stroke="{P["ink"]}" stroke-width="1.1" stroke-opacity="0.6"/>')
             mid = pts[len(pts) // 2]
-            lab.append(LB.halo(mid[0] + 8, mid[1] - 8, 'thrust fault', P, LB.TYPE['face'], col=P['ink'], op=0.72))
+            if annotate:
+                lab.append(LB.halo(mid[0] + 8, mid[1] - 8, 'thrust fault', P, LB.TYPE['face'], col=P['ink'], op=0.72))
             PLACED.append((mid[0] + 50, mid[1] - 8))
         # frozen ground under the high slopes, with its thawing active layer left out
         hi = ztop > S['permafrost']
@@ -177,7 +178,8 @@ def draw(doc, H, P, rng, tone_of, frame=(0.0, 0.0, 1.0)):
             lay.append(f'<path d="{"".join(hat)}" fill="none" stroke="{P["permafrost"]}" stroke-width="0.7" stroke-opacity="0.8"/>')
             i = int(np.argmax(ztop))
             q = V.project(x[i], y[i], ztop[i] - (ztop[i] - S['permafrost']) * 0.3)
-            lab.append(LB.text(q[0] + 10, q[1] + 4, 'permafrost', P, LB.TYPE['face'], col=P['permafrost']))
+            if annotate:
+                lab.append(LB.text(q[0] + 10, q[1] + 4, 'permafrost', P, LB.TYPE['face'], col=P['permafrost']))
         # the water table in the gravels under the plain
         plain = ztop < S['gravel_top'] - 150
         if face == 'south' and plain.sum() > 10:
@@ -194,7 +196,8 @@ def draw(doc, H, P, rng, tone_of, frame=(0.0, 0.0, 1.0)):
             pts = np.stack(V.project(x[plain], y[plain], wt[plain]), 1)
             lay.append(f'<path d="{K.d_poly(pts, False, 1)}" fill="none" stroke="{P["waterLine"]}" stroke-width="1.1" stroke-dasharray="6 3"/>')
             j = int(len(pts) * 0.30)
-            lab.append(LB.halo(pts[j][0], pts[j][1] + 30, 'water table', P, LB.TYPE['face'], col=P['waterLine']))
+            if annotate:
+                lab.append(LB.halo(pts[j][0], pts[j][1] + 30, 'water table', P, LB.TYPE['face'], col=P['waterLine']))
         # unit names where each unit is thickest on this face
         for k, name in enumerate(UNITS):
             if name in ('soil',):
@@ -216,7 +219,8 @@ def draw(doc, H, P, rng, tone_of, frame=(0.0, 0.0, 1.0)):
             PLACED.append((q[0], q[1]))
             nice = {'granite': 'granite pluton', 'hornfels': 'baked contact rock', 'gneiss': 'gneiss basement',
                     'alluvium': 'river gravels'}.get(name, name)
-            lab.append(LB.halo(q[0], q[1] + 4, nice, P, LB.TYPE['face'], anchor='middle', col=P['ink'], op=0.72))
+            if annotate:
+                lab.append(LB.halo(q[0], q[1] + 4, nice, P, LB.TYPE['face'], anchor='middle', col=P['ink'], op=0.72))
         # outline of the face
         t_ = np.stack(V.project(x, y, ztop), 1); b_ = np.stack(V.project(x, y, np.full_like(ztop, V.ZBASE)), 1)
         lay.append(f'<path d="{K.d_poly(np.concatenate([t_, b_[::-1]]), True, 1.0)}" fill="none" stroke="{P["ink"]}" '
