@@ -22,7 +22,7 @@ f1 = K.f1
 P = R.PAL
 CANVAS = (1800, 1300)          # clip canvas, px — adjust here
 CLIP_VE = 1.0                  # true vertical exaggeration of the clips (1 = none) — adjust here
-ICON = 2.1                     # how much larger the motifs are than on the whole plate
+ICON = 6.3                     # how much larger the motifs are than on the whole plate
 
 
 def world_to_local(pts, frame):
@@ -51,8 +51,9 @@ def base_block(name, rng, recover=None):
     # vertical exaggeration is CLIP_VE (its ground span is `size` of the block)
     V.SCALE = 1330.0
     V.ZK = 0.086 / (1.8 / CLIP_VE) / cfg['size'] * (1330.0 / 1330.0)
-    V.ZBASE = float(H.min()) - 130.0     # a low sediment band — adjust the clip's depth here
-    V.fit(H, margin=(90, 150, 90, 90))     # the title sits in the top margin
+    relief = float(H.max() - H.min())
+    V.ZBASE = float(H.min()) - max(25.0, 0.16 * relief)   # a low sediment band under the ground
+    V.fit(H, margin=(90, 215, 90, 70))     # the title sits in the top margin
     G = V.GBuffer(H, V.W, V.H_PX)
     doc = K.Doc(V.W, V.H_PX, P['sky1'])
     for nm in ['Sky', 'Ground'] + ['Cover-' + n for n in LC.NAMES[1:]] + \
@@ -465,13 +466,13 @@ MOTIFS = {                      # story number -> the things drawn on its clip
     25: ('boulders', 'mast'),               # Permafrost
 }
 BESPOKE = {10: 'agriculture', 16: 'urban'}      # the two clips drawn by hand
-CLIP_SIZE = {1: 0.12, 3: 0.12, 20: 0.11, 24: 0.13, 25: 0.12}   # tighter still
+CLIP_SIZE = {1: 0.06, 3: 0.06, 20: 0.055, 24: 0.065, 25: 0.06}   # closer still
 
 
 def story_cfg(num):
     """The window for one story: centred on its station, inside the block."""
     st = [s for s in ST.STATIONS if s[0] == num][0]
-    size = CLIP_SIZE.get(num, 0.13)   # a tighter window: the motifs carry the clip
+    size = CLIP_SIZE.get(num, 0.065)  # a close window: the motifs carry the clip
     x0 = float(np.clip(st[1] - size / 2, 0.0, 1.0 - size))
     y0 = float(np.clip(st[2] - size / 2, 0.0, 1.0 - size))
     return dict(x0=x0, y0=y0, size=size, title=ST.TOPICS[num])
@@ -487,9 +488,17 @@ def _sites(Lc, H, G, rng, kinds, n=1, spacing=0.09, lo=None, hi=None, smax=None)
     if smax is not None:
         cond &= sl < smax
     N = H.shape[0] - 1
+    # motifs sit in the front half of the window, clear of the block's edges,
+    # so nothing is cut off or lost against the skyline
     edge = np.zeros_like(cond)
-    edge[int(0.14 * N):int(0.86 * N), int(0.14 * N):int(0.86 * N)] = True
-    return find(Lc, H, G, cond & edge, rng, n=n, spacing=spacing)
+    edge[int(0.10 * N):int(0.66 * N), int(0.18 * N):int(0.82 * N)] = True
+    got = find(Lc, H, G, cond & edge, rng, n=n, spacing=spacing)
+    if got:
+        return got
+    # nothing of that kind in this window: take open ground instead, so a
+    # story is never left without its motif
+    loose = ~np.isin(cls, [LC.WATER, LC.GLACIER]) & (sl < 26) & edge
+    return find(Lc, H, G, loose, rng, n=n, spacing=spacing)
 
 
 def stupa(x, y, k=1.0):
@@ -550,17 +559,18 @@ def motif(doc, kind, Lc, H, G, rng, P_):
     farm = [LC.FIELD, LC.TERRACE, LC.PADDY, LC.ALPINE, LC.DRY, LC.GROUND]
     if kind == 'village':
         for (x, y) in _sites(Lc, H, G, rng, farm, 1, smax=14):
-            F.settlement(doc, G, H, Lc, P_, rng, x, y, 0.09, 20, 'village', k=2.2 * ICON, gap=(5.5, 3.5))
+            F.settlement(doc, G, H, Lc, P_, rng, x, y, 0.19, 14, 'village', k=2.2 * ICON, gap=(6.4, 4.1))
             for dx, dy in ((-0.02, 0.012), (0.022, -0.008)):
                 q = at(H, np.clip(x + dx, 0.02, 0.98), np.clip(y + dy, 0.02, 0.98))
                 sl_.append(granary(q[0], q[1], 1.3 * ICON))
     elif kind == 'village-emptying':
         for (x, y) in _sites(Lc, H, G, rng, farm, 1, smax=14):
-            F.settlement(doc, G, H, Lc, P_, rng, x, y, 0.08, 11, 'village', k=2.2 * ICON, gap=(7, 4.5))
+            F.settlement(doc, G, H, Lc, P_, rng, x, y, 0.19, 9, 'village', k=2.2 * ICON, gap=(7.2, 4.6))
             for dx, dy in ((-0.03, 0.02), (0.03, 0.015), (0.01, -0.03)):   # roofless, abandoned
                 q = at(H, np.clip(x + dx, 0.02, 0.98), np.clip(y + dy, 0.02, 0.98))
-                sl_.append(f'<rect x="{f1(q[0] - 7)}" y="{f1(q[1] - 7)}" width="{f1(14 * ICON)}" height="{f1(7 * ICON)}" fill="none" '
-                           f'stroke="{P_["wallShade"]}" stroke-width="1.3"/>')
+                sl_.append(F.box(q[0], q[1], 6 * ICON, 4.5 * ICON, 2.2 * ICON, 'flat',
+                                 dict(P_, wallLit=P_['wallShade'], wallShade=P_['shade'],
+                                      roofFlat=P_['ground'])))
     elif kind == 'market':
         for (x, y) in _sites(Lc, H, G, rng, farm, 1, smax=12):
             q = at(H, x, y)
@@ -729,8 +739,8 @@ def story(order, out):
     try:
         cfg, wc, Lc, H, G, doc, hs = base_block(cfg, rng)
         F.fields(doc, G, H, Lc, P, rng, k=1 / cfg['size'] * 0.75, v_range=(-0.3, 1.3))
-        terraces_clip(doc, G, H, Lc, step=30)          # a quieter hillside at story scale
-        F.trees(doc, G, H, Lc, P, rng, scale=2.0, step=0.032)
+        terraces_clip(doc, G, H, Lc, step=18)          # closer in, the risers read again
+        F.trees(doc, G, H, Lc, P, rng, scale=2.6, step=0.05)
         for kind in MOTIFS.get(num, ('village',)):
             motif(doc, kind, Lc, H, G, rng, P)
         title(doc, cfg, order)

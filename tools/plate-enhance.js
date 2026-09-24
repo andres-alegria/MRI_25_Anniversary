@@ -16,6 +16,7 @@
   'use strict';
 
   var SITE = 'Stories from Our Changing Mountains — MRI 25th Anniversary';
+  var ARRIVED = location.hash;   /* the address the reader arrived with, before the page rewrites it */
   var ROUND = /border-radius:\s*50%/;
   /* the panel's own prev / next / close buttons are round too, so a station
      is a round button whose label is its number */
@@ -55,11 +56,14 @@
     '  text-transform: uppercase; color: var(--mri-text-dim); margin: 0 0 12px; }',
     '.mri-index ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px;',
     '  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }',
-    '.mri-index button { width: 100%; min-height: 44px; display: flex; gap: 12px; align-items: center;',
+    '.mri-index a { text-decoration: none; }',
+    '.mri-index button, .mri-index a { width: 100%; min-height: 44px; display: flex; gap: 12px; align-items: center;',
     '  text-align: left; padding: 9px 12px; border-radius: 9px; cursor: pointer;',
     '  background: transparent; color: var(--mri-text); border: 1px solid transparent;',
     '  font: 400 15px/1.35 Inter, system-ui, sans-serif; }',
-    '.mri-index button:hover { background: var(--mri-panel); border-color: var(--mri-line); }',
+    '.mri-index a:hover, .mri-index button:hover { background: var(--mri-panel); border-color: var(--mri-line); }',
+    '.mri-index a:focus-visible { outline: 3px solid var(--mri-accent); outline-offset: 2px; }',
+    '.mri-index [data-off] { opacity: .38; }',
     '.mri-index button:focus-visible { outline: 3px solid var(--mri-accent); outline-offset: 2px; }',
     '.mri-index b { font: 600 13px/1 "IBM Plex Mono", monospace; color: var(--mri-accent); min-width: 22px; }',
     '.mri-index [data-soon] { color: var(--mri-text-dim); }',
@@ -180,12 +184,14 @@
     var ol = document.createElement('ol');
     ms.forEach(function (btn) {
       var li = document.createElement('li');
-      var b = document.createElement('button');
+      var b = document.createElement('a');
       var soon = pending(storyNum(btn));
       if (soon) b.setAttribute('data-soon', '');
+      b.href = '#story/' + slug(titleOf(btn));
+      b.setAttribute('data-for', btn.textContent.trim());
       b.innerHTML = '<b>' + btn.textContent.trim() + '</b><span>' + (titleOf(btn) || 'Story') + '</span>'
-        + (soon ? '<em>to come</em>' : '');
-      b.addEventListener('click', function () { btn.click(); });
+        + (soon ? '<em aria-hidden="true">to come</em>' : '');
+      b.addEventListener('click', function (ev) { ev.preventDefault(); opener = b; btn.click(); });
       li.appendChild(b);
       ol.appendChild(li);
     });
@@ -225,6 +231,10 @@
       p.setAttribute('role', 'dialog');
       p.setAttribute('aria-modal', 'true');
       p.style.overscrollBehavior = 'contain';
+      /* in a background tab the slide-in never runs, and its fill-mode would
+         leave the panel parked 48px off the edge — drop it once it is due */
+      if (document.hidden) p.style.animation = 'none';     /* frozen: never animate */
+      setTimeout(function () { var q = panel(); if (q) q.style.animation = 'none'; }, 560);
       document.body.style.overflow = 'hidden';
       if (h) {
         if (!h.id) h.id = 'mri-story-title';
@@ -299,9 +309,41 @@
       if (!/download pdf/i.test(a.textContent)) return;
       a.setAttribute('role', 'button');
       a.setAttribute('aria-disabled', 'true');
+      a.setAttribute('tabindex', '-1');
+      a.removeAttribute('href');                 /* not a link until there is a file */
       a.style.opacity = '0.55';
       a.style.pointerEvents = 'none';
       a.textContent = 'PDF available 11 December 2026';
+    });
+  }
+
+  /* the filter dims markers on the plate; the list says the same thing */
+  function rgbOf(c) {
+    if (!c) return null;
+    if (c.charAt(0) === '#') {
+      var h = c.length === 4 ? c.replace(/#(.)(.)(.)/, '#$1$1$2$2$3$3') : c;
+      return [parseInt(h.substr(1, 2), 16), parseInt(h.substr(3, 2), 16), parseInt(h.substr(5, 2), 16)];
+    }
+    var m = c.match(/\d+/g);
+    return m ? m.slice(0, 3).map(Number) : null;
+  }
+  function sameColour(a, b) {
+    var x = rgbOf(a), y = rgbOf(b);
+    if (!x || !y) return false;
+    return Math.abs(x[0] - y[0]) < 10 && Math.abs(x[1] - y[1]) < 10 && Math.abs(x[2] - y[2]) < 10;
+  }
+  function syncIndexToFilter() {
+    var idx = document.querySelector('.mri-index');
+    if (!idx) return;
+    var dim = getComputedStyle(document.documentElement).getPropertyValue('--mri-marker-dim').trim();
+    if (!dim) return;
+    markers().forEach(function (btn) {
+      var cs = getComputedStyle(btn);
+      var off = sameColour(cs.backgroundColor, dim) || sameColour(cs.borderTopColor, dim)
+        || sameColour(cs.color, dim);
+      var row = idx.querySelector('[data-for="' + btn.textContent.trim() + '"]');
+      if (!row) return;
+      if (off) row.setAttribute('data-off', ''); else row.removeAttribute('data-off');
     });
   }
 
@@ -315,8 +357,8 @@
   }
 
   /* --- open the story named in the address ------------------------------ */
-  function openFromHash() {
-    var m = /^#story\/(.+)$/.exec(location.hash || '');
+  function openFromHash(hash) {
+    var m = /^#story\/(.+)$/.exec(hash || location.hash || '');
     if (!m) return;
     var want = m[1], tries = 0;
     (function look() {
@@ -337,13 +379,14 @@
     try { buildIndex(); } catch (e) {}
     try { dressPanel(); } catch (e) {}
     try { dressChips(); } catch (e) {}
+    try { syncIndexToFilter(); } catch (e) {}
     try { fixPdf(); } catch (e) {}
     busy = false;
   }
 
   onBody(function () {
     new MutationObserver(enhance).observe(document.body, { childList: true, subtree: true });
-    setTimeout(function () { enhance(); openFromHash(); }, 600);
+    setTimeout(function () { enhance(); openFromHash(ARRIVED); }, 600);
   });
   window.addEventListener('resize', function () { try { labelsForWidth(); } catch (e) {} });
   window.addEventListener('popstate', function () {
