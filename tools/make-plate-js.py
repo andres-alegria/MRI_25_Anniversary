@@ -97,6 +97,13 @@ js = '''/* ---------------------------------------------------------------------
       h2.setAttribute('data-mri-plate', 'done');
       /* the page carries its own interactive markers, so the drawn ones are
          dropped here — the file keeps them for print */
+      var gal = document.querySelector('.mri-index');
+      if (gal) {
+        gal.querySelectorAll('img[src*="art/thumbs/"]').forEach(function (im) {
+          im.setAttribute('src', im.getAttribute('src').replace(/-(dark|light)\\.png/, '-' + which + '.png'));
+          im.style.display = '';
+        });
+      }
       var drawn = h2.querySelector('#Stations');
       if (drawn) drawn.remove();
       window.MRI_PLATE.theme = which;

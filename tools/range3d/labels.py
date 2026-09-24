@@ -69,9 +69,7 @@ def ruler(doc, P, corner=(1.0, 0.0)):
 def winds(doc, P, x=150, y=330):
     """Moist winds arrive from the west; the east side lies in the rain shadow."""
     lay = doc.layer('Labels')
-    lay.append(text(x, y - 22, 'moist winds from the west \u2192 forest on the windward side; '
-                    'dry grass, bare rock and open woodland in the rain shadow (east)',
-                    P, TYPE['tick'] + 1, col=P['ink'], op=0.9))
+    # (the wind is shown by its streamlines alone; the sentence was removed)
     for k in range(3):
         yy = y + k * 22
         lay.append(f'<path d="M{f1(x)} {f1(yy)}q40 -10 80 0t80 0" fill="none" stroke="{P["iceLine"]}" stroke-width="1.4" stroke-opacity="0.8"/>'
@@ -156,26 +154,16 @@ def feature_labels(doc, G, H, P, items):
 
 
 def compass_and_scale(doc, P, x, y):
-    """A north arrow drawn along the block's own north, and a 5 km bar along its south edge."""
+    """The vertical exaggeration, stated in words.
+
+    The north arrow and the 5 km bar are gone: on an oblique block the scale
+    changes with distance, so one bar cannot hold across the scene, and the
+    two together certify the drawing as a survey of a real place."""
     lay = doc.layer('Labels')
-    a0 = np.array(V.project(0.0, 0.0, 0)); a1 = np.array(V.project(0.0, 0.05, 0))
-    nv = (a1 - a0) / np.hypot(*(a1 - a0))
-    b0_ = np.array(V.project(0.05, 0.0, V.ZBASE))
-    x, y = b0_[0] - 70, b0_[1] + 40
-    tip = np.array([x, y]) + nv * 40; tail = np.array([x, y]) - nv * 8
-    lay.append(f'<path d="M{f1(tail[0])} {f1(tail[1])}L{f1(tip[0])} {f1(tip[1])}" stroke="{P["ink"]}" stroke-width="1"/>')
-    lay.append(f'<path d="M{f1(tip[0])} {f1(tip[1])}l{f1(-nv[1] * 4 - nv[0] * 8)} {f1(nv[0] * 4 - nv[1] * 8)}'
-               f'l{f1(nv[1] * 8)} {f1(-nv[0] * 8)}Z" fill="{P["ink"]}"/>')
-    lay.append(text(tip[0] + nv[0] * 12, tip[1] + nv[1] * 12 + 5, 'N', P, 16, italic=False, anchor='middle', weight=600))
-    # 5 km along the south edge: the block is LC.SPAN_M across
-    b0 = np.array(V.project(0.05, 0.0, V.ZBASE)); b1 = np.array(V.project(0.05 + 5000 / LC.SPAN_M, 0.0, V.ZBASE))
-    off = np.array([0, 26])
-    lay.append(f'<path d="M{f1(b0[0] + off[0])} {f1(b0[1] + off[1])}L{f1(b1[0] + off[0])} {f1(b1[1] + off[1])}" '
-               f'stroke="{P["ink"]}" stroke-width="1.4"/>')
-    for q in (b0, b1):
-        lay.append(f'<path d="M{f1(q[0])} {f1(q[1] + off[1] - 4)}l0 8" stroke="{P["ink"]}" stroke-width="1"/>')
-    mid = (b0 + b1) / 2 + off
-    lay.append(text(mid[0], mid[1] + 18, '5 km', P, TYPE['tick'], italic=False, anchor='middle', op=0.85))
+    b0 = np.array(V.project(0.05, 0.0, V.ZBASE))
+    b1 = np.array(V.project(0.05 + 5000 / LC.SPAN_M, 0.0, V.ZBASE))
+    mid = (b0 + b1) / 2 + np.array([0, 26])
     ve = V.ZK / (np.cos(V.PHI) * V.SCALE / LC.SPAN_M)          # the view's true vertical exaggeration
-    lay.append(text(mid[0], mid[1] + 34, f'heights exaggerated about \u00d7{ve:.1f}', P, TYPE['tick'] - 1, anchor='middle',
-                    col=P['inkSoft']))
+    lay.append(text(mid[0], mid[1] + 18, f'heights exaggerated about \u00d7{ve:.1f}', P, TYPE['tick'],
+                    anchor='middle', col=P['inkSoft']))
+

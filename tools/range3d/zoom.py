@@ -21,7 +21,7 @@ import story as ST
 f1 = K.f1
 P = R.PAL
 CANVAS = (1800, 1300)          # clip canvas, px — adjust here
-CLIP_VE = 1.0                  # true vertical exaggeration of the clips (1 = none) — adjust here
+CLIP_VE = 0.75                 # vertical exaggeration of the clips (1 = true scale) — adjust here
 ICON = 6.3                     # how much larger the motifs are than on the whole plate
 
 
@@ -188,18 +188,26 @@ def granary(x, y, k=1.0):
 
 
 def market(x, y, k=1.0):
-    """A row of market stalls under striped awnings."""
+    """A row of market stalls: posts, a canopy on the block's own axes, and a
+    striped valance along the front."""
     out = []
     ux, vy = F.axes()
     cols = [P['red'], P['awning2'], P['awning3'], P['red'], P['awning2']]
-    for i in range(5):
-        c = np.array([x, y]) + ux * i * 11 * k
-        a = c; b = c + ux * 9 * k
-        out.append(f'<path d="M{f1(a[0])} {f1(a[1])}l0 {-7 * k}M{f1(b[0])} {f1(b[1])}l0 {-7 * k}" stroke="{P["inkSoft"]}" stroke-width="0.8"/>')
-        out.append(f'<path d="M{f1(a[0] - 1)} {f1(a[1] - 7 * k)}L{f1(b[0] + 1)} {f1(b[1] - 7 * k)}L{f1(b[0] - 1)} {f1(b[1] - 11 * k)}'
-                   f'L{f1(a[0] + 1)} {f1(a[1] - 11 * k)}Z" fill="{cols[i]}" fill-opacity="0.9"/>')
+    for i_ in range(5):
+        c = np.array([x, y]) + ux * i_ * 12 * k
+        w_, d_, h_ = 5.0 * k, 3.4 * k, 7.0 * k
+        corners = [c - ux * w_ - vy * d_, c + ux * w_ - vy * d_, c + ux * w_ + vy * d_, c - ux * w_ + vy * d_]
+        for p_ in corners:                                   # the four posts
+            out.append(f'<path d="M{f1(p_[0])} {f1(p_[1])}l0 {f1(-h_)}" stroke="{P["inkSoft"]}" '
+                       f'stroke-width="{f1(0.7 * k)}"/>')
+        top = [p_ - np.array([0, h_]) for p_ in corners]
+        out.append('<path d="M' + 'L'.join(f'{f1(p_[0])} {f1(p_[1])}' for p_ in top)
+                   + f'Z" fill="{cols[i_]}" fill-opacity="0.92" stroke="{P["shade"]}" stroke-width="0.5"/>')
+        # the valance hangs from the front edge, where a buyer stands
+        a_, b_ = top[3], top[2]
+        out.append(f'<path d="M{f1(a_[0])} {f1(a_[1])}L{f1(b_[0])} {f1(b_[1])}L{f1(b_[0])} {f1(b_[1] + 2.2 * k)}'
+                   f'L{f1(a_[0])} {f1(a_[1] + 2.2 * k)}Z" fill="{cols[(i_ + 2) % 5]}" fill-opacity="0.85"/>')
     return ''.join(out)
-
 
 def tower(x, y, w, d, h, k=1.0):
     """A mid-rise block with window bands."""
@@ -446,7 +454,7 @@ MOTIFS = {                      # story number -> the things drawn on its clip
     3:  ('mast', 'stakes'),                 # Elevation-dependent warming
     4:  ('village', 'people'),              # Social dimensions of glacier loss
     5:  ('canal', 'people'),                # Water towers & downstream dependencies
-    6:  ('saplings', 'checkdams'),          # Ecosystems & nature-based solutions
+    6:  ('ecotypes', 'saplings', 'checkdams'),   # Ecosystems & nature-based solutions
     7:  ('saplings', 'people'),             # Forests, soils & carbon dynamics
     8:  ('terrace-farmers', 'village'),     # Adaptation & resilience
     9:  ('village', 'people'),              # Cascading hazards & risks
@@ -544,7 +552,13 @@ def post(x, y, k=1.0):
 
 
 def checkdam(x, y, k=1.0):
-    return f'<path d="M{f1(x - 6 * k)} {f1(y)}l{f1(12 * k)} {f1(-2 * k)}" stroke="{P["wallLit"]}" stroke-width="{f1(2.6 * k)}" stroke-linecap="round"/>'
+    """A low stone bund across a gully, with a notch where the water crosses."""
+    w_, h_ = 9 * k, 2.4 * k
+    return (f'<path d="M{f1(x - w_)} {f1(y)}q{f1(w_)} {f1(-h_ * 2.2)} {f1(2 * w_)} 0'
+            f'l0 {f1(h_)}q{f1(-w_)} {f1(-h_ * 1.4)} {f1(-2 * w_)} 0Z" fill="{P["wallLit"]}" '
+            f'stroke="{P["shade"]}" stroke-width="0.6"/>'
+            f'<path d="M{f1(x)} {f1(y - h_ * 1.1)}l0 {f1(h_ * 1.5)}" stroke="{P["waterLine"]}" '
+            f'stroke-width="{f1(1.2 * k)}" stroke-opacity="0.8"/>')
 
 
 def sapling(x, y, k=1.0):
@@ -559,22 +573,22 @@ def motif(doc, kind, Lc, H, G, rng, P_):
     farm = [LC.FIELD, LC.TERRACE, LC.PADDY, LC.ALPINE, LC.DRY, LC.GROUND]
     if kind == 'village':
         for (x, y) in _sites(Lc, H, G, rng, farm, 1, smax=14):
-            F.settlement(doc, G, H, Lc, P_, rng, x, y, 0.19, 14, 'village', k=2.2 * ICON, gap=(6.4, 4.1))
+            F.settlement(doc, G, H, Lc, P_, rng, x, y, 0.20, 13, 'village', k=1.5 * ICON, gap=(9.5, 6.2))
             for dx, dy in ((-0.02, 0.012), (0.022, -0.008)):
                 q = at(H, np.clip(x + dx, 0.02, 0.98), np.clip(y + dy, 0.02, 0.98))
-                sl_.append(granary(q[0], q[1], 1.3 * ICON))
+                sl_.append(granary(q[0], q[1], 0.6 * ICON))
     elif kind == 'village-emptying':
         for (x, y) in _sites(Lc, H, G, rng, farm, 1, smax=14):
-            F.settlement(doc, G, H, Lc, P_, rng, x, y, 0.19, 9, 'village', k=2.2 * ICON, gap=(7.2, 4.6))
+            F.settlement(doc, G, H, Lc, P_, rng, x, y, 0.20, 9, 'village', k=1.5 * ICON, gap=(10.5, 6.8))
             for dx, dy in ((-0.03, 0.02), (0.03, 0.015), (0.01, -0.03)):   # roofless, abandoned
                 q = at(H, np.clip(x + dx, 0.02, 0.98), np.clip(y + dy, 0.02, 0.98))
-                sl_.append(F.box(q[0], q[1], 6 * ICON, 4.5 * ICON, 2.2 * ICON, 'flat',
+                sl_.append(F.box(q[0], q[1], 7 * ICON, 5 * ICON, 2.4 * ICON, 'flat',
                                  dict(P_, wallLit=P_['wallShade'], wallShade=P_['shade'],
                                       roofFlat=P_['ground'])))
     elif kind == 'market':
         for (x, y) in _sites(Lc, H, G, rng, farm, 1, smax=12):
             q = at(H, x, y)
-            sl_.append(market(q[0], q[1], 1.4 * ICON))
+            sl_.append(market(q[0], q[1], 0.5 * ICON))
     elif kind == 'people':
         for (x, y) in _sites(Lc, H, G, rng, farm + [LC.FOREST], 3, spacing=0.05, smax=22):
             q = at(H, x, y)
@@ -643,16 +657,56 @@ def motif(doc, kind, Lc, H, G, rng, P_):
                 r_ = (1.6 + rng.random() * 2.4) * ICON
                 inf.append(f'<ellipse cx="{f1(a_[0])}" cy="{f1(a_[1])}" rx="{f1(r_ * 1.5)}" ry="{f1(r_)}" '
                            f'fill="{P_["rockGlacier"]}" fill-opacity="0.8" stroke="{P_["shade"]}" stroke-width="0.4"/>')
+    elif kind == 'ecotypes':
+        # one slope, several communities: conifer stand, broadleaf grove, scrub
+        # and a wet meadow, so the clip shows an ecosystem mosaic, not one wood
+        ux, vy = F.axes()
+        kinds = [
+            ('conifer', P_['treeBody'], 24),
+            ('broadleaf', P_['treeLit'], 20),
+            ('scrub', P_['alpine'], 34),
+            ('meadow', P_['paddyWater'], 1),
+        ]
+        spots = _sites(Lc, H, G, rng, [LC.FOREST, LC.ALPINE, LC.GROUND, LC.DRY, LC.TERRACE],
+                       len(kinds), spacing=0.14, smax=28)
+        for (name, col, n_), (x, y) in zip(kinds, spots):
+            c = at(H, x, y)
+            if name == 'meadow':
+                ring = np.array([c + ux * 46 * np.cos(t) + vy * 26 * np.sin(t)
+                                 for t in np.linspace(0, 2 * np.pi, 30)])
+                pl.append(f'<path d="{K.d_smooth(ring, True, 1.4)}" fill="{col}" fill-opacity="0.55" '
+                          f'stroke="{P_["waterLine"]}" stroke-width="1" stroke-opacity="0.6"/>')
+                for _ in range(22):                       # tussocks in the wet ground
+                    q = c + ux * rng.normal(0, 26) + vy * rng.normal(0, 14)
+                    pl.append(f'<path d="M{f1(q[0])} {f1(q[1])}l0 {f1(-4 - rng.random() * 4)}" '
+                              f'stroke="{P_["bund"]}" stroke-width="1.4" stroke-linecap="round"/>')
+                continue
+            for _ in range(n_):
+                q = c + ux * rng.normal(0, 62) + vy * rng.normal(0, 30)
+                h_ = (16 if name == 'conifer' else 13 if name == 'broadleaf' else 7) * (0.8 + rng.random() * 0.5)
+                if name == 'conifer':
+                    pl.append(f'<path d="M{f1(q[0])} {f1(q[1] - h_)}L{f1(q[0] + h_ * 0.34)} {f1(q[1])}'
+                              f'L{f1(q[0] - h_ * 0.34)} {f1(q[1])}Z" fill="{col}" stroke="{P_["shade"]}" '
+                              f'stroke-width="0.4"/>')
+                elif name == 'broadleaf':
+                    pl.append(f'<path d="M{f1(q[0])} {f1(q[1])}l0 {f1(-h_ * 0.45)}" stroke="{P_["treeBody"]}" '
+                              f'stroke-width="{f1(h_ * 0.12)}"/>'
+                              f'<ellipse cx="{f1(q[0])}" cy="{f1(q[1] - h_ * 0.72)}" rx="{f1(h_ * 0.46)}" '
+                              f'ry="{f1(h_ * 0.38)}" fill="{col}" stroke="{P_["shade"]}" stroke-width="0.4"/>')
+                else:
+                    pl.append(f'<ellipse cx="{f1(q[0])}" cy="{f1(q[1] - h_ * 0.4)}" rx="{f1(h_ * 0.55)}" '
+                              f'ry="{f1(h_ * 0.4)}" fill="{col}" fill-opacity="0.9"/>')
     elif kind == 'saplings':
         for (x, y) in _sites(Lc, H, G, rng, [LC.FOREST, LC.ALPINE, LC.GROUND, LC.DRY], 1, smax=26):
             for r_ in range(3):
                 for c_ in range(5):
-                    q = at(H, np.clip(x + c_ * 0.009 - 0.018, 0.02, 0.98), np.clip(y + r_ * 0.009 - 0.009, 0.02, 0.98))
-                    pl.append(sapling(q[0], q[1], 1.1 * ICON))
+                    q = at(H, np.clip(x + c_ * 0.022 - 0.044, 0.02, 0.98),
+                           np.clip(y + r_ * 0.022 - 0.022, 0.02, 0.98))
+                    pl.append(sapling(q[0], q[1], 0.5 * ICON))
     elif kind == 'checkdams':
         for (x, y) in _sites(Lc, H, G, rng, [LC.GROUND, LC.ALPINE, LC.DRY, LC.SCREE], 3, spacing=0.03, smax=30):
             q = at(H, x, y)
-            inf.append(checkdam(q[0], q[1], 1.2 * ICON))
+            inf.append(checkdam(q[0], q[1], 0.45 * ICON))
     elif kind == 'border':
         n_ = H.shape[0] - 1
         col = int(np.clip(np.argmax(H.max(0)), 0.15 * n_, 0.85 * n_))

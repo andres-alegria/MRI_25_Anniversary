@@ -96,6 +96,13 @@
       h2.setAttribute('data-mri-plate', 'done');
       /* the page carries its own interactive markers, so the drawn ones are
          dropped here — the file keeps them for print */
+      var gal = document.querySelector('.mri-index');
+      if (gal) {
+        gal.querySelectorAll('img[src*="art/thumbs/"]').forEach(function (im) {
+          im.setAttribute('src', im.getAttribute('src').replace(/-(dark|light)\.png/, '-' + which + '.png'));
+          im.style.display = '';
+        });
+      }
       var drawn = h2.querySelector('#Stations');
       if (drawn) drawn.remove();
       window.MRI_PLATE.theme = which;
@@ -239,6 +246,10 @@
 
   var SITE = 'Stories from Our Changing Mountains — MRI 25th Anniversary';
   var ARRIVED = location.hash;   /* the address the reader arrived with, before the page rewrites it */
+  /* this file is a second scope: it needs its own view of the theme */
+  function theme() {
+    return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  }
   var ROUND = /border-radius:\s*50%/;
   /* the panel's own prev / next / close buttons are round too, so a station
      is a round button whose label is its number */
@@ -282,30 +293,32 @@
     '  font: 600 14px/1 Inter, system-ui, sans-serif; }',
     '.mri-skip:focus { left: 0; }',
     '[data-mri-marker] button:focus-visible { outline: 3px solid var(--mri-accent); outline-offset: 3px; }',
-    /* a station whose story is still to come: lighter, dashed ring */
-    '[data-mri-soon] button { opacity: .72; border-style: dashed !important; }',
-    'aside[role="dialog"] button { min-width: 44px; min-height: 44px; }',
-    /* the index: plain titles, which every reader asked for before anything else */
-    '.mri-index { margin: 26px auto 8px; max-width: 1180px; padding: 0 22px; }',
+    /* the stations all look alike on the mountain; which stories are written
+       is said in the gallery below it */
+    /* the gallery: one square per story, its own zoom behind a banner */
+    '.mri-index { margin: 30px auto 10px; max-width: 1320px; padding: 0 22px; }',
     '.mri-index h2 { font: 600 13px/1 "IBM Plex Mono", monospace; letter-spacing: .14em;',
-    '  text-transform: uppercase; color: var(--mri-text-dim); margin: 0 0 12px; }',
-    '.mri-index ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px;',
-    '  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }',
-    '.mri-index a { text-decoration: none; }',
-    '.mri-index button, .mri-index a { width: 100%; min-height: 44px; display: flex; gap: 12px; align-items: center;',
-    '  text-align: left; padding: 9px 12px; border-radius: 9px; cursor: pointer;',
-    '  background: transparent; color: var(--mri-text); border: 1px solid transparent;',
-    '  font: 400 15px/1.35 Inter, system-ui, sans-serif; }',
-    '.mri-index a:hover, .mri-index button:hover { background: var(--mri-panel); border-color: var(--mri-line); }',
-    '.mri-index a:focus-visible { outline: 3px solid var(--mri-accent); outline-offset: 2px; }',
-    '.mri-index [data-off] { opacity: .38; }',
-    '.mri-index button:focus-visible { outline: 3px solid var(--mri-accent); outline-offset: 2px; }',
-    '.mri-index b { font: 600 13px/1 "IBM Plex Mono", monospace; color: var(--mri-accent); min-width: 22px; }',
-    '.mri-index [data-soon] { color: var(--mri-text-dim); }',
-    '.mri-index [data-soon] em { font-style: normal; font-size: 12px; opacity: .8; margin-left: auto; }',
+    '  text-transform: uppercase; color: var(--mri-text-dim); margin: 0 0 14px; }',
+    '.mri-index ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px;',
+    '  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }',
+    '.mri-tile { position: relative; display: block; aspect-ratio: 1 / 1; overflow: hidden;',
+    '  border-radius: 10px; background: var(--mri-panel); border: 1px solid var(--mri-line);',
+    '  text-decoration: none; color: var(--mri-text); }',
+    '.mri-tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;',
+    '  display: block; will-change: transform; }',
+    '.mri-tile figcaption { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 10px;',
+    '  align-items: baseline; padding: 30px 12px 11px; color: #fff;',
+    '  background: linear-gradient(0deg, rgba(4,14,22,.94) 0%, rgba(4,14,22,.55) 58%, rgba(4,14,22,0) 100%);',
+    '  font: 500 14px/1.25 Inter, system-ui, sans-serif; }',
+    '.mri-tile figcaption b { font: 600 12px/1 "IBM Plex Mono", monospace; opacity: .85; }',
+    '.mri-tile em { font-style: normal; margin-left: auto; font-size: 11px; letter-spacing: .06em;',
+    '  text-transform: uppercase; opacity: .75; white-space: nowrap; }',
+    '.mri-tile:focus-visible { outline: 3px solid var(--mri-accent); outline-offset: 3px; }',
+    '.mri-index [data-soon] img { filter: grayscale(.55); }',
+    '.mri-index [data-off] { opacity: .32; }',
     '@media (max-width: 900px) {',
     '  [data-mri-marker] { display: none !important; }',
-    '  .mri-index ol { grid-template-columns: 1fr; }',
+    '  .mri-index ol { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }',
     '}'
   ].join('\n');
   document.head.appendChild(css);
@@ -450,16 +463,38 @@
   function nameMarkers() {
     markers().forEach(function (btn) {
       var n = btn.textContent.trim();
-      if (btn.parentElement) {
-        btn.parentElement.setAttribute('data-mri-marker', n);
-        if (pending(storyNum(btn))) btn.parentElement.setAttribute('data-mri-soon', '');
-      }
+      if (btn.parentElement) btn.parentElement.setAttribute('data-mri-marker', n);
       var label = btn.getAttribute('aria-label') || '';
       if (label && label.indexOf('Station ') !== 0) {
         btn.setAttribute('aria-label', 'Station ' + n + ': ' + label
           + (pending(storyNum(btn)) ? ' — story still to come' : ''));
       }
     });
+  }
+
+  /* the tiles lift and their picture pushes in on hover or focus: GSAP when
+     the page has it, a plain transition when it does not — adjust the feel here */
+  var ZOOM = { scale: 1.09, lift: -3, time: 0.45 };
+  function hoverZoom(tile, img) {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var g = window.gsap;
+    if (!g) {
+      img.style.transition = 'transform .45s ease';
+      tile.style.transition = 'transform .45s ease';
+    }
+    function to(on) {
+      if (g) {
+        g.to(img, { scale: on ? ZOOM.scale : 1, duration: ZOOM.time, ease: 'power2.out' });
+        g.to(tile, { y: on ? ZOOM.lift : 0, duration: ZOOM.time, ease: 'power2.out' });
+      } else {
+        img.style.transform = on ? 'scale(' + ZOOM.scale + ')' : 'none';
+        tile.style.transform = on ? 'translateY(' + ZOOM.lift + 'px)' : 'none';
+      }
+    }
+    tile.addEventListener('mouseenter', function () { to(true); });
+    tile.addEventListener('mouseleave', function () { to(false); });
+    tile.addEventListener('focus', function () { to(true); });
+    tile.addEventListener('blur', function () { to(false); });
   }
 
   /* --- an index of the 25, always visible -------------------------------- */
@@ -485,15 +520,22 @@
     var ol = document.createElement('ol');
     ms.forEach(function (btn) {
       var li = document.createElement('li');
-      var b = document.createElement('a');
       var soon = pending(storyNum(btn));
+      var n = btn.textContent.trim();
+      var name = titleOf(btn) || 'Story';
+      var b = document.createElement('a');
       if (soon) b.setAttribute('data-soon', '');
-      b.href = '#story/' + slug(titleOf(btn));
-      b.setAttribute('data-for', btn.textContent.trim());
-      b.innerHTML = '<b>' + btn.textContent.trim() + '</b><span>' + (titleOf(btn) || 'Story') + '</span>'
-        + (soon ? '<em aria-hidden="true">to come</em>' : '');
-      b.setAttribute('aria-label', 'Station ' + btn.textContent.trim() + ': ' + (titleOf(btn) || 'Story')
+      b.className = 'mri-tile';
+      b.href = '#story/' + slug(name);
+      b.setAttribute('data-for', n);
+      b.innerHTML = '<img loading="lazy" alt="" src="art/thumbs/story-' + n + '-' + theme() + '.png">'
+        + '<figcaption><b>' + n + '</b><span>' + name + '</span>'
+        + (soon ? '<em>to come</em>' : '') + '</figcaption>';
+      b.setAttribute('aria-label', 'Station ' + n + ': ' + name
         + (soon ? ' \u2014 story still to come' : ''));
+      var img = b.querySelector('img');
+      img.addEventListener('error', function () { img.style.display = 'none'; });
+      hoverZoom(b, img);
       b.addEventListener('click', function (ev) { ev.preventDefault(); opener = b; btn.click(); });
       li.appendChild(b);
       ol.appendChild(li);
@@ -734,6 +776,28 @@
     }, true);
   }
 
+  /* the button that begins the journey lands the whole mountain in view,
+     its base on the base of the screen */
+  function showWholePlate() {
+    var h = document.querySelector('svg[data-mri-plate="done"]');
+    if (!h) return;
+    var r = h.getBoundingClientRect();
+    var y = Math.max(0, window.scrollY + r.bottom - window.innerHeight);
+    try { window.scrollTo({ top: y, behavior: 'smooth' }); } catch (e) { window.scrollTo(0, y); }
+    /* a background tab drops smooth scrolling, so make sure it lands */
+    setTimeout(function () {
+      if (Math.abs(window.scrollY - y) > 8) window.scrollTo(0, y);
+    }, 700);
+  }
+  function catchAscent() {
+    document.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest && e.target.closest('a, button');
+      if (!b || !/begin the ascent/i.test((b.textContent || '').trim())) return;
+      e.preventDefault();
+      showWholePlate();
+    }, true);
+  }
+
   /* --- open the story named in the address ------------------------------ */
   function openFromHash(hash) {
     var m = /^#story\/(.+)$/.exec(hash || location.hash || '');
@@ -827,6 +891,7 @@
   onBody(function () {
     new MutationObserver(enhance).observe(document.body, { childList: true, subtree: true });
     watchFilter();
+    catchAscent();
     setTimeout(function () { enhance(); openFromHash(ARRIVED); }, 600);
     startAtTop();
   });

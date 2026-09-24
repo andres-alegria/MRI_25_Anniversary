@@ -322,8 +322,8 @@ def herd(doc, G, H, L, P, rng, x0, y0, n=9, kind='llama'):
 def person(x, y, P, staff=False, load=False, k=1.0):
     """A small standing figure as one silhouette (head, coat, legs)."""
     q = lambda a, b: f'{f1(x + a * k)} {f1(y - b * k)}'
-    d = (f'M{q(-1.2, 0)}L{q(-0.8, 3.2)}L{q(-1.5, 7.2)}Q{q(0, 8.4)} {q(1.5, 7.2)}L{q(0.8, 3.2)}L{q(1.2, 0)}L{q(0.4, 0)}'
-         f'L{q(0, 3)}L{q(-0.4, 0)}Z')
+    d = (f'M{q(-0.95, 0)}L{q(-0.95, 3.3)}L{q(-1.45, 7.2)}Q{q(0, 8.4)} {q(1.45, 7.2)}L{q(0.95, 3.3)}'
+         f'L{q(0.95, 0)}L{q(0.3, 0)}L{q(0.3, 3.1)}L{q(-0.3, 3.1)}L{q(-0.3, 0)}Z')
     s_ = f'<path d="{d}" fill="{P["figure"]}"/><circle cx="{f1(x)}" cy="{f1(y - 9.3 * k)}" r="{f1(1.15 * k)}" fill="{P["figure"]}"/>'
     if staff:
         s_ += f'<path d="M{q(2, 0)}L{q(2.6, 10)}" stroke="{P["figure"]}" stroke-width="{f1(0.6 * k)}"/>'
