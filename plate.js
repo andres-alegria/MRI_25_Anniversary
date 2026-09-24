@@ -258,7 +258,9 @@
   [['og:title', SITE], ['og:type', 'website'],
    ['og:description', 'Twenty-five stories from a quarter-century of mountain research, told across one '
      + 'composite mountain landscape.'],
-   ['twitter:card', 'summary_large_image']].forEach(function (pair) {
+   ['twitter:card', 'summary_large_image'],
+   ['og:image', location.origin + location.pathname.replace(/[^/]*$/, '') + 'art/share-card.png'],
+   ['og:url', location.origin + location.pathname]].forEach(function (pair) {
     if (document.querySelector('meta[property="' + pair[0] + '"], meta[name="' + pair[0] + '"]')) return;
     var m = document.createElement('meta');
     m.setAttribute(pair[0].indexOf('og:') === 0 ? 'property' : 'name', pair[0]);
@@ -389,7 +391,7 @@
     if (!h) return;
     var w = h.getBoundingClientRect().width;
     if (!w) return;
-    var small = w < 1100;
+    var small = w < 1300;      /* below this the cap cannot reach 12px: keep them off */
     var k = 2400 / w;                       /* SVG units per CSS pixel */
     ['Labels', 'Face-labels', 'Face-symbols'].forEach(function (id) {
       var g = h.querySelector('#' + id);
@@ -418,14 +420,30 @@
     });
     return 0.2126 * f[0] + 0.7152 * f[1] + 0.0722 * f[2];
   }
-  /* the highlighted markers take the theme's own colour as their fill, and in
-     light mode a dark numeral on it fell to 2.6:1 — pick the numeral to suit */
+  function ratio(a, b) {
+    var x = luminance(a), y = luminance(b);
+    if (x === null || y === null) return 0;
+    var hi = Math.max(x, y), lo = Math.min(x, y);
+    return (hi + 0.05) / (lo + 0.05);
+  }
+  /* the highlighted markers take the theme's own colour as their fill, which
+     differs per theme and per mode — so the numeral is whichever of ink or
+     paper actually reads on it, measured, not guessed */
+  var INK = '#0B2740', PAPER = '#FFFFFF';
   function markerContrast() {
+    var worst = 99, worstBg = '';
     markers().forEach(function (btn) {
-      var l = luminance(getComputedStyle(btn).backgroundColor);
-      if (l === null) return;
-      btn.style.color = l > 0.42 ? '#0B2740' : '#FFFFFF';
+      var bg = getComputedStyle(btn).backgroundColor;
+      if (luminance(bg) === null) return;
+      var ink = ratio(INK, bg), paper = ratio(PAPER, bg);
+      btn.style.color = ink >= paper ? INK : PAPER;
+      var best = Math.max(ink, paper);
+      if (best < worst) { worst = best; worstBg = bg; }
     });
+    if (worst < 4.5 && window.console) {
+      console.warn('[plate] a station numeral is only ' + worst.toFixed(2) + ':1 on ' + worstBg
+        + ' — that fill needs changing, no text colour clears 4.5:1 on it');
+    }
   }
 
   /* --- markers: a name a person can say, and a state a reader can see ---- */
@@ -474,6 +492,8 @@
       b.setAttribute('data-for', btn.textContent.trim());
       b.innerHTML = '<b>' + btn.textContent.trim() + '</b><span>' + (titleOf(btn) || 'Story') + '</span>'
         + (soon ? '<em aria-hidden="true">to come</em>' : '');
+      b.setAttribute('aria-label', 'Station ' + btn.textContent.trim() + ': ' + (titleOf(btn) || 'Story')
+        + (soon ? ' \u2014 story still to come' : ''));
       b.addEventListener('click', function (ev) { ev.preventDefault(); opener = b; btn.click(); });
       li.appendChild(b);
       ol.appendChild(li);
@@ -481,6 +501,20 @@
     wrap.appendChild(ol);
     var frame = h.parentElement;
     if (frame && frame.parentElement) frame.parentElement.insertBefore(wrap, frame.nextSibling);
+  }
+
+  function hideDuplicateList() {
+    if (!document.querySelector('.mri-index')) return;
+    document.querySelectorAll('h1, h2, h3, p, span, div').forEach(function (n) {
+      if (n.children.length) return;
+      if (!/^stories on this path$/i.test((n.textContent || '').trim())) return;
+      var box = n.parentElement;
+      for (var i = 0; box && i < 3; i++) {
+        if (box.querySelectorAll('button, a').length > 10) break;
+        box = box.parentElement;
+      }
+      (box || n.parentElement).style.display = 'none';
+    });
   }
 
   /* --- the story panel: a dialog with an address ------------------------- */
@@ -504,7 +538,15 @@
         if (location.hash.indexOf('#story/') === 0) {
           history.replaceState(null, '', location.pathname + location.search);
         }
-        if (opener && document.contains(opener)) { try { opener.focus(); } catch (e) {} }
+        if (opener && document.contains(opener)) {
+          try { opener.focus(); } catch (e) {}
+          if (document.activeElement !== opener) {
+            /* the marker is hidden at this width: go back to its row instead */
+            var row = document.querySelector('#mri-index a[data-for="'
+              + (opener.textContent || '').trim() + '"]');
+            if (row) { try { row.focus(); } catch (e2) {} }
+          }
+        }
       }
       return;
     }
@@ -590,8 +632,9 @@
   }, true);
 
   document.addEventListener('click', function (e) {
+    if (!e.isTrusted) return;            /* the index opens stories by calling click() */
     var b = e.target && e.target.closest && e.target.closest('button');
-    if (isMarker(b)) opener = b;
+    if (isMarker(b) && b.offsetParent !== null) opener = b;   /* only if it is on screen */
   }, true);
 
   /* the story's zoom carries the story's name, not a template */
@@ -638,14 +681,20 @@
   function syncIndexToFilter() {
     var idx = document.querySelector('.mri-index');
     if (!idx) return;
+    var ms = markers();
+    if (!ms.length) return;
+    var rest = getComputedStyle(document.documentElement).getPropertyValue('--mri-panel').trim();
     var dim = getComputedStyle(document.documentElement).getPropertyValue('--mri-marker-dim').trim();
-    if (!dim) return;
-    markers().forEach(function (btn) {
-      var cs = getComputedStyle(btn);
-      var off = sameColour(cs.backgroundColor, dim) || sameColour(cs.borderTopColor, dim)
-        || sameColour(cs.color, dim);
+    var lit = ms.filter(function (b) {
+      var bg = getComputedStyle(b).backgroundColor;
+      return !sameColour(bg, rest) && !sameColour(bg, dim);
+    });
+    var filtering = lit.length > 0 && lit.length < ms.length;   /* a theme is chosen */
+    ms.forEach(function (btn) {
       var row = idx.querySelector('[data-for="' + btn.textContent.trim() + '"]');
       if (!row) return;
+      var bg = getComputedStyle(btn).backgroundColor;
+      var off = filtering && (sameColour(bg, rest) || sameColour(bg, dim));
       if (off) row.setAttribute('data-off', ''); else row.removeAttribute('data-off');
     });
   }
@@ -673,11 +722,13 @@
       if (!c || !/gap:\s*7px/.test(c.getAttribute('style') || '')) return;
       setTimeout(function () {
         var said = null;
-        document.querySelectorAll('p, div, span').forEach(function (n) {
-          if (n.children.length) return;
+        var all = document.querySelectorAll('p, div, span');
+        for (var i = 0; i < all.length && !said; i++) {
+          var n = all[i];
+          if (n === live || live.contains(n) || n.contains(live) || n.children.length) continue;
           var t = (n.textContent || '').trim();
           if (/^Showing \d+ stor/i.test(t) || /^All 25 stories are/i.test(t)) said = t;
-        });
+        }
         if (said) say(said);
       }, 260);
     }, true);
@@ -691,8 +742,16 @@
     (function look() {
       var hit = null;
       markers().forEach(function (btn) { if (slug(titleOf(btn)) === want) hit = btn; });
-      if (hit) { hit.click(); return; }
-      if (tries++ < 60) setTimeout(look, 120);
+      if (hit) {
+        window.scrollTo(0, 0);          /* the page behind the panel starts at the top */
+        hit.click();
+        return;
+      }
+      if (tries++ < 60) { setTimeout(look, 120); return; }
+      /* no story of that name: say so, and put the reader at the list */
+      history.replaceState(null, '', location.pathname + location.search);
+      window.scrollTo(0, 0);
+      say('That story is not here. All 25 are listed below the mountain.');
     })();
   }
 
@@ -705,23 +764,43 @@
   ];
   function copyForWidth() {
     var narrow = window.innerWidth < 900;
-    COPY.forEach(function (pair) {
-      var from = narrow ? pair[0] : pair[1], to = narrow ? pair[1] : pair[0];
-      document.querySelectorAll('h1,h2,h3,p,span,div,li').forEach(function (n) {
-        if (n.children.length) return;
-        if ((n.textContent || '').trim() === from) n.textContent = to;
+    var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+    var n;
+    while ((n = walker.nextNode())) {
+      if (!n.nodeValue || n.nodeValue.length > 200) continue;
+      COPY.forEach(function (pair) {
+        var from = narrow ? pair[0] : pair[1], to = narrow ? pair[1] : pair[0];
+        if (n.nodeValue.indexOf(from) !== -1) n.nodeValue = n.nodeValue.split(from).join(to);
       });
-    });
+    }
   }
 
   /* the page ships header, nav and footer but no main landmark */
+  /* the export puts two h2s before its h1; ARIA levels put that right without
+     moving anything on the page */
+  function headingOrder() {
+    var hs = document.querySelectorAll('h1, h2');
+    if (!hs.length) return;
+    var first = hs[0], h1 = document.querySelector('h1');
+    if (!h1 || first === h1) return;
+    if (!first.hasAttribute('aria-level')) {
+      first.setAttribute('role', 'heading');
+      first.setAttribute('aria-level', '1');
+    }
+    if (!h1.hasAttribute('aria-level')) {
+      h1.setAttribute('role', 'heading');
+      h1.setAttribute('aria-level', '2');
+    }
+  }
+
   function mainLandmark() {
-    if (document.querySelector('main, [role="main"]')) return;
+    var had = document.querySelector('main, [role="main"]');
+    if (had && !(had.querySelector('header') || had.querySelector('footer'))) return;
+    if (had) had.removeAttribute('role');            /* it swallowed the header and footer */
     var h = document.querySelector('svg[data-mri-plate="done"]');
-    var n = h;
-    while (n && n.tagName !== 'SECTION') n = n.parentElement;
-    var host = n && n.parentElement;
-    if (host) host.setAttribute('role', 'main');
+    var sec = h;
+    while (sec && sec.tagName !== 'SECTION') sec = sec.parentElement;
+    if (sec) sec.setAttribute('role', 'main');       /* the journey is the page's content */
   }
 
   var busy = false;
@@ -739,6 +818,8 @@
     try { clipAlt(); } catch (e) {}
     try { copyForWidth(); } catch (e) {}
     try { mainLandmark(); } catch (e) {}
+    try { headingOrder(); } catch (e) {}
+    try { hideDuplicateList(); } catch (e) {}
     try { fixPdf(); } catch (e) {}
     busy = false;
   }
@@ -749,7 +830,10 @@
     setTimeout(function () { enhance(); openFromHash(ARRIVED); }, 600);
     startAtTop();
   });
-  window.addEventListener('resize', function () { try { labelsForWidth(); } catch (e) {} });
+  window.addEventListener('resize', function () {
+    try { labelsForWidth(); } catch (e) {}
+    try { copyForWidth(); } catch (e) {}
+  });
   window.addEventListener('popstate', function () {
     var p = panel();
     if (location.hash.indexOf('#story/') !== 0 && p) {
