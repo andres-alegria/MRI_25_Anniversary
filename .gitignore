@@ -7,3 +7,6 @@ figures/src/
 
 # render by-products: art/stations.json is the copy the page reads
 art/range-*-stations.json
+
+# Noun Project: downloaded icons stay out of a public repo (see tools/noun.py)
+tools/noun-cache/

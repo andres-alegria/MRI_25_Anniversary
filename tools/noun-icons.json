@@ -1,0 +1,9 @@
+{
+  "_comment": "Icons chosen from the Noun Project, by slot. 'id' is the Noun Project icon id; 'attribution' is the credit line their API returns and the publication must carry. The icon files themselves live in tools/noun-cache/ and are deliberately not committed - see tools/noun.py.",
+  "_example": {
+    "id": "0000000",
+    "attribution": "Thing by Someone from Noun Project",
+    "license": "creative-commons-attribution",
+    "note": "what it is used for"
+  }
+}
