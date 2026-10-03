@@ -46,7 +46,14 @@ def draped_runs(G, H, x, y, lift=7.0, keep=None):
     return render.visible_runs(G, x, y, z, 2)
 
 
-def glacier(doc, G, H, L, P, rng):
+def glacier(doc, G, H, L, P, rng, lw=1.0, flanks=True):
+    """lw scales every line weight: a closeup needs heavier ice linework
+    than the overview, where the same marks are a tenth of the size.
+
+    flanks draws the lateral moraines and the trimline. A closeup that frames
+    less than the glacier's width has nowhere to put them — they would leave
+    the valley and run across the forest — so it asks for them to be left off
+    and draws its own where the ice actually ends."""
     cls = L['cls']
     lay = doc.layer('Glacier-detail')
     t, p, tan, nor = centreline(T.MAIN_GLACIER)
@@ -63,7 +70,7 @@ def glacier(doc, G, H, L, P, rng):
         q = p[sel] + nor[sel] * (f * gw(t[sel]))[:, None]
         for run in draped_runs(G, H, q[:, 0], q[:, 1], 7, on_ice(q[:, 0], q[:, 1])):
             d.append(K.d_smooth(run, False, 1.5))
-    lay.append(f'<path d="{"".join(d)}" fill="none" stroke="{P["iceLine"]}" stroke-width="0.8" stroke-opacity="0.55"/>')
+    lay.append(f'<path d="{"".join(d)}" fill="none" stroke="{P["iceLine"]}" stroke-width="{0.8 * lw:.2f}" stroke-opacity="0.55"/>')
 
     # the icefall: rows of crevasses across the whole width
     d = []
@@ -86,7 +93,7 @@ def glacier(doc, G, H, L, P, rng):
             q = np.stack([np.linspace(a[0], b[0], 4), np.linspace(a[1], b[1], 4)], 1)
             for run in draped_runs(G, H, q[:, 0], q[:, 1], 7, on_ice(q[:, 0], q[:, 1])):
                 d.append(K.d_poly(run, False, 0.8))
-    lay.append(f'<path d="{"".join(d)}" fill="none" stroke="{P["crevasse"]}" stroke-width="1.2" '
+    lay.append(f'<path d="{"".join(d)}" fill="none" stroke="{P["crevasse"]}" stroke-width="{1.2 * lw:.2f}" '
                f'stroke-opacity="0.95" stroke-linecap="round"/>')
 
     # ogives: bands below the icefall, bowed down-glacier
@@ -98,15 +105,17 @@ def glacier(doc, G, H, L, P, rng):
         q = p[i] + nor[i] * (ff * gw(tb))[:, None]
         for run in draped_runs(G, H, q[:, 0], q[:, 1], 7, on_ice(q[:, 0], q[:, 1])):
             d.append(K.d_smooth(run, False, 1.2))
-    lay.append(f'<path d="{"".join(d)}" fill="none" stroke="{P["ogive"]}" stroke-width="2.2" stroke-opacity="0.5"/>')
+    lay.append(f'<path d="{"".join(d)}" fill="none" stroke="{P["ogive"]}" stroke-width="{2.2 * lw:.2f}" stroke-opacity="0.5"/>')
 
     # the medial moraine: a dark stripe where two ice streams join
     sel = (t > 0.36) & (t < 0.985)
     q = p[sel] + nor[sel] * (0.10 * gw(t[sel]))[:, None]
     d = ''.join(K.d_smooth(r, False, 1.5) for r in draped_runs(G, H, q[:, 0], q[:, 1], 7, on_ice(q[:, 0], q[:, 1])))
-    lay.append(f'<path d="{d}" fill="none" stroke="{P["debris"]}" stroke-width="2.6" stroke-dasharray="5 2.5" stroke-opacity="0.95"/>')
+    lay.append(f'<path d="{d}" fill="none" stroke="{P["debris"]}" stroke-width="{2.6 * lw:.2f}" stroke-dasharray="5 2.5" stroke-opacity="0.95"/>')
 
     # lateral moraines (sharp crests) and the trimline above them
+    if not flanks:
+        return
     mor, trim = [], []
     for sgn in (-1, 1):
         sel = (t > 0.38) & (t <= 1.0)
@@ -115,9 +124,9 @@ def glacier(doc, G, H, L, P, rng):
         q = p[sel] + nor[sel] * (sgn * 1.55 * gw(t[sel]))[:, None]
         trim += [K.d_smooth(r, False, 1.5) for r in draped_runs(G, H, q[:, 0], q[:, 1], 6)]
     ml = doc.layer('Moraines')
-    ml.append(f'<path d="{"".join(mor)}" fill="none" stroke="{P["shade"]}" stroke-width="4.2" stroke-opacity="0.55" stroke-linecap="round"/>')
-    ml.append(f'<path d="{"".join(mor)}" fill="none" stroke="{P["moraineCrest"]}" stroke-width="2.2" stroke-linecap="round"/>')
-    ml.append(f'<path d="{"".join(trim)}" fill="none" stroke="{P["iceLine"]}" stroke-width="0.9" stroke-dasharray="2 3" stroke-opacity="0.6"/>')
+    ml.append(f'<path d="{"".join(mor)}" fill="none" stroke="{P["shade"]}" stroke-width="{4.2 * lw:.2f}" stroke-opacity="0.55" stroke-linecap="round"/>')
+    ml.append(f'<path d="{"".join(mor)}" fill="none" stroke="{P["moraineCrest"]}" stroke-width="{2.2 * lw:.2f}" stroke-linecap="round"/>')
+    ml.append(f'<path d="{"".join(trim)}" fill="none" stroke="{P["iceLine"]}" stroke-width="{0.9 * lw:.2f}" stroke-dasharray="2 3" stroke-opacity="0.6"/>')
 
 
 def debris_cover(doc, G, L, P):
