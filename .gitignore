@@ -4,3 +4,6 @@ figures/*.svg
 figures/src/
 
 .DS_Store
+
+# render by-products: art/stations.json is the copy the page reads
+art/range-*-stations.json

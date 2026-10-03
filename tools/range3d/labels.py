@@ -1,8 +1,8 @@
 """
 The scientific apparatus: an altitude scale standing at the block's back-left
 corner with the life zones bracketed beside it, the snowline and treeline as
-dashed isolines on the ground, spot heights, a few feature names, the rock
-units named on the cut faces, a north arrow and a scale bar.
+dashed isolines on the ground, spot heights, a few feature names and the rock
+units named on the cut faces.
 
 Type is set in real font names (Illustrator-safe). Adjust sizes in TYPE.
 """
@@ -61,15 +61,13 @@ def ruler(doc, P, corner=(1.0, 0.0)):
     out.append(f'<path d="M{f1(xb + 170)} {f1(y1)}L{f1(xb + 174)} {f1(y1)}L{f1(xb + 174)} {f1(y2)}L{f1(xb + 170)} {f1(y2)}" '
                f'fill="none" stroke="{P["permafrost"]}" stroke-width="0.8"/>')
     out.append(text(xb + 180, (y1 + y2) / 2 + 5, 'periglacial', P, TYPE['zone'] - 1, col=P['permafrost']))
-    out.append(text(bx + 14, by + 26, 'heights read at this corner;', P, TYPE['tick'] - 1, col=P['inkSoft']))
-    out.append(text(bx + 14, by + 42, 'far peaks sit higher on the page', P, TYPE['tick'] - 1, col=P['inkSoft']))
     lay.append(''.join(out))
 
 
 def winds(doc, P, x=150, y=330):
     """Moist winds arrive from the west; the east side lies in the rain shadow."""
     lay = doc.layer('Labels')
-    # (the wind is shown by its streamlines alone; the sentence was removed)
+    lay.append(text(x, y - 22, 'moist winds from the west', P, TYPE['tick'] + 1, col=P['ink'], op=0.9))
     for k in range(3):
         yy = y + k * 22
         lay.append(f'<path d="M{f1(x)} {f1(yy)}q40 -10 80 0t80 0" fill="none" stroke="{P["iceLine"]}" stroke-width="1.4" stroke-opacity="0.8"/>'
@@ -153,17 +151,4 @@ def feature_labels(doc, G, H, P, items):
         lay.append(halo(ex + (4 if dx >= 0 else -4), ey + 5, s, P, TYPE['feature'], anchor=anchor))
 
 
-def compass_and_scale(doc, P, x, y):
-    """The vertical exaggeration, stated in words.
-
-    The north arrow and the 5 km bar are gone: on an oblique block the scale
-    changes with distance, so one bar cannot hold across the scene, and the
-    two together certify the drawing as a survey of a real place."""
-    lay = doc.layer('Labels')
-    b0 = np.array(V.project(0.05, 0.0, V.ZBASE))
-    b1 = np.array(V.project(0.05 + 5000 / LC.SPAN_M, 0.0, V.ZBASE))
-    mid = (b0 + b1) / 2 + np.array([0, 26])
-    ve = V.ZK / (np.cos(V.PHI) * V.SCALE / LC.SPAN_M)          # the view's true vertical exaggeration
-    lay.append(text(mid[0], mid[1] + 18, f'heights exaggerated about \u00d7{ve:.1f}', P, TYPE['tick'],
-                    anchor='middle', col=P['inkSoft']))
 

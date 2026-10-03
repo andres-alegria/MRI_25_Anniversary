@@ -153,7 +153,7 @@ def dam_and_power(doc, G, H, L, P, w, road_paths):
 
 def mine(doc, G, H, L, P, x0=0.905, y0=0.200):
     """An open-pit mine: benches stepping down into the slope, a haul road
-    zig-zagging out, a grey waste dump, and a tailings pond behind a straight dam."""
+    zig-zagging out, and a tailings pond behind a straight dam."""
     lay = doc.layer('Infrastructure')
     rng = np.random.default_rng(11)
     z0 = V.sample(H, x0, y0)
@@ -183,16 +183,6 @@ def mine(doc, G, H, L, P, x0=0.905, y0=0.200):
     out.append(f'<path d="{K.d_poly(np.array(hr), False, 0.5)}" fill="none" stroke="{P["road"]}" stroke-width="1.6"/>')
     out.append('</g>')
     out.append(f'<path d="{K.d_poly(rim, True, 0.5)}" fill="none" stroke="{P["benchLight"]}" stroke-width="1.4"/>')
-    # the waste dump: one flat-topped heap on the downslope side
-    wx, wy = x0 + 0.005, y0 - 0.048
-    tt = np.linspace(0, 2 * np.pi, 40)
-    zb = V.sample(H, wx, wy)
-    base_ = np.stack(V.project(wx + 0.024 * np.cos(tt), wy + 0.013 * np.sin(tt), np.full_like(tt, zb)), 1)
-    top_ = np.stack(V.project(wx + 0.017 * np.cos(tt), wy + 0.008 * np.sin(tt), np.full_like(tt, zb + 190)), 1)
-    allp = np.vstack([base_, top_])
-    hull = _hull(allp)
-    out.append(f'<path d="{K.d_poly(hull, True, 0.5)}" fill="{P["waste"]}" stroke="{P["shade"]}" stroke-width="0.6"/>')
-    out.append(f'<path d="{K.d_poly(top_, True, 0.5)}" fill="{P["wasteTop"]}"/>')
     # the tailings pond, milky, behind a straight dam on its downhill side
     cx, cy = x0 - 0.052, y0 + 0.006
     q = np.array([[cx - 0.022, cy - 0.012], [cx + 0.020, cy - 0.012], [cx + 0.024, cy + 0.010], [cx + 0.004, cy + 0.017],
@@ -206,23 +196,6 @@ def mine(doc, G, H, L, P, x0=0.905, y0=0.200):
     for r in F.draped(G, H, sp, 3):
         out.append(f'<path d="{K.d_smooth(r, False, 1.2)}" fill="none" stroke="{P["seep"]}" stroke-width="1.4" stroke-dasharray="2 3"/>')
     lay.append(''.join(out))
-
-
-def _hull(pts):
-    """Convex hull of screen points (monotone chain)."""
-    p = sorted(map(tuple, pts))
-    def cross(o, a, b):
-        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
-    lo, up = [], []
-    for q in p:
-        while len(lo) >= 2 and cross(lo[-2], lo[-1], q) <= 0:
-            lo.pop()
-        lo.append(q)
-    for q in reversed(p):
-        while len(up) >= 2 and cross(up[-2], up[-1], q) <= 0:
-            up.pop()
-        up.append(q)
-    return np.array(lo[:-1] + up[:-1])
 
 
 def monastery(doc, G, H, L, P, x0=0.470, y0=0.252):
@@ -398,11 +371,16 @@ def story_route(doc, G, H, L, P):
     cost = F.cost_grid(H, L, 'trail')
     pts = [np.array(s[1:3]) for s in STATIONS]
     lay = doc.layer('Route')
-    runs_all = []
+    # One unbroken line. The trail is the reader's thread through the twenty-five
+    # stories, so it is drawn whole rather than cut wherever a nearer ridge
+    # crosses in front of it; the pale casing beneath lifts it off the slope.
+    run = []
     for a, b in zip(pts[:-1], pts[1:]):
-        path = F.route(cost, a, b)
-        runs_all += F.draped(G, H, path, 5)
-    d = ''.join(K.d_smooth(r, False, 1.8) for r in runs_all)
+        path = F.densify(F.route(cost, a, b))
+        z = V.sample(H, path[:, 0], path[:, 1]) + 5
+        seg = np.stack(V.project(path[:, 0], path[:, 1], z), 1)
+        run.append(seg[1:] if run else seg)              # consecutive legs share a station
+    d = K.d_smooth(np.vstack(run), False, 1.8)
     lay.append(f'<path d="{d}" fill="none" stroke="{P["paper"]}" stroke-width="4" stroke-opacity="0.75" '
                f'stroke-linecap="round" stroke-linejoin="round"/>')
     lay.append(f'<path d="{d}" fill="none" stroke="{P["route"]}" stroke-width="2" stroke-opacity="0.9" '
@@ -442,26 +420,11 @@ def story_route(doc, G, H, L, P):
         r_ = R + (2 if i == len(STATIONS) - 1 else 0)        # the summit station a little larger
         g += (f'<circle cx="{f1(sx)}" cy="{f1(sy)}" r="{r_}" fill="{P["markerFill"]}" stroke="{P["red"]}" stroke-width="2"/>'
               f'<text x="{f1(sx)}" y="{f1(sy + 4.6)}" text-anchor="middle" font-family="{K.SANS}" font-weight="700" '
-              f'font-size="13" fill="{P["markerText"]}">{i + 1:02d}</text></g>')
+              f'font-size="13" fill="{P["markerText"]}">{i + 1}</text></g>')
         st.append(g)
         coords.append(dict(order=i + 1, story=num, what=what, x=round(float(sx), 1), y=round(float(sy), 1),
                            anchor_x=round(float(ax), 1), anchor_y=round(float(ay), 1)))
     return coords
-
-
-def station_key(doc, P, x, y, cols=2, colw=330, lh=21):
-    """A key to the numbered stations, in route order."""
-    import labels as LB
-    lay = doc.layer('Key')
-    out = [LB.text(x, y - 14, 'THE 25 STORIES, IN ROUTE ORDER', P, 12, italic=False, col=P['inkSoft'], spacing=1.6)]
-    per = int(np.ceil(len(STATIONS) / cols))
-    for i, (num, *_rest) in enumerate(STATIONS):
-        cx = x + (i // per) * colw; cy = y + 12 + (i % per) * lh
-        out.append(f'<circle cx="{f1(cx + 9)}" cy="{f1(cy - 4)}" r="8.5" fill="{P["paper"]}" stroke="{P["red"]}" stroke-width="1.2"/>')
-        out.append(f'<text x="{f1(cx + 9)}" y="{f1(cy)}" text-anchor="middle" font-family="{K.SANS}" font-weight="600" '
-                   f'font-size="9.5" fill="{P["ink"]}">{i + 1:02d}</text>')
-        out.append(LB.text(cx + 24, cy, TOPICS[num].replace('&', '&amp;'), P, 14.5, italic=False, col=P['ink'], op=0.92))
-    lay.append(''.join(out))
 
 
 def pictograms(doc, G, H, P):

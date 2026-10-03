@@ -297,7 +297,8 @@
       b.className = 'mri-tile';
       b.href = '#story/' + slug(name);
       b.setAttribute('data-for', n);
-      b.innerHTML = '<img loading="lazy" alt="" src="art/thumbs/story-' + n + '-' + theme() + '.png">'
+      var file = n.length < 2 ? '0' + n : n;        /* the thumbnails are filed 01-25 */
+      b.innerHTML = '<img loading="lazy" alt="" src="art/thumbs/story-' + file + '-' + theme() + '.png">'
         + '<figcaption><b>' + n + '</b><span>' + name + '</span></figcaption>';
       b.setAttribute('aria-label', 'Station ' + n + ': ' + name
         + (soon ? ' \u2014 story still to come' : ''));
