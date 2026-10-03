@@ -245,9 +245,26 @@ def load(slot):
     return f.read_text()
 
 
+def fetch_svg(item):
+    """The vector for a search result, if this plan is allowed one.
+
+    It does not come back inline: the response carries `icon_url`, a signed
+    link to the cleaned SVG that expires within the hour, so it is pulled down
+    as soon as it arrives. On the free trial only public-domain icons carry
+    it at all — everything else gives a 200 px PNG and nothing more."""
+    if item.get('svg'):
+        return item['svg']
+    url = item.get('icon_url')
+    if not url:
+        return None
+    with urllib.request.urlopen(url, timeout=40) as r:
+        return r.read().decode('utf-8')
+
+
 def stash_svg(icon_id, svg_text, meta=None):
-    (CACHE / 'svg').mkdir(parents=True, exist_ok=True)
-    (CACHE / 'svg' / ('%s.svg' % icon_id)).write_text(svg_text)
+    if svg_text:
+        (CACHE / 'svg').mkdir(parents=True, exist_ok=True)
+        (CACHE / 'svg' / ('%s.svg' % icon_id)).write_text(svg_text)
     if meta:
         (CACHE / 'meta').mkdir(parents=True, exist_ok=True)
         (CACHE / 'meta' / ('%s.json' % icon_id)).write_text(json.dumps(meta, indent=1))
@@ -334,10 +351,17 @@ def main(argv):
         res = search(q, styles=a.get('--styles'), weight=a.get('--weight'),
                      limit=int(a.get('--limit', 24)), svg='--svg' in argv)
         out = sheet(res, CACHE / ('sheet-%s.html' % re.sub(r'\W+', '-', q)), q)
+        got = 0
         for it in res.get('icons', []):
-            if it.get('icon_url') or it.get('svg'):
-                stash_svg(it['id'], it.get('svg') or '', it)
+            try:
+                v = fetch_svg(it)
+            except Exception:
+                v = None
+            stash_svg(it['id'], v, it)
+            got += bool(v)
         print('%d of %s results — %s' % (len(res.get('icons', [])), res.get('total', '?'), out))
+        if not got and res.get('icons'):
+            print('  (no vectors: on the free trial only public-domain icons carry one)')
         return 0
     if cmd == 'similar':
         res = similar(int(argv[1]), query=(argv[argv.index('--query') + 1] if '--query' in argv else None))
@@ -347,12 +371,10 @@ def main(argv):
     if cmd == 'get':
         d = icon(int(argv[1]))
         it = d.get('icon', d)
-        if it.get('icon_url'):
-            with urllib.request.urlopen(it['icon_url'], timeout=40) as r:
-                stash_svg(it['id'], r.read().decode('utf-8'), it)
-        elif it.get('svg'):
-            stash_svg(it['id'], it['svg'], it)
-        print('cached icon %s — %s' % (it.get('id'), it.get('attribution', '')))
+        v = fetch_svg(it)
+        stash_svg(it['id'], v, it)
+        print('cached icon %s — %s%s' % (it.get('id'), it.get('attribution', ''),
+                                         '' if v else '  (PNG only on this plan)'))
         return 0
     if cmd == 'credits':
         for slot, iid, attr, lic in credits():
