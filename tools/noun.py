@@ -8,11 +8,16 @@ standard library, so there is nothing to install.
     export NOUN_PROJECT_KEY=...            (or ~/.noun-project.json)
     export NOUN_PROJECT_SECRET=...
 
+    python3 tools/noun.py plan             is this key allowed vectors yet?
     python3 tools/noun.py usage
     python3 tools/noun.py search "glacier" --styles line --weight 16-26 --svg
     python3 tools/noun.py similar 1234567 --query "drone"
     python3 tools/noun.py get 1234567
     python3 tools/noun.py credits
+
+Add --refresh to a search or a get to ignore the cache. Do that after changing
+plan: anything cached while the key was on the free trial carries no vector
+link, and replaying it would keep showing nothing where there is now something.
 
 SPENDING, WHICH IS THE WHOLE DESIGN HERE
 Noun Project bills two kinds of request very differently. A *service* call —
@@ -144,9 +149,14 @@ def call(path, _kind=None, **params):
 
 
 # --- cache ------------------------------------------------------------------
-def _cached(name, make):
+def _cached(name, make, refresh=False):
+    """Cached unless asked otherwise.
+
+    `refresh` matters after a plan change: a search answered on the free trial
+    was cached without any icon_url, and replaying that cache on a paid key
+    would keep showing no vectors for results that now have them."""
     f = CACHE / name
-    if f.exists():
+    if f.exists() and not refresh:
         return json.loads(f.read_text())
     f.parent.mkdir(parents=True, exist_ok=True)
     data = make()
@@ -158,14 +168,15 @@ def _key(**kw):
     return hashlib.sha1(json.dumps(kw, sort_keys=True).encode()).hexdigest()[:16]
 
 
-def search(query, styles=None, weight=None, limit=24, svg=False, public_domain=None):
+def search(query, styles=None, weight=None, limit=24, svg=False, public_domain=None,
+           refresh=False):
     """Search — a *service* call. With svg=True the vectors come back in the
     response, which is the cheap way to get artwork out of this API."""
     name = 'searches/%s.json' % _key(q=query, s=styles, w=weight, n=limit, svg=svg, pd=public_domain)
     return _cached(name, lambda: call(
         '/v2/icon', _kind='service', query=query, styles=styles, line_weight=weight,
         limit=limit, thumbnail_size=200, blacklist=1,
-        include_svg=1 if svg else None, limit_to_public_domain=public_domain))
+        include_svg=1 if svg else None, limit_to_public_domain=public_domain), refresh)
 
 
 def similar(icon_id, query=None, limit=24):
@@ -178,16 +189,36 @@ def similar(icon_id, query=None, limit=24):
         query=query, limit=limit, thumbnail_size=200, blacklist=1))
 
 
-def icon(icon_id):
+def icon(icon_id, refresh=False):
     """One icon with its SVG — an *icon* call. Prefer `search --svg` when you
     can: it costs a quarter as much and the trial allows thirteen times more."""
     name = 'icons/%s.json' % int(icon_id)
     return _cached(name, lambda: call('/v2/icon/%d' % int(icon_id), _kind='icon',
-                                      thumbnail_size=200, include_svg=1))
+                                      thumbnail_size=200, include_svg=1), refresh)
 
 
 def usage():
     return call('/v2/client/usage', _kind='service')
+
+
+def plan():
+    """Is this key allowed vectors yet?
+
+    There is no endpoint that says which plan a key is on, so this asks the
+    only question that matters: does an ordinary creative-commons icon — which
+    is almost the whole library — come back with a link to its SVG? On the free
+    trial it never does; on a paid key it always does. One search, no icon
+    call."""
+    r = search('mountain', limit=3, svg=True, refresh=True)
+    ic = r.get('icons', [])
+    if not ic:
+        return False, 'no results came back at all'
+    paid = [i for i in ic if i.get('icon_url') or i.get('svg')]
+    cc = [i for i in ic if i.get('license_description') != 'public-domain']
+    if paid and cc and any(i.get('icon_url') or i.get('svg') for i in cc):
+        return True, 'vectors are available — the paid plan is live'
+    return False, ('still trial-only: %d of %d results carry a vector, and the '
+                   'creative-commons ones do not' % (len(paid), len(ic)))
 
 
 # --- turning a Noun icon into something the artwork can place ---------------
@@ -343,6 +374,10 @@ def main(argv):
     if not argv:
         print(__doc__); return 0
     cmd = argv[0]
+    if cmd == 'plan':
+        ok, why = plan()
+        print(('LIVE  — ' if ok else 'not yet — ') + why)
+        return 0 if ok else 2
     if cmd == 'usage':
         u = usage()
         i, s = _spent()
@@ -354,7 +389,8 @@ def main(argv):
         q = argv[1]
         a = {argv[i]: argv[i + 1] for i in range(2, len(argv) - 1, 2) if argv[i].startswith('--')}
         res = search(q, styles=a.get('--styles'), weight=a.get('--weight'),
-                     limit=int(a.get('--limit', 24)), svg='--svg' in argv)
+                     limit=int(a.get('--limit', 24)), svg='--svg' in argv,
+                     refresh='--refresh' in argv)
         out = sheet(res, CACHE / ('sheet-%s.html' % re.sub(r'\W+', '-', q)), q)
         got = 0
         for it in res.get('icons', []):
@@ -374,7 +410,7 @@ def main(argv):
         print('%d results — %s' % (len(res.get('icons', [])), out))
         return 0
     if cmd == 'get':
-        d = icon(int(argv[1]))
+        d = icon(int(argv[1]), refresh='--refresh' in argv)
         it = d.get('icon', d)
         v = fetch_svg(it)
         stash_svg(it['id'], v, it)
