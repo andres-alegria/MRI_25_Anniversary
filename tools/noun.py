@@ -290,10 +290,15 @@ def sheet(results, out, title=''):
         style = ', '.join(s.get('style', '') + (' %s' % s.get('line_weight', '')
                                                 if s.get('line_weight') else '')
                           for s in it.get('styles', [])) or '—'
+        # the thumbnail is embedded, not linked: the sheet then survives being
+        # moved, mailed or opened from anywhere, and their URLs expire anyway
+        src = ''
+        if local.exists():
+            src = 'data:image/png;base64,' + base64.b64encode(local.read_bytes()).decode()
         cells.append(
-            '<figure><img src="thumbs/%s.png" alt=""><figcaption><b>%s</b>'
+            '<figure><img src="%s" alt=""><figcaption><b>%s</b>'
             '<span>%s</span><span class="s">%s</span></figcaption></figure>'
-            % (iid, iid, it.get('term', ''), style))
+            % (src, iid, it.get('term', ''), style))
     html = ("""<!doctype html><meta charset="utf-8"><title>Noun Project — %s</title>
 <style>
  /* adjust the sheet's look here */
