@@ -448,6 +448,16 @@ def tower_p(x, y, w, d, h, Pt):
 # a clip for every story: the window sits on that story's station, and a few
 # motifs are placed on ground that suits them — adjust a story's motifs here
 # ---------------------------------------------------------------------------
+# Read from the drafts in Stories_2026_10_03, not from the topic titles. Five
+# of these were guessed before the texts existed and drew the wrong subject
+# entirely — the worst had an open-pit mine standing in for a court case about
+# a glacial lake. The reasoning is in Mountain_Art_v4/ICONOGRAPHY_BRIEF.md, and
+# the full motif list in tools/story-motifs.json.
+#
+# Three of the corrected stories — equity, global frameworks, future scenarios —
+# are about something a landscape cannot show at all. What is here is the
+# honest nearest thing; their real treatment belongs in the flat vignette,
+# which can draw a process.
 MOTIFS = {                      # story number -> the things drawn on its clip
     1:  ('roped-party', 'stakes'),          # Glaciers
     2:  ('mast', 'hut'),                    # Mountain observation systems
@@ -459,17 +469,17 @@ MOTIFS = {                      # story number -> the things drawn on its clip
     8:  ('terrace-farmers', 'village'),     # Adaptation & resilience
     9:  ('village', 'people'),              # Cascading hazards & risks
     11: ('stupa', 'village'),               # Cultural landscapes & heritage
-    12: ('village', 'market', 'people'),    # Gender & social equity
+    12: ('village', 'people', 'trekkers'),  # Gender & social equity: who belongs here
     13: ('lodge', 'trekkers'),              # Tourism
     14: ('village-emptying',),              # Demographic change & migration
     15: ('border', 'camp'),                 # Peacebuilding & transboundary cooperation
-    17: ('herd', 'camp'),                   # Indigenous & local knowledge
+    17: ('falcons', 'village'),             # Indigenous & local knowledge: the Amur falcons
     18: ('corral', 'herd'),                 # Land tenure & mountain governance
     19: ('pylons', 'powerhouse'),           # Hydropower & energy transitions
-    20: ('pillar',),                        # Mountains in global frameworks
-    21: ('mine', 'village'),                # Legal action & mountain justice
+    20: ('mast', 'hut'),                    # Mountains in global frameworks: what gets measured
+    21: ('lake-works', 'village'),          # Legal action: Palcacocha, the lake and the town
     22: ('painter',),                       # Mountains & the arts
-    23: ('camp', 'mast'),                   # Future scenarios for mountain regions
+    23: ('springs', 'herd'),                # Future scenarios: Kilimanjaro's underground water
     24: ('stakes', 'people'),               # Snow dynamics
     25: ('boulders', 'mast'),               # Permafrost
 }
@@ -721,6 +731,47 @@ def motif(doc, kind, Lc, H, G, rng, P_):
                        f'stroke-width="1.6" stroke-dasharray="10 4 2 4" stroke-opacity="0.85"/>')
             for q in (pts[2], pts[-3]):
                 inf.append(post(q[0], q[1], 1.1 * ICON))
+    elif kind == 'falcons':
+        # Hundreds of thousands of Amur falcons stop in Nagaland on a 22,000 km
+        # journey. Drawn as a skein over the forest, nearer birds larger.
+        for (x, y) in _sites(Lc, H, G, rng, [LC.FOREST], 1, smax=30):
+            q0 = at(H, x, y)
+            for i in range(26):
+                dx = rng.normal(0, 1) * 150 + (i - 13) * 26
+                dy = rng.normal(0, 1) * 34 - 120 - abs(i - 13) * 7
+                k_ = 3.4 + 2.6 * rng.random()
+                bx, by = q0[0] + dx, q0[1] + dy
+                pl.append(f'<path d="M{f1(bx - k_)} {f1(by)}q{f1(k_ * 0.5)} {f1(-k_ * 0.8)} {f1(k_)} 0'
+                          f'q{f1(k_ * 0.5)} {f1(-k_ * 0.8)} {f1(k_)} 0" fill="none" '
+                          f'stroke="{P_["ink"]}" stroke-width="{1.5:.1f}" stroke-linecap="round"/>')
+    elif kind == 'lake-works':
+        # Palcacocha: a moraine-dammed lake with siphons laid over the dam to
+        # hold its level down, and the town in the flood path below.
+        got = _sites(Lc, H, G, rng, [LC.WATER], 1, smax=40)
+        if got:
+            x, y = got[0]
+            q = at(H, x, y)
+            for i in (-1, 0, 1):                       # siphon pipes over the crest
+                a_ = (q[0] + i * 13 * ICON * 0.5, q[1] + 2)
+                b_ = (a_[0] + 4 * ICON, a_[1] + 7 * ICON)
+                inf.append(f'<path d="M{f1(a_[0])} {f1(a_[1])}Q{f1(a_[0] + 2.4 * ICON)} '
+                           f'{f1(a_[1] - 3.4 * ICON)} {f1(b_[0])} {f1(b_[1])}" fill="none" '
+                           f'stroke="{P_["concrete"]}" stroke-width="{0.9 * ICON:.1f}" '
+                           f'stroke-linecap="round"/>')
+            inf.append(post(q[0] - 7 * ICON, q[1] + 2 * ICON, 1.3 * ICON))
+            pl.append(ST.person(q[0] - 4 * ICON, q[1] + 3 * ICON, P_, staff=True, k=1.2 * ICON))
+    elif kind == 'springs':
+        # Kilimanjaro routes most of its water underground; it reappears as
+        # springs on the plain, far from the peak.
+        for (x, y) in _sites(Lc, H, G, rng, farm + [LC.GROUND], 3, spacing=0.07, smax=10):
+            q = at(H, x, y)
+            inf.append(f'<ellipse cx="{f1(q[0])}" cy="{f1(q[1])}" rx="{2.2 * ICON:.1f}" '
+                       f'ry="{0.9 * ICON:.1f}" fill="{P_["water"]}" stroke="{P_["waterLine"]}" '
+                       f'stroke-width="1.2"/>')
+            for r_ in (1.0, 1.7, 2.5):
+                inf.append(f'<ellipse cx="{f1(q[0])}" cy="{f1(q[1])}" rx="{r_ * ICON:.1f}" '
+                           f'ry="{r_ * 0.4 * ICON:.1f}" fill="none" stroke="{P_["waterLine"]}" '
+                           f'stroke-width="0.9" stroke-opacity="{0.8 - 0.2 * r_:.2f}"/>')
     elif kind == 'mine':
         for (x, y) in _sites(Lc, H, G, rng, [LC.ROCK, LC.SCREE, LC.DRY, LC.DRYROCK, LC.ALPINE], 1, smax=24):
             ST.mine(doc, G, H, Lc, P_, x, y)
