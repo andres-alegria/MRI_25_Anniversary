@@ -13,7 +13,8 @@ standard library, so there is nothing to install.
     python3 tools/noun.py search "glacier" --styles line --weight 16-26 --svg
     python3 tools/noun.py similar 1234567 --query "drone"
     python3 tools/noun.py get 1234567
-    python3 tools/noun.py credits
+    python3 tools/noun.py use satellite 1234567 "story 1, the overhead pass"
+    python3 tools/noun.py credits [--markdown]
 
 Add --refresh to a search or a get to ignore the cache. Do that after changing
 plan: anything cached while the key was on the free trial carries no vector
@@ -349,16 +350,64 @@ def sheet(results, out, title=''):
 
 
 # --- credits ----------------------------------------------------------------
-def credits():
-    """The attribution line for every icon this project actually uses."""
-    man = json.loads(MANIFEST.read_text()) if MANIFEST.exists() else {}
+def manifest():
+    d = json.loads(MANIFEST.read_text()) if MANIFEST.exists() else {}
+    return {k: v for k, v in d.items() if not k.startswith('_')}
+
+
+def use(slot, icon_id, note=''):
+    """Register an icon as used in the artwork, with its credit.
+
+    Called by the drawing code, not by hand: an icon cannot be placed without
+    passing through here, so the credits list can never drift out of step with
+    what is actually on the page."""
+    icon_id = str(int(icon_id))
+    meta = CACHE / 'meta' / ('%s.json' % icon_id)
+    d = json.loads(meta.read_text()) if meta.exists() else {}
+    raw = json.loads(MANIFEST.read_text()) if MANIFEST.exists() else {}
+    raw[slot] = {'id': icon_id,
+                 'attribution': d.get('attribution', ''),
+                 'license': d.get('license_description', ''),
+                 'creator': (d.get('creator') or {}).get('name', ''),
+                 'term': d.get('term', ''),
+                 'permalink': d.get('permalink', ''),
+                 'note': note or raw.get(slot, {}).get('note', '')}
+    MANIFEST.write_text(json.dumps(raw, indent=1, sort_keys=True))
+    return raw[slot]
+
+
+def credits(fmt='text'):
+    """Every icon the artwork actually uses, ready for the credits section.
+
+    One line per icon, deduplicated by creator where a creator supplied
+    several, because a credits page lists people rather than files."""
+    man = manifest()
     rows = []
     for slot, ent in sorted(man.items()):
         meta = CACHE / 'meta' / ('%s.json' % ent['id'])
         d = json.loads(meta.read_text()) if meta.exists() else {}
-        rows.append((slot, ent['id'], ent.get('attribution') or d.get('attribution', '?'),
-                     ent.get('license') or d.get('license_description', '?')))
-    return rows
+        rows.append(dict(slot=slot, id=ent['id'],
+                         attribution=ent.get('attribution') or d.get('attribution', '?'),
+                         license=ent.get('license') or d.get('license_description', '?'),
+                         creator=ent.get('creator') or (d.get('creator') or {}).get('name', '?'),
+                         term=ent.get('term') or d.get('term', ''),
+                         note=ent.get('note', '')))
+    if fmt == 'rows':
+        return rows
+    if fmt == 'markdown':
+        by = {}
+        for r in rows:
+            by.setdefault(r['creator'], []).append(r)
+        out = ['## Icon credits', '',
+               'Icons from Noun Project (thenounproject.com), used under the',
+               'Noun Project API licence. Listed by their creators.', '']
+        for creator in sorted(by):
+            terms = ', '.join(sorted({r['term'] for r in by[creator] if r['term']}))
+            out.append('- **%s** — %s' % (creator, terms or 'icons'))
+        return '\n'.join(out)
+    w = max([len(r['slot']) for r in rows] + [4])
+    return '\n'.join('%-*s  %-9s  %s  [%s]' % (w, r['slot'], r['id'], r['attribution'], r['license'])
+                      for r in rows)
 
 
 # --- CLI --------------------------------------------------------------------
@@ -418,8 +467,11 @@ def main(argv):
                                          '' if v else '  (PNG only on this plan)'))
         return 0
     if cmd == 'credits':
-        for slot, iid, attr, lic in credits():
-            print('%-18s %-10s %s  [%s]' % (slot, iid, attr, lic))
+        print(credits('markdown' if '--markdown' in argv else 'text'))
+        return 0
+    if cmd == 'use':
+        ent = use(argv[1], argv[2], ' '.join(argv[3:]))
+        print('%s -> %s  %s' % (argv[1], ent['id'], ent['attribution']))
         return 0
     print(__doc__)
     return 1
