@@ -1,351 +1,649 @@
 """
-Story clips, version 2: flat 2-D vignettes.
+The flat 2-D vignettes: one scene per story, all twenty-five.
 
-Nothing here is projected or sampled. The landscape is a stack of flat masses
-— ridges, ice, forefield, lake — cut so the valley reads at a glance, and the
-iconography is drawn as pictograms at one weight. It is a diagram *about* the
-story rather than a view *of* the place: it gives up the terrain, the land
-cover and the geology the block diagram carries for free, and buys clarity, a
-file a hundredth the size, and icons that can be as elaborate as the story
-needs without fighting a slope for attention.
+Each is built on stage.py — a ground profile and things standing on it — and
+each is read from its own narrative in Stories_2026_10_03 rather than from its
+topic title. The reasoning, story by story, is in
+Mountain_Art_v4/ICONOGRAPHY_BRIEF.md.
 
-The ice is built from an axis and a half-width, not from a shape, so moving
-the curve moves the tongue, its crevasses, its moraines, the forefield and the
-lake together.
+What the format buys is the ability to draw a *process*. Most of these stories
+are about something changing rather than about a place: ice thinning, vegetation
+belts climbing, a settlement spreading, a buffer failing, plots of every age in
+one hillside. The block diagram could show the place; this can show the change,
+mostly through stage.ghost() — a former state laid over the present one with the
+difference hatched between them.
 
     python3 vignette.py 1 OUT.svg [--light]
+    python3 vignette.py all DIR   [--light]
 
-The argument is the story's own number (1 = Glaciers); the badge carries that
-story's station number on the climb.
+The argument is the story's own number, as the drafts are numbered (1 =
+Glaciers); the badge carries that story's station number on the climb.
 """
+import os
 import sys
 
 import numpy as np
 
 import svgkit as K
-import labels as LB
 import render as R
 import story as ST
+import stage as SG
 
 f1 = K.f1
-P = R.PAL
-W, H = 1800, 1300
-
-# --- the drawing, in numbers — adjust the vignette here ----------------------
-LINE = 3.2                     # the weight the pictograms are drawn at
-DETAIL = 2.4                   # linework inside the diagram
-
-# The valley in profile, looking across it: down-valley to the left, the head
-# of the glacier off to the right. Three lines carry the whole story — the bed
-# the ice sits in, the surface it has today, and the surface it had in 2000 —
-# and everything else is cut against them.
-BED = [(0, 1028), (165, 1024), (300, 1044), (400, 1096), (505, 1112), (600, 1084),
-       (690, 1042), (820, 1002), (980, 950), (1150, 886), (1330, 814), (1520, 732),
-       (1700, 650), (1800, 606)]
-NOW = [(665, 1032), (720, 952), (840, 864), (1000, 762), (1180, 662), (1380, 562),
-       (1600, 464), (1800, 388)]
-THEN = [(350, 1046), (430, 964), (560, 880), (700, 792), (880, 702), (1080, 608),
-        (1300, 508), (1540, 410), (1800, 320)]
-LAKE_Y = 1030                  # the water surface in the overdeepening
-SNOUT = 665                    # where the ice front stands today, in x
-FRONTS = [('2000', 350), ('1975', 168)]    # where it stood before, in x
+P = SG.P
 
 
-def mix(a, b, t):
-    """Blend two hex colours."""
-    a = a.lstrip('#'); b = b.lstrip('#')
-    c = [round(int(a[i:i + 2], 16) * (1 - t) + int(b[i:i + 2], 16) * t) for i in (0, 2, 4)]
-    return '#%02x%02x%02x' % tuple(c)
-
-
-# The palette inverts between the two themes — on the dark plate `paper` is the
-# dark ground and `ink` the light mark — so tones are mixed toward things that
-# mean the same in both: the sky for distance, `shade` for weight.
-def recede(col, t):
-    return mix(col, P['sky1'], t)
-
-
-def weigh(col, t):
-    return mix(col, P['shade'], t)
-
-
-def poly(pts, close=True):
-    d = 'M' + ' L'.join('%s %s' % (f1(x), f1(y)) for x, y in pts)
-    return d + ('Z' if close else '')
-
-
-def curve(pts, close=False):
-    return K.d_smooth(np.asarray(pts, float), close, 1.0)
-
-
-def shape(lay, pts, fill, op=1.0, smooth=False):
-    d = curve(pts, True) if smooth else poly(pts, True)
-    lay.append(f'<path d="{d}" fill="{fill}" fill-opacity="{op}"/>')
-
-
-def stroke(lay, d, col, w=DETAIL, dash=None, op=1.0):
-    da = f' stroke-dasharray="{dash}"' if dash else ''
-    lay.append(f'<path d="{d}" fill="none" stroke="{col}" stroke-width="{w}" stroke-opacity="{op}"'
-               f'{da} stroke-linecap="round" stroke-linejoin="round"/>')
-
-
-def at_x(pts, x):
-    a = np.asarray(pts, float)
-    return float(np.interp(x, a[:, 0], a[:, 1]))
-
-
-def landscape(doc):
-    back = doc.layer('Back'); rockl = doc.layer('Rock'); ice = doc.layer('Ice')
-    grd = doc.layer('Ground'); det = doc.layer('Detail')
-    rng = np.random.default_rng(7)
-
-    back.append(f'<rect width="{W}" height="{H}" fill="{P["sky1"]}"/>')
-    # the range behind, held well back so the section reads in front of it
-    for (xm, half, y, t) in [(250, 330, 520, 0.76), (790, 300, 470, 0.82), (1390, 400, 392, 0.70)]:
-        shape(back, [(xm - half, 1020), (xm, y), (xm + half, 1020)], recede(P['rock'], t))
-        shape(back, [(xm - half * 0.34, y + half * 0.34), (xm, y), (xm + half * 0.34, y + half * 0.34),
-                     (xm + half * 0.15, y + half * 0.42), (xm - half * 0.15, y + half * 0.42)],
-              recede(P['snow'], t * 0.8))
-
-    # the rock the ice sits in — drawn first, so the ice lies in it
-    xs_all = list(range(0, 1801, 10))
-    shape(rockl, [(x, at_x(BED, x)) for x in xs_all] + [(1800, 1300), (0, 1300)], weigh(P['rock'], 0.10))
-    shape(rockl, [(x, at_x(BED, x) + 150) for x in xs_all] + [(1800, 1300), (0, 1300)],
-          weigh(P['rock'], 0.40), smooth=True)
-    stroke(rockl, curve([(x, at_x(BED, x)) for x in xs_all]), P['inkSoft'], 3.0, op=0.7)
-
-    # the ice that has gone: everything between the 2000 surface and today's.
-    # This wedge is the story — the measuring in the picture is what found it.
-    xs = list(range(350, 1801, 12))
-    lost = [(x, at_x(THEN, x)) for x in xs]
-    lost += [(x, at_x(BED, x) if x < SNOUT else at_x(NOW, x)) for x in reversed(xs)]
-    shape(ice, lost, recede(P['glacier'], 0.70), smooth=True)
-    doc.defs.append(
-        f'<pattern id="gone" width="17" height="17" patternTransform="rotate(40)" '
-        f'patternUnits="userSpaceOnUse">'
-        f'<path d="M0 0 L0 17" stroke="{P["iceLine"]}" stroke-width="1.5" stroke-opacity="0.45"/></pattern>')
-    shape(ice, lost, 'url(#gone)', smooth=True)
-
-    # the ice there is now
-    xs2 = list(range(SNOUT, 1801, 10))
-    shape(ice, [(x, at_x(NOW, x)) for x in xs2] + [(x, at_x(BED, x)) for x in reversed(xs2)],
-          P['glacier'], smooth=True)
-    shape(ice, [(x, at_x(NOW, x)) for x in xs2] + [(x, at_x(NOW, x) + 30) for x in reversed(xs2)],
-          mix(P['snow'], P['glacier'], 0.35), smooth=True)
-    stroke(ice, curve([(x, at_x(NOW, x)) for x in xs2]), mix(P['iceLine'], P['snow'], 0.3), 2.6, op=0.9)
-
-    # crevasses, opening where the surface steepens
-    d = []
-    for x in range(770, 1740, 88):
-        x += rng.integers(-22, 23)
-        y = at_x(NOW, x)
-        steep = min(1.0, abs(at_x(NOW, x + 70) - y) / 54)
-        if steep < 0.42:
-            continue                                   # the ice only splits where it is pulled
-        h = (20 + 46 * steep) * rng.uniform(0.8, 1.2)
-        d.append(poly([(x, y + 6), (x - h * 0.42, y + 6 + h)], False))
-    stroke(det, ''.join(d), P['crevasse'], DETAIL + 0.6, op=0.8)
-
-    # the 2000 surface, drawn as the measurement it is
-    stroke(det, curve([(x, at_x(THEN, x)) for x in range(350, 1801, 12)]),
-           P['dateInk'], 3.6, dash='17 11', op=0.95)
-    doc.layer('Labels').append(
-        LB.halo(1015, at_x(THEN, 1015) - 22, 'ice surface in 2000', P, 24, col=P['dateInk'], italic=True))
-
-    # the lake left in the overdeepening as the front drew back
-    lx = [x for x in range(290, SNOUT + 2, 6) if at_x(BED, x) > LAKE_Y]
-    if lx:
-        lx = list(range(min(lx), max(lx) + 1, 6))
-        shape(grd, [(x, LAKE_Y) for x in lx] + [(x, at_x(BED, x)) for x in reversed(lx)],
-              P['water'], smooth=True)
-        stroke(grd, poly([(lx[0], LAKE_Y), (lx[-1], LAKE_Y)], False), P['waterLine'], 3.2, op=0.9)
-        for _ in range(6):                                   # bergs calved off the front
-            bx = rng.uniform(lx[0] + 60, lx[-1] - 30); bw = rng.uniform(13, 26)
-            shape(grd, [(bx - bw, LAKE_Y), (bx - bw * 0.5, LAKE_Y - bw * 0.6),
-                        (bx + bw * 0.4, LAKE_Y - bw * 0.42), (bx + bw, LAKE_Y)],
-                  mix(P['snow'], P['glacier'], 0.2))
-
-    # where the front stood before, as ridges on the valley floor, each named
-    for year, x in FRONTS:
-        y = at_x(BED, x)
-        arc = [(x - 70, y + 12), (x - 36, y - 20), (x, y - 32), (x + 36, y - 18), (x + 66, y + 12)]
-        stroke(grd, curve([(a, b + 7) for a, b in arc]), P['shade'], 17, op=0.45)
-        stroke(grd, curve(arc), P['till'], 13)
-        stroke(grd, curve(arc), P['moraineCrest'], 3.6)
-        doc.layer('Labels').append(
-            LB.halo(x, y + 56, year, P, 24, col=P['dateInk'], italic=False, anchor='middle'))
-
-    # meltwater, away down the valley
-    stroke(grd, curve([(292, LAKE_Y + 6), (236, 1040), (140, 1046), (30, 1042)]),
-           P['waterLine'], 7, op=0.95)
-
-    # forest on ground the ice gave up long ago, boulders on what it has just left
-    for _ in range(22):
-        x = rng.uniform(16, 128); y = at_x(BED, x) + rng.uniform(-4, 22)
-        h = rng.uniform(26, 46)
-        shape(rockl, [(x, y - h), (x - h * 0.40, y), (x + h * 0.40, y)], P['forest'])
-    for _ in range(20):
-        x = rng.uniform(150, 310); y = at_x(BED, x) + rng.uniform(4, 28)
-        r_ = rng.uniform(5, 11)
-        grd.append(f'<ellipse cx="{f1(x)}" cy="{f1(y + r_ * 0.4)}" rx="{r_ * 1.3:.1f}" ry="{r_ * 0.5:.1f}" '
-                   f'fill="{P["shade"]}" fill-opacity="0.4"/>')
-        grd.append(f'<ellipse cx="{f1(x)}" cy="{f1(y)}" rx="{r_:.1f}" ry="{r_ * 0.75:.1f}" fill="{P["till"]}"/>')
-
-
-# --- the pictograms ---------------------------------------------------------
-def figure(x, y, k=1.0, staff=False, load=False, flip=1):
-    """A person, flat: one weight, no modelling, legs straight and parallel."""
-    g = []
+# --- marks these stories need that the chassis does not carry ---------------
+def stake(x, y, k=1.0):
+    """An ablation stake, drilled into the ice and read against the surface."""
     h = 46 * k
-    g.append(f'<circle cx="{f1(x)}" cy="{f1(y - h)}" r="{8.4 * k:.1f}" fill="{P["figure"]}"/>')
-    g.append(f'<path d="{poly([(x - 9.5 * k, y - h + 12 * k), (x + 9.5 * k, y - h + 12 * k), (x + 7 * k, y - 17 * k), (x - 7 * k, y - 17 * k)])}" '
-             f'fill="{P["figure"]}"/>')
-    for s in (-1, 1):
-        g.append(f'<path d="M{f1(x + s * 3.6 * k)} {f1(y - 18 * k)}L{f1(x + s * 3.6 * k)} {f1(y)}" '
-                 f'stroke="{P["figure"]}" stroke-width="{5.4 * k:.1f}" stroke-linecap="round"/>')
-    if staff:
-        g.append(f'<path d="M{f1(x + flip * 13 * k)} {f1(y + 3 * k)}L{f1(x + flip * 10 * k)} {f1(y - h - 10 * k)}" '
-                 f'stroke="{P["ink"]}" stroke-width="{2.6 * k:.1f}" stroke-linecap="round"/>')
-    if load:
-        g.append(f'<rect x="{f1(x - flip * 18 * k)}" y="{f1(y - h + 8 * k)}" width="{12 * k:.1f}" '
-                 f'height="{15 * k:.1f}" rx="{2.5 * k:.1f}" fill="{P["ink"]}"/>')
-    return ''.join(g)
-
-
-def stake_flat(x, y, k=1.0):
-    """An ablation stake: drilled into the ice, read off against the surface."""
-    h = 46 * k
-    return (f'<ellipse cx="{f1(x)}" cy="{f1(y)}" rx="{7 * k:.1f}" ry="{2.6 * k:.1f}" '
-            f'fill="{P["shade"]}" fill-opacity="0.35"/>'
-            f'<path d="M{f1(x)} {f1(y)}L{f1(x)} {f1(y - h)}" stroke="{P["ink"]}" '
+    return (f'<ellipse cx="{f1(x)}" cy="{f1(y)}" rx="{f1(7 * k)}" ry="{f1(2.6 * k)}" '
+            f'fill="{P()["shade"]}" fill-opacity="0.35"/>'
+            f'<path d="M{f1(x)} {f1(y)}l0 {f1(-h)}" stroke="{P()["ink"]}" '
             f'stroke-width="{3.8 * k:.1f}" stroke-linecap="round"/>'
-            f'<path d="M{f1(x - 9 * k)} {f1(y - h)}L{f1(x + 9 * k)} {f1(y - h)}" stroke="{P["red"]}" '
-            f'stroke-width="{6.6 * k:.1f}" stroke-linecap="round"/>'
-            f'<path d="M{f1(x - 7 * k)} {f1(y - h * 0.5)}L{f1(x + 7 * k)} {f1(y - h * 0.5)}" '
-            f'stroke="{P["light"]}" stroke-width="{2.6 * k:.1f}"/>')
+            f'<path d="M{f1(x - 9 * k)} {f1(y - h)}L{f1(x + 9 * k)} {f1(y - h)}" '
+            f'stroke="{P()["red"]}" stroke-width="{6.6 * k:.1f}" stroke-linecap="round"/>')
 
 
-def aws_flat(x, y, k=1.0):
-    """Automatic weather station: mast, cups, radiation shield, solar panel —
-    the instrument that keeps reading through a winter nobody is there for."""
+def aws(x, y, k=1.0):
+    """An automatic weather station: mast, cups, radiation shield, solar panel."""
     h = 124 * k
     g = [f'<path d="M{f1(x - 28 * k)} {f1(y)}L{f1(x)} {f1(y - h * 0.8)}L{f1(x + 28 * k)} {f1(y)}" '
-         f'fill="none" stroke="{P["ink"]}" stroke-width="{2.4 * k:.1f}" stroke-opacity="0.6"/>',
-         f'<path d="M{f1(x)} {f1(y)}L{f1(x)} {f1(y - h)}" stroke="{P["ink"]}" '
+         f'fill="none" stroke="{P()["ink"]}" stroke-width="{2.4 * k:.1f}" stroke-opacity="0.6"/>',
+         f'<path d="M{f1(x)} {f1(y)}l0 {f1(-h)}" stroke="{P()["ink"]}" '
          f'stroke-width="{5.2 * k:.1f}" stroke-linecap="round"/>']
     ay = y - h + 6 * k
-    g.append(f'<path d="M{f1(x - 22 * k)} {f1(ay)}L{f1(x + 22 * k)} {f1(ay)}" stroke="{P["ink"]}" '
-             f'stroke-width="{3.4 * k:.1f}" stroke-linecap="round"/>')
+    g.append(f'<path d="M{f1(x - 22 * k)} {f1(ay)}L{f1(x + 22 * k)} {f1(ay)}" '
+             f'stroke="{P()["ink"]}" stroke-width="{3.4 * k:.1f}"/>')
     for s in (-1, 1):
-        g.append(f'<circle cx="{f1(x + s * 22 * k)}" cy="{f1(ay)}" r="{6.4 * k:.1f}" fill="{P["light"]}" '
-                 f'stroke="{P["ink"]}" stroke-width="{2.2 * k:.1f}"/>')
-    g.append(f'<path d="M{f1(x)} {f1(y - h)}l0 {f1(-14 * k)}" stroke="{P["ink"]}" stroke-width="{3.2 * k:.1f}"/>')
-    g.append(f'<circle cx="{f1(x)}" cy="{f1(y - h - 16 * k)}" r="{5.2 * k:.1f}" fill="{P["ink"]}"/>')
-    g.append(f'<path d="{poly([(x - 10 * k, y - h * 0.57), (x + 10 * k, y - h * 0.57), (x + 7.5 * k, y - h * 0.45), (x - 7.5 * k, y - h * 0.45)])}" '
-             f'fill="{P["light"]}" stroke="{P["ink"]}" stroke-width="{2.2 * k:.1f}"/>')
-    g.append(f'<path d="{poly([(x + 5 * k, y - h * 0.35), (x + 40 * k, y - h * 0.41), (x + 40 * k, y - h * 0.27), (x + 5 * k, y - h * 0.21)])}" '
-             f'fill="{P["solar"]}" stroke="{P["solarFrame"]}" stroke-width="{2.2 * k:.1f}"/>')
+        g.append(f'<circle cx="{f1(x + s * 22 * k)}" cy="{f1(ay)}" r="{f1(6.4 * k)}" '
+                 f'fill="{P()["light"]}" stroke="{P()["ink"]}" stroke-width="{2.2 * k:.1f}"/>')
+    g.append(f'<path d="{SG.poly([(x + 5 * k, y - h * 0.35), (x + 40 * k, y - h * 0.41), (x + 40 * k, y - h * 0.27), (x + 5 * k, y - h * 0.21)])}" '
+             f'fill="{P()["solar"]}" stroke="{P()["solarFrame"]}" stroke-width="{2.2 * k:.1f}"/>')
     return ''.join(g)
 
 
-def drone_flat(x, y, k=1.0, drop=190):
-    """A survey drone, with the line down to the patch of ice it is mapping."""
-    g = [f'<path d="M{f1(x)} {f1(y + 16 * k)}L{f1(x)} {f1(y + drop)}" stroke="{P["inkSoft"]}" '
-         f'stroke-width="{2.4 * k:.1f}" stroke-dasharray="8 10" stroke-opacity="0.7"/>',
-         f'<ellipse cx="{f1(x)}" cy="{f1(y + drop)}" rx="{17 * k:.1f}" ry="{5.5 * k:.1f}" '
-         f'fill="{P["shade"]}" fill-opacity="0.35"/>']
+def drone(x, y, k=1.0, drop=190):
+    g = [f'<path d="M{f1(x)} {f1(y + 16 * k)}L{f1(x)} {f1(y + drop)}" stroke="{P()["inkSoft"]}" '
+         f'stroke-width="{2.4 * k:.1f}" stroke-dasharray="8 10" stroke-opacity="0.7"/>']
     arm = 36 * k
     for s in (-1, 1):
         for dy, f_ in ((-11 * k, 1.0), (8 * k, 0.72)):
             g.append(f'<path d="M{f1(x + s * 6 * k)} {f1(y)}L{f1(x + s * arm * f_)} {f1(y + dy)}" '
-                     f'stroke="{P["ink"]}" stroke-width="{3.8 * k:.1f}" stroke-linecap="round"/>')
+                     f'stroke="{P()["ink"]}" stroke-width="{3.8 * k:.1f}" stroke-linecap="round"/>')
             g.append(f'<path d="M{f1(x + s * arm * f_ - 20 * k)} {f1(y + dy)}'
                      f'A{f1(20 * k)} {f1(5.5 * k)} 0 1 1 {f1(x + s * arm * f_ + 20 * k)} {f1(y + dy)}" '
-                     f'fill="none" stroke="{P["ink"]}" stroke-width="{2.6 * k:.1f}" stroke-opacity="0.75"/>')
-    g.append(f'<rect x="{f1(x - 18 * k)}" y="{f1(y - 11 * k)}" width="{36 * k:.1f}" height="{24 * k:.1f}" '
-             f'rx="{7 * k:.1f}" fill="{P["ink"]}" stroke="{P["light"]}" stroke-width="{2.2 * k:.1f}"/>')
-    g.append(f'<circle cx="{f1(x)}" cy="{f1(y + 17 * k)}" r="{7 * k:.1f}" fill="{P["light"]}"/>')
+                     f'fill="none" stroke="{P()["ink"]}" stroke-width="{2.6 * k:.1f}" stroke-opacity="0.75"/>')
+    g.append(f'<rect x="{f1(x - 18 * k)}" y="{f1(y - 11 * k)}" width="{f1(36 * k)}" '
+             f'height="{f1(24 * k)}" rx="{f1(7 * k)}" fill="{P()["ink"]}" stroke="{P()["light"]}" '
+             f'stroke-width="{2.2 * k:.1f}"/>')
     return ''.join(g)
 
 
-def satellite_flat(x, y, k=1.0, beam=None):
-    """The other half of the observing system: the pass overhead that turned a
-    few hundred measured glaciers into a quarter of a million mapped ones."""
+def satellite(x, y, k=1.0, beam=None):
     g = []
-    if beam is not None:
+    if beam:
         bx, by, bw = beam
-        g.append(f'<path d="{poly([(x - 18 * k, y + 24 * k), (bx - bw, by), (bx + bw, by), (x + 18 * k, y + 24 * k)])}" '
-                 f'fill="{P["light"]}" fill-opacity="0.045" stroke="{P["light"]}" stroke-width="2.4" '
-                 f'stroke-dasharray="13 11" stroke-opacity="0.34"/>')
-    g.append(f'<rect x="{f1(x - 18 * k)}" y="{f1(y - 16 * k)}" width="{36 * k:.1f}" height="{32 * k:.1f}" '
-             f'rx="{5 * k:.1f}" fill="{P["ink"]}" stroke="{P["light"]}" stroke-width="{2.6 * k:.1f}"/>')
+        g.append(f'<path d="{SG.poly([(x - 18 * k, y + 24 * k), (bx - bw, by), (bx + bw, by), (x + 18 * k, y + 24 * k)])}" '
+                 f'fill="{P()["light"]}" fill-opacity="0.045" stroke="{P()["light"]}" '
+                 f'stroke-width="2.4" stroke-dasharray="13 11" stroke-opacity="0.34"/>')
+    g.append(f'<rect x="{f1(x - 18 * k)}" y="{f1(y - 16 * k)}" width="{f1(36 * k)}" '
+             f'height="{f1(32 * k)}" rx="{f1(5 * k)}" fill="{P()["ink"]}" stroke="{P()["light"]}" '
+             f'stroke-width="{2.6 * k:.1f}"/>')
     for s in (-1, 1):
-        g.append(f'<path d="M{f1(x + s * 18 * k)} {f1(y)}L{f1(x + s * 32 * k)} {f1(y)}" '
-                 f'stroke="{P["solarFrame"]}" stroke-width="{2.8 * k:.1f}"/>')
         g.append(f'<rect x="{f1(x + (32 * k if s > 0 else -76 * k))}" y="{f1(y - 13 * k)}" '
-                 f'width="{44 * k:.1f}" height="{26 * k:.1f}" fill="{P["solar"]}" '
-                 f'stroke="{P["solarFrame"]}" stroke-width="{2.6 * k:.1f}"/>')
-        for i in range(1, 3):
-            xx = x + (32 * k if s > 0 else -76 * k) + i * 44 * k / 3
-            g.append(f'<path d="M{f1(xx)} {f1(y - 13 * k)}l0 {f1(26 * k)}" stroke="{P["solarFrame"]}" '
-                     f'stroke-width="{1.6 * k:.1f}"/>')
-    g.append(f'<path d="M{f1(x)} {f1(y + 16 * k)}l0 {f1(13 * k)}" stroke="{P["light"]}" stroke-width="{3.2 * k:.1f}"/>')
-    g.append(f'<path d="M{f1(x - 14 * k)} {f1(y + 44 * k)}A{f1(18 * k)} {f1(18 * k)} 0 0 1 {f1(x + 14 * k)} {f1(y + 44 * k)}Z" '
-             f'fill="{P["light"]}" fill-opacity="0.9"/>')
+                 f'width="{f1(44 * k)}" height="{f1(26 * k)}" fill="{P()["solar"]}" '
+                 f'stroke="{P()["solarFrame"]}" stroke-width="{2.6 * k:.1f}"/>')
+        g.append(f'<path d="M{f1(x + s * 18 * k)} {f1(y)}L{f1(x + s * 32 * k)} {f1(y)}" '
+                 f'stroke="{P()["solarFrame"]}" stroke-width="{2.8 * k:.1f}"/>')
     return ''.join(g)
 
 
-def instruments(doc):
-    """Story 1's iconography: what it now takes to watch a glacier.
+def quadrat(x, y, k=1.0):
+    """A GLORIA plot: a square pegged out on a summit and counted every year."""
+    w = 44 * k
+    g = [f'<path d="{SG.poly([(x - w, y), (x, y - w * 0.42), (x + w, y), (x, y + w * 0.42)])}" '
+         f'fill="none" stroke="{P()["ink"]}" stroke-width="{2.6 * k:.1f}"/>']
+    for i in (-0.34, 0.34):
+        g.append(f'<path d="M{f1(x + i * w)} {f1(y - abs(i) * w * 0.42 - w * 0.08)}'
+                 f'L{f1(x + i * w)} {f1(y + w * 0.42 - abs(i) * w * 0.42)}" '
+                 f'stroke="{P()["ink"]}" stroke-width="{1.6 * k:.1f}" stroke-opacity="0.6"/>')
+    return ''.join(g)
 
-    The narrative's centre is not the ice but the observing of it — a line of
-    stakes and a roped party on the tongue, a weather station on the moraine, a
-    drone over the front, a satellite above all of them. Together they make the
-    story's own argument: the measuring has been transformed, and the ice is
-    going anyway. The pale hatched wedge is what the measuring found."""
-    air = doc.layer('Air'); ppl = doc.layer('People'); inf = doc.layer('Instruments')
 
+def platform(x, y, k=1.0):
+    w = 70 * k
+    return (f'<rect x="{f1(x - w / 2)}" y="{f1(y - 9 * k)}" width="{f1(w)}" height="{f1(9 * k)}" '
+            f'fill="{P()["concrete"]}"/>'
+            f'<path d="M{f1(x - w / 2)} {f1(y - 9 * k)}l0 {f1(-22 * k)}'
+            f'M{f1(x + w / 2)} {f1(y - 9 * k)}l0 {f1(-22 * k)}'
+            f'M{f1(x - w / 2)} {f1(y - 31 * k)}L{f1(x + w / 2)} {f1(y - 31 * k)}" '
+            f'fill="none" stroke="{P()["ink"]}" stroke-width="{3 * k:.1f}"/>')
+
+
+def dam(x, y, k=1.0, h=120):
+    h *= k
+    return (f'<path d="{SG.poly([(x - 26 * k, y), (x - 13 * k, y - h), (x + 13 * k, y - h), (x + 26 * k, y)])}" '
+            f'fill="{P()["concrete"]}" stroke="{P()["ink"]}" stroke-width="{2.4 * k:.1f}"/>')
+
+
+def bus(x, y, k=1.0):
+    w, h = 76 * k, 34 * k
+    g = [f'<rect x="{f1(x - w / 2)}" y="{f1(y - h - 7 * k)}" width="{f1(w)}" height="{f1(h)}" '
+         f'rx="{f1(6 * k)}" fill="{P()["bus"]}"/>']
+    for i in range(3):
+        g.append(f'<rect x="{f1(x - w * 0.38 + i * w * 0.26)}" y="{f1(y - h - 1 * k)}" '
+                 f'width="{f1(w * 0.18)}" height="{f1(h * 0.42)}" fill="{P()["light"]}" fill-opacity="0.8"/>')
+    for s in (-1, 1):
+        g.append(f'<circle cx="{f1(x + s * w * 0.3)}" cy="{f1(y - 5 * k)}" r="{f1(7 * k)}" fill="{P()["ink"]}"/>')
+    return ''.join(g)
+
+
+def barrier(x, y, k=1.0):
+    h = 54 * k
+    return (f'<path d="M{f1(x)} {f1(y)}l0 {f1(-h)}" stroke="{P()["ink"]}" stroke-width="{4 * k:.1f}"/>'
+            f'<path d="M{f1(x - 4 * k)} {f1(y - h + 8 * k)}L{f1(x + 54 * k)} {f1(y - h + 20 * k)}" '
+            f'stroke="{P()["red"]}" stroke-width="{7 * k:.1f}" stroke-linecap="round"/>')
+
+
+def easel(x, y, k=1.0):
+    h = 74 * k
+    return (f'<path d="M{f1(x - 22 * k)} {f1(y)}L{f1(x)} {f1(y - h)}L{f1(x + 22 * k)} {f1(y)}" '
+            f'fill="none" stroke="{P()["ink"]}" stroke-width="{3.2 * k:.1f}"/>'
+            f'<rect x="{f1(x - 26 * k)}" y="{f1(y - h * 0.92)}" width="{f1(52 * k)}" '
+            f'height="{f1(40 * k)}" fill="{P()["light"]}" stroke="{P()["ink"]}" '
+            f'stroke-width="{2.6 * k:.1f}"/>')
+
+
+def pit(x, y, k=1.0, layers=4):
+    """A snow pit, its winter read off the wall."""
+    w, h = 54 * k, 60 * k
+    g = [f'<rect x="{f1(x - w / 2)}" y="{f1(y - h)}" width="{f1(w)}" height="{f1(h)}" fill="{P()["snow"]}"/>']
+    for i in range(1, layers):
+        yy = y - h + i * h / layers
+        g.append(f'<path d="M{f1(x - w / 2)} {f1(yy)}L{f1(x + w / 2)} {f1(yy)}" '
+                 f'stroke="{P()["iceLine"]}" stroke-width="{2.4 * k:.1f}" stroke-opacity="0.8"/>')
+    g.append(f'<rect x="{f1(x - w / 2)}" y="{f1(y - h)}" width="{f1(w)}" height="{f1(h)}" '
+             f'fill="none" stroke="{P()["ink"]}" stroke-width="{2.4 * k:.1f}"/>')
+    return ''.join(g)
+
+
+def borehole(x, y, k=1.0, depth=90):
+    """Thermistors down a hole in frozen rock, reading it warm."""
+    d = depth * k
+    g = [f'<path d="M{f1(x)} {f1(y)}l0 {f1(d)}" stroke="{P()["ink"]}" stroke-width="{3.4 * k:.1f}"/>']
+    for i in range(1, 5):
+        g.append(f'<circle cx="{f1(x)}" cy="{f1(y + d * i / 5)}" r="{f1(4 * k)}" fill="{P()["red"]}"/>')
+    g.append(f'<rect x="{f1(x - 11 * k)}" y="{f1(y - 17 * k)}" width="{f1(22 * k)}" '
+             f'height="{f1(17 * k)}" fill="{P()["light"]}" stroke="{P()["ink"]}" '
+             f'stroke-width="{2.2 * k:.1f}"/>')
+    return ''.join(g)
+
+
+def crate(x, y, k=1.0):
+    w, h = 34 * k, 22 * k
+    return (f'<rect x="{f1(x - w / 2)}" y="{f1(y - h)}" width="{f1(w)}" height="{f1(h)}" '
+            f'fill="{P()["thatch"]}" stroke="{P()["ink"]}" stroke-width="{2 * k:.1f}"/>'
+            f'<path d="M{f1(x - w / 2)} {f1(y - h * 0.5)}L{f1(x + w / 2)} {f1(y - h * 0.5)}" '
+            f'stroke="{P()["ink"]}" stroke-width="{1.8 * k:.1f}" stroke-opacity="0.6"/>')
+
+
+def arrows_up(sc, xs, rise=66, col=None):
+    """What is moving, and which way."""
+    for x in xs:
+        y = sc.y(x) - 10
+        c = col or P()['red']
+        sc.stroke('Detail', SG.poly([(x, y), (x, y - rise)], False), c, 3.4)
+        sc.stroke('Detail', SG.poly([(x - 9, y - rise + 13), (x, y - rise), (x + 9, y - rise + 13)], False), c, 3.4)
+
+
+def scatter(sc, layer, fn, x0, x1, n, seed=3, lift=0, **kw):
+    rng = np.random.default_rng(seed)
+    for _ in range(n):
+        x = float(rng.uniform(x0, x1))
+        sc.put(layer, fn(x, sc.y(x) + lift + float(rng.uniform(-6, 18)), **kw))
+
+
+# ---------------------------------------------------------------------------
+# The twenty-five scenes, each read from its draft.
+# ---------------------------------------------------------------------------
+def s01(sc):
+    """Glaciers — the watching of the ice, and the ice going anyway."""
+    sc.sky([(250, 330, 520, 0.76), (790, 300, 470, 0.82), (1390, 400, 392, 0.70)])
+    sc.ground(SG.trough())
+    bed = list(sc.profile)
+    now = [(665, 1032), (720, 952), (840, 864), (1000, 762), (1180, 662), (1380, 562), (1600, 464), (1800, 388)]
+    then = [(350, 1046), (430, 964), (560, 880), (700, 792), (880, 702), (1080, 608), (1300, 508), (1540, 410), (1800, 320)]
+    xs = list(range(665, 1801, 10))
+    sc.shape('Ground', [(x, SG.at_x(now, x)) for x in xs] + [(x, SG.at_x(bed, x)) for x in reversed(xs)],
+             P()['glacier'], smooth=True)
+    sc.profile = [(x, SG.at_x(now, x) if x >= 665 else SG.at_x(bed, x)) for x in range(0, 1801, 10)]
+    sc.ghost(then, 350, 1800, 'ice surface in 2000')
+    sc.profile = bed
+    sc.water(290, 660, 1030)
+    for yr, x in (('2000', 350), ('1975', 168)):
+        sc.marker(x, yr)
     for x in (905, 1075, 1250, 1430):
-        inf.append(stake_flat(x, at_x(NOW, x) + 3, 1.0))
-
-    party = [(1545, at_x(NOW, 1545)), (1615, at_x(NOW, 1615)), (1685, at_x(NOW, 1685))]
-    rope = ''.join(poly([(party[i][0], party[i][1] - 28), (party[i + 1][0], party[i + 1][1] - 28)], False)
-                   for i in range(len(party) - 1))
-    ppl.append(f'<path d="{rope}" stroke="{P["red"]}" stroke-width="3.6" stroke-linecap="round"/>')
+        sc.put('Built', stake(x, SG.at_x(now, x) + 3))
+    party = [(1545, SG.at_x(now, 1545)), (1615, SG.at_x(now, 1615)), (1685, SG.at_x(now, 1685))]
+    sc.stroke('Figures', ''.join(SG.poly([(a[0], a[1] - 28), (b[0], b[1] - 28)], False)
+                                 for a, b in zip(party, party[1:])), P()['red'], 3.6)
     for i, (x, y) in enumerate(party):
-        ppl.append(figure(x, y + 2, 0.95, staff=i == 0, load=i == 2, flip=-1))
+        sc.put('Figures', SG.figure(x, y + 2, 0.95, staff=i == 0, load=i == 2, flip=-1))
+    sc.put('Built', aws(222, sc.y(222) + 4))
+    sc.put('Air', drone(800, 690, drop=SG.at_x(now, 800) - 706))
+    sc.put('Air', satellite(1255, 150, beam=(1120, 600, 225)))
 
-    inf.append(aws_flat(222, at_x(BED, 222) + 4, 1.0))
-    air.append(drone_flat(800, 690, 1.0, drop=at_x(NOW, 800) - 706))
-    air.append(satellite_flat(1255, 150, 1.0, beam=(1120, 600, 225)))
+
+def s02(sc):
+    """Observation systems — a network that thins exactly where it matters."""
+    sc.sky([(400, 330, 560, 0.8), (1250, 380, 430, 0.72)])
+    sc.ground(SG.slope(1090, 320))
+    scatter(sc, 'Flora', SG.conifer, 60, 700, 22, seed=2, k=0.9)
+    for x in (120, 250, 380, 520, 690):
+        sc.put('Built', SG.mast(x, sc.y(x), 0.8))
+    for x in (1080, 1560):
+        sc.put('Built', SG.mast(x, sc.y(x), 0.95, dish=x > 1300))
+    sc.stroke('Detail', SG.curve([(880, sc.y(880) - 150), (1800, sc.y(1800) - 150)]),
+              P()['dateInk'], 3.2, dash='16 11')
+    sc.text(905, sc.y(905) - 170, 'above here the record thins out', col=P()['dateInk'])
+    sc.put('Figures', SG.figure(1180, sc.y(1180), 0.95, load=True))
 
 
-def title(doc, num, station):
-    lay = doc.layer('Title')
-    lay.append(f'<circle cx="86" cy="70" r="27" fill="{P["markerFill"]}" stroke="{P["red"]}" stroke-width="3.2"/>')
-    lay.append(f'<text x="86" y="79" text-anchor="middle" font-family="{K.SANS}" font-weight="700" '
-               f'font-size="25" fill="{P["markerText"]}">{station}</text>')
-    lay.append(LB.halo(130, 80, ST.TOPICS[num].replace('&', '&amp;'), P, 32, italic=False, weight=600,
-                       col=P['titleInk']))
+def s03(sc):
+    """Elevation-dependent change — the belts of Kilimanjaro, climbing."""
+    sc.sky([(1400, 420, 330, 0.74)])
+    sc.ground(SG.slope(1100, 300, bow=40))
+    sc.bands([(0, 300, SG.weigh(P()['field'], 0.15), 'savannah'),
+              (300, 640, P()['terrace'], 'farmland'),
+              (640, 980, P()['forest'], 'rainforest'),
+              (980, 1270, P()['alpine'], 'moorland'),
+              (1270, 1560, P()['dry'], 'alpine desert'),
+              (1560, 1800, P()['glacier'], 'ice')], thickness=94)
+    sc.stroke('Ghost', SG.curve([(x, sc.y(x) + 150) for x in range(0, 1801, 60)]),
+              P()['dateInk'], 3.4, dash='15 11')
+    sc.text(170, sc.y(170) + 196, 'where the boundaries were', col=P()['dateInk'])
+    arrows_up(sc, (470, 810, 1120, 1420), rise=78)
+
+
+def s04(sc):
+    """Social dimensions — an inventory of 16,078, and the people beneath it."""
+    sc.sky([(380, 360, 470, 0.78), (1300, 420, 400, 0.72)])
+    sc.ground(SG.valley(1000, 440, 0.5), col=SG.weigh(P()['dry'], 0.2))
+    rng = np.random.default_rng(4)
+    for _ in range(90):
+        x, y = rng.uniform(120, 1680), rng.uniform(140, 420)
+        sc.put('Detail', f'<ellipse cx="{f1(x)}" cy="{f1(y)}" rx="{f1(rng.uniform(16, 40))}" '
+                         f'ry="{f1(rng.uniform(10, 22))}" fill="none" stroke="{P()["iceLine"]}" '
+                         f'stroke-width="2" stroke-opacity="0.75" '
+                         f'transform="rotate({rng.uniform(-30, 30):.0f} {f1(x)} {f1(y)})"/>')
+    sc.text(120, 120, '16,078 bodies of ice', col=P()['dateInk'])
+    sc.put('Built', SG.document(880, sc.y(880) - 10, 1.3))
+    sc.put('Figures', SG.figure(790, sc.y(790), 1.0))
+    for x in (1140, 1230, 1310):
+        sc.put('Figures', SG.figure(x, sc.y(x), 0.9))
+
+
+def s05(sc):
+    """Water towers — what women grow with the runoff, downstream of the ice."""
+    sc.sky([(1480, 380, 300, 0.7)])
+    sc.ground(SG.plain_and_massif(990, 300))
+    xs = list(range(1400, 1801, 20))
+    sc.shape('Ground', [(x, sc.y(x)) for x in xs] + [(x, sc.y(x) + 70) for x in reversed(xs)],
+             P()['glacier'], smooth=True)
+    sc.stroke('Water', SG.curve([(1420, sc.y(1420) + 40), (1150, sc.y(1150) + 30),
+                                 (900, sc.y(900) + 20), (620, sc.y(620) + 16)]), P()['waterLine'], 6)
+    sc.stroke('Water', SG.curve([(620, sc.y(620) + 16), (420, sc.y(420) + 26), (120, sc.y(120) + 30)]),
+              P()['waterLine'], 8)
+    for i, x0 in enumerate(range(90, 760, 150)):
+        col = [P()['fieldGreen'], P()['fieldOchre'], P()['paddyGreen2']][i % 3]
+        sc.bands([(x0, x0 + 120, col, '')], thickness=56, names=False)
+    for x in (200, 430, 660):
+        sc.put('Figures', SG.figure(x, sc.y(x) + 18, 0.95, bent=True))
+    for x in (330, 560):
+        sc.put('Built', crate(x, sc.y(x) + 22))
+    sc.text(140, sc.y(140) + 130, 'runoff, and what it grows')
+
+
+def s06(sc):
+    """Biodiversity — the summit as refuge, and then as trap."""
+    sc.sky([(900, 520, 250, 0.8)])
+    sc.ground(SG.cone(300, 1050, 820))
+    sc.bands([(260, 620, P()['forest'], ''), (620, 820, P()['alpine'], ''),
+              (820, 980, P()['scree'], ''), (980, 1180, P()['alpine'], ''),
+              (1180, 1540, P()['forest'], '')], thickness=80, names=False)
+    for x in (780, 900, 1020):
+        sc.put('Built', quadrat(x, sc.y(x) + 16, 0.95))
+    arrows_up(sc, (690, 1110), rise=86)
+    sc.put('Figures', SG.figure(640, sc.y(640), 0.9, bent=True))
+    sc.text(900, 240, 'nowhere higher to go', col=P()['dateInk'], anchor='middle')
+
+
+def s07(sc):
+    """Forests — the stand that stops what is coming down the slope."""
+    sc.sky([(1400, 400, 360, 0.76)])
+    sc.ground(SG.slope(1060, 340, bow=30))
+    sc.sub([(70, SG.weigh(P()['soil'], 0.1), 'soil'),
+            (90, SG.weigh(P()['soil'], 0.42), 'carbon')])
+    scatter(sc, 'Flora', SG.conifer, 120, 1300, 54, seed=7, k=1.1)
+    sc.stroke('Detail', SG.curve([(1560, sc.y(1560) - 30), (1380, sc.y(1380) - 10), (1180, sc.y(1180))]),
+              P()['hazard'], 4.0, dash='14 9')
+    sc.put('Detail', f'<ellipse cx="1180" cy="{f1(sc.y(1180))}" rx="22" ry="17" fill="{P()["till"]}"/>')
+    sc.text(1230, sc.y(1230) - 70, 'stopped here', col=P()['hazard'])
+
+
+def s08(sc):
+    """Adaptation — the question, and the answer nobody expected."""
+    sc.sky([(500, 400, 470, 0.78), (1400, 380, 430, 0.74)])
+    sc.ground(SG.valley(1000, 460, 0.52))
+    sc.bands([(560, 1240, P()['terrace'], '')], thickness=70, names=False)
+    for x in (640, 760, 880):
+        sc.put('Built', SG.house(x, sc.y(x) + 26))
+    scatter(sc, 'Flora', SG.broadleaf, 1000, 1500, 9, seed=8, k=0.9)
+    sc.put('Figures', SG.figure(1180, sc.y(1180) + 10, 1.15, staff=True))
+    sc.put('Figures', SG.figure(1290, sc.y(1290) + 10, 1.15, flip=-1))
+    sc.put('Figures', SG.figure(1240, sc.y(1240) - 4, 0.95, load=True))
+
+
+def s09(sc):
+    """Cascading hazards — a buffer stretched both ways."""
+    sc.sky([(1450, 420, 330, 0.72)])
+    sc.ground(SG.plain_and_massif(970, 320))
+    sc.sub([(60, SG.weigh(P()['forest'], 0.25), 'forest and soil'),
+            (80, SG.weigh(P()['water'], 0.45), 'the water they hold')])
+    sc.ghost([(x, sc.y(x) - 92) for x in range(0, 900, 60)], 0, 860, 'the 2023 flood', hatch='flood')
+    sc.stroke('Water', SG.curve([(60, sc.y(60) + 10), (380, sc.y(380) + 6), (700, sc.y(700))]),
+              P()['waterLine'], 4, dash='12 9', op=0.9)
+    for x in (430, 530, 620):
+        sc.put('Figures', SG.beast(x, sc.y(x) + 14, 0.95))
+    sc.text(120, sc.y(120) + 190, 'and the 2020-23 drought', col=P()['dateInk'])
+
+
+def s10(sc):
+    """Agriculture — Ghunsa: potatoes for the household and for the lodge."""
+    sc.sky([(420, 400, 450, 0.78), (1420, 420, 400, 0.7)])
+    sc.ground(SG.valley(1010, 450, 0.5))
+    for i in range(4):
+        sc.bands([(520 + i * 30, 1280 - i * 30,
+                   P()['terrace'] if i % 2 else P()['fieldGreen'], '')], thickness=44, names=False)
+    for x in (640, 740):
+        sc.put('Built', SG.house(x, sc.y(x) + 30))
+    sc.put('Built', SG.house(1080, sc.y(1080) + 30, 1.25, roof='flat', roofcol=P()['metalRoof']))
+    for x in (840, 920, 1000):
+        sc.put('Figures', SG.figure(x, sc.y(x) + 34, 0.95, bent=True))
+    for x in (1240, 1310):
+        sc.put('Figures', SG.figure(x, sc.y(x) + 20, 0.95, load=True, staff=True))
+
+
+def s11(sc):
+    """Cultural landscape — Sinai: a knowledge that shaped the ground."""
+    sc.sky([(700, 420, 400, 0.76), (1500, 360, 450, 0.72)])
+    sc.ground(SG.slope(1020, 400, bow=50), col=SG.weigh(P()['dryrock'], 0.12))
+    for x0 in (260, 560, 860):
+        sc.shape('Bands', [(x0, sc.y(x0)), (x0 + 170, sc.y(x0 + 170)),
+                           (x0 + 170, sc.y(x0 + 170) + 62), (x0, sc.y(x0) + 62)],
+                 P()['fieldGreen'], smooth=True)
+        sc.stroke('Detail', SG.poly([(x0, sc.y(x0)), (x0 + 170, sc.y(x0 + 170))], False),
+                  P()['moraineCrest'], 5)
+        sc.put('Flora', SG.broadleaf(x0 + 60, sc.y(x0 + 60) + 40, 0.8))
+        sc.put('Flora', SG.broadleaf(x0 + 120, sc.y(x0 + 120) + 44, 0.7))
+    sc.stroke('Water', SG.curve([(180, sc.y(180) + 80), (640, sc.y(640) + 72), (1100, sc.y(1100) + 62)]),
+              P()['waterLine'], 5, dash='3 7')
+    sc.put('Built', SG.house(1420, sc.y(1420) + 8, 1.4, roof='flat', roofcol=P()['dome']))
+    for x in (1180, 1250):
+        sc.put('Figures', SG.figure(x, sc.y(x) + 20, 0.95, staff=True))
+
+
+def s12(sc):
+    """Equity — who is free to be here, and who is turned back."""
+    sc.sky([(1300, 420, 400, 0.74)])
+    sc.ground(SG.slope(1060, 360, bow=40))
+    sc.bands([(0, 620, SG.mix(P()['fieldGreen'], P()['sky1'], 0.1), 'open to all'),
+              (620, 1180, SG.mix(P()['alpine'], P()['sky1'], 0.25), 'if you can get there'),
+              (1180, 1800, SG.mix(P()['scree'], P()['sky1'], 0.4), 'few of us')], thickness=92)
+    for x in (140, 260, 380):
+        sc.put('Figures', SG.figure(x, sc.y(x) + 26))
+    sc.put('Built', barrier(760, sc.y(760) + 20, 1.1))
+    sc.put('Figures', SG.figure(690, sc.y(690) + 22, 1.0, flip=-1))
+    sc.put('Figures', SG.figure(980, sc.y(980) + 18, 1.0, load=True))
+    sc.put('Figures', SG.figure(1480, sc.y(1480) + 12, 1.0, staff=True))
+
+
+def s13(sc):
+    """Tourism — the platform, and the ice it was built to see."""
+    sc.sky([(500, 380, 470, 0.78), (1500, 400, 360, 0.7)])
+    sc.ground(SG.trough(1010, 380))
+    xs = list(range(1060, 1801, 20))
+    sc.shape('Ground', [(x, sc.y(x) - 48) for x in xs] + [(x, sc.y(x)) for x in reversed(xs)],
+             P()['glacier'], smooth=True)
+    sc.ghost([(x, sc.y(x) - 60) for x in range(520, 1801, 60)], 520, 1060, 'the ice in 2000')
+    sc.put('Built', platform(470, sc.y(470), 1.2))
+    for x in (420, 470, 520):
+        sc.put('Figures', SG.figure(x, sc.y(x) - 34, 0.85))
+    sc.put('Built', SG.warning(640, sc.y(640) - 36, 0.95))
+
+
+def s14(sc):
+    """Migration — a road arrived, and the village emptied along it."""
+    sc.sky([(420, 400, 430, 0.78), (1440, 400, 400, 0.72)])
+    sc.ground(SG.valley(1000, 440, 0.48))
+    sc.stroke('Detail', SG.curve([(40, sc.y(40) + 40), (520, sc.y(520) + 46), (1000, sc.y(1000) + 52),
+                                  (1480, sc.y(1480) + 40), (1780, sc.y(1780) + 10)]), P()['road'], 11)
+    sc.put('Built', bus(1280, sc.y(1280) + 50))
+    for x, roof in ((640, 'pitch'), (730, 'ruin'), (820, 'ruin'), (910, 'pitch')):
+        sc.put('Built', SG.house(x, sc.y(x) + 18, 1.0, roof=roof))
+    for x in (330, 400):
+        sc.put('Figures', SG.beast(x, sc.y(x) + 24, 0.9))
+    sc.put('Figures', SG.figure(1120, sc.y(1120) + 40, 1.0, load=True))
+
+
+def s15(sc):
+    """Peacebuilding — one forest, seven countries, a border through it."""
+    sc.ground(SG.ridges(520, 800), col=SG.weigh(P()['forest'], 0.3))
+    scatter(sc, 'Flora', SG.conifer, 40, 1760, 76, seed=15, k=1.0)
+    bx = 980
+    sc.stroke('Detail', SG.poly([(bx, 180), (bx, sc.y(bx) + 300)], False), P()['ink'], 3.0, dash='16 7 4 7')
+    for y in (330, 560, 790):
+        sc.put('Built', SG.flag(bx - 10, y, 0.8))
+    sc.put('Figures', SG.beast(480, sc.y(480) + 40, 1.0, col=P()['yak']))
+    sc.put('Figures', SG.beast(1380, sc.y(1380) + 40, 0.9, col=P()['yak']))
+    for x in (760, 1200):
+        sc.put('Figures', SG.figure(x, sc.y(x) + 56))
+
+
+def s16(sc):
+    """Urbanisation — three decades of a settlement spreading, from orbit."""
+    sc.sky([(380, 400, 440, 0.8), (1480, 420, 380, 0.72)])
+    sc.ground(SG.valley(1000, 430, 0.5))
+    sc.bands([(620, 1180, SG.mix(P()['town'], P()['sky1'], 0.45), '')], thickness=66, names=False)
+    sc.bands([(540, 1300, SG.mix(P()['town'], P()['sky1'], 0.2), '')], thickness=44, names=False)
+    sc.bands([(470, 1400, P()['town'], '')], thickness=26, names=False)
+    sc.text(470, sc.y(470) + 118, '1995', col=P()['dateInk'], size=20, italic=False)
+    sc.text(1400, sc.y(1400) + 60, '2026', col=P()['dateInk'], size=20, anchor='end', italic=False)
+    for x in (700, 800, 900, 1000, 1100):
+        sc.put('Built', SG.house(x, sc.y(x) + 22, 0.85, roof='flat', roofcol=P()['metalRoof']))
+    sc.stroke('Detail', SG.curve([(1620, sc.y(1620) - 180), (1500, sc.y(1500) - 60), (1420, sc.y(1420) + 10)]),
+              P()['hazard'], 15, op=0.75)
+    sc.put('Air', satellite(1180, 180, 1.0, beam=(980, 560, 300)))
+
+
+def s17(sc):
+    """Indigenous knowledge — the falcons came back because a village decided."""
+    sc.ground(SG.ridges(560, 820), col=SG.weigh(P()['forest'], 0.28))
+    scatter(sc, 'Flora', SG.conifer, 40, 1760, 64, seed=17, k=1.0)
+    rng = np.random.default_rng(170)
+    for i in range(54):
+        t = i / 53
+        sc.put('Air', SG.bird(120 + t * 1600,
+                              300 - 150 * np.sin(np.pi * t) + float(rng.normal(0, 34)),
+                              float(rng.uniform(0.8, 1.5))))
+    sc.text(170, 160, '22,000 km, twice a year', col=P()['dateInk'])
+    for i, x in enumerate((820, 900, 980, 1060)):
+        sc.put('Figures', SG.figure(x, sc.y(x) + (60 if i in (0, 3) else 28), 0.95,
+                                    flip=-1 if i > 1 else 1))
+
+
+def s18(sc):
+    """Land tenure — one hillside, every stage of the cycle at once."""
+    sc.sky([(1400, 420, 400, 0.76)])
+    sc.ground(SG.slope(1050, 390, bow=36))
+    sc.bands([(60, 350, P()['fieldOchre'], 'cleared'), (350, 640, P()['fieldGreen'], 'cropped'),
+              (640, 930, P()['alpine'], 'three years'),
+              (930, 1250, SG.mix(P()['forest'], P()['alpine'], 0.4), 'eight years'),
+              (1250, 1760, P()['forest'], 'forest again')], thickness=96)
+    scatter(sc, 'Flora', SG.conifer, 1280, 1740, 18, seed=18, k=0.9)
+    sc.put('Built', SG.house(820, sc.y(820) - 8, 1.1))
+    sc.put('Figures', SG.figure(430, sc.y(430) + 30, 0.95, bent=True))
+
+
+def s19(sc):
+    """Hydropower — the Alps as a battery, filled and emptied on demand."""
+    sc.sky([(500, 400, 440, 0.78), (1480, 420, 360, 0.7)])
+    sc.ground([(0, 1010), (240, 1004), (520, 966), (700, 898), (780, 872),
+               (860, 1004), (1060, 1016), (1300, 986), (1480, 880), (1650, 700), (1800, 540)])
+    sc.water(820, 1420, 898)
+    sc.put('Built', dam(792, 900, 1.6, h=132))
+    sc.stroke('Detail', SG.curve([(770, 880), (600, sc.y(600) + 20), (430, sc.y(430) + 18)]),
+              P()['penstock'], 11)
+    sc.put('Built', SG.house(330, sc.y(330) + 14, 1.2, roof='flat', roofcol=P()['powerRoof']))
+    for x in (180, 90):
+        sc.put('Built', SG.pylon(x, sc.y(x)))
+    sc.stroke('Detail', SG.curve([(430, sc.y(430) - 60), (600, sc.y(600) - 150), (780, 820)]),
+              P()['dateInk'], 3.2, dash='13 9')
+    sc.text(452, sc.y(452) - 96, 'pumped back up at night', col=P()['dateInk'])
+
+
+def s20(sc):
+    """Global frameworks — the mountain gets into the text."""
+    sc.ground([(0, 1180), (1800, 1180)], col=SG.weigh(P()['rock'], 0.3), outline=False)
+    sc.put('Bands', SG.document(900, 1180, 9.6, lines=0))
+    sc.shape('Built', [(726, 968), (828, 812), (898, 884), (1002, 742), (1084, 968)],
+             SG.weigh(P()['rock'], 0.15))
+    sc.shape('Built', [(958, 812), (1002, 742), (1046, 812), (1022, 826), (980, 828)], P()['snow'])
+    for i in range(5):
+        sc.stroke('Built', SG.poly([(590, 420 + i * 40), (590 + (620 if i else 430), 420 + i * 40)], False),
+                  P()['ink'], 8, op=0.4)
+    for i in range(3):
+        sc.stroke('Built', SG.poly([(590, 1030 + i * 40),
+                                    (590 + (620 if i < 2 else 330), 1030 + i * 40)], False),
+                  P()['ink'], 8, op=0.4)
+    sc.text(900, 330, 'what gets named gets measured', col=P()['dateInk'], anchor='middle')
+
+
+def s21(sc):
+    """Legal action — Palcacocha: the lake above, the town below, the claim."""
+    sc.sky([(1500, 400, 340, 0.7)])
+    sc.ground(SG.plain_and_massif(1000, 300))
+    sc.water(1180, 1520, 560)
+    for i in (-1, 0, 1):
+        x = 1180 + i * 46
+        sc.stroke('Detail', f'M{f1(x)} {f1(540)}Q{f1(x - 40)} {f1(500)} {f1(x - 80)} {f1(sc.y(x - 80))}',
+                  P()['concrete'], 9)
+    sc.stroke('Detail', SG.curve([(1140, sc.y(1140)), (900, sc.y(900) + 10), (620, sc.y(620) + 20),
+                                  (360, sc.y(360) + 24)]), P()['hazard'], 5, dash='14 10')
+    for x in (280, 360, 440, 520):
+        sc.put('Built', SG.house(x, sc.y(x) + 26, 0.9, roof='flat', roofcol=P()['metalRoof']))
+    sc.put('Built', SG.scales(820, sc.y(820) - 20, 1.2))
+    sc.put('Figures', SG.figure(700, sc.y(700) + 6, 1.05, staff=True))
+    sc.text(300, sc.y(300) + 130, 'the town in its path', col=P()['hazard'])
+
+
+def s22(sc):
+    """The arts — Chimborazo, measured and painted at the same easel."""
+    sc.ground(SG.cone(260, 1060, 780))
+    bands = [(330, 560, P()['glacier'], 'nieves perpetuas'), (560, 720, P()['scree'], 'paramo'),
+             (720, 900, P()['alpine'], 'alpine'), (900, 1080, P()['forest'], 'ceja andina'),
+             (1080, 1300, P()['fieldGreen'], 'cultivated'), (1300, 1520, P()['field'], 'plain')]
+    sc.bands(bands, thickness=74)
+    for (x0, x1, _c, _n) in bands:
+        sc.stroke('Detail', SG.poly([(x0, sc.y(x0)), (x1, sc.y(x1))], False), P()['ink'], 1.8, op=0.4)
+    sc.put('Built', easel(300, sc.y(300) + 40, 1.3))
+    sc.put('Figures', SG.figure(400, sc.y(400) + 44, 1.0, flip=-1))
+    sc.text(900, 190, 'the same mountain, twice', col=P()['dateInk'], anchor='middle')
+
+
+def s23(sc):
+    """Future scenarios — Kilimanjaro's water goes underground, and comes back."""
+    sc.ground(SG.cone(330, 1030, 820, flat=150))
+    sc.sub([(80, SG.weigh(P()['rock'], 0.18), 'porous rock'),
+            (110, SG.weigh(P()['water'], 0.5), 'water, out of sight')])
+    for x in (520, 700, 1080, 1260):
+        sc.stroke('Detail', SG.curve([(x, sc.y(x) + 90), (x + (-80 if x < 900 else 80), sc.y(x) + 160)]),
+                  P()['waterLine'], 3.4, dash='9 8', op=0.8)
+    for x in (300, 1480):
+        y = sc.y(x) + 10
+        sc.put('Water', f'<ellipse cx="{f1(x)}" cy="{f1(y)}" rx="34" ry="12" fill="{P()["water"]}"/>')
+        for r in (22, 40, 58):
+            sc.stroke('Water', f'M{f1(x - r)} {f1(y)}a{f1(r)} {f1(r * 0.4)} 0 0 0 {f1(2 * r)} 0',
+                      P()['waterLine'], 2.4, op=0.7)
+    sc.put('Figures', SG.beast(1600, sc.y(1600) + 16, 1.2, kind='elephant'))
+    sc.put('Figures', SG.beast(190, sc.y(190) + 16, 1.0))
+    for dy in (-70, 110):
+        sc.stroke('Ghost', SG.curve([(960, 350), (1240, 350 + dy), (1600, 350 + dy * 2.1)]),
+                  P()['dateInk'], 3.2, dash='14 10')
+    sc.text(1620, 300, 'two futures', col=P()['dateInk'], anchor='end')
+
+
+def s24(sc):
+    """Snow — where it lies, for how long, and what reads it."""
+    sc.sky([(1400, 420, 350, 0.74)])
+    sc.ground(SG.slope(1070, 330, bow=40))
+    xs = list(range(700, 1801, 20))
+    sc.shape('Ground', [(x, sc.y(x)) for x in xs] + [(x, sc.y(x) + 60) for x in reversed(xs)],
+             P()['snow'], smooth=True)
+    sc.stroke('Ghost', SG.curve([(x, sc.y(x) + 150) for x in range(380, 1801, 60)]),
+              P()['dateInk'], 3.4, dash='15 11')
+    sc.text(400, sc.y(400) + 196, 'the old snowline', col=P()['dateInk'])
+    arrows_up(sc, (620, 900), rise=74)
+    sc.put('Built', pit(1180, sc.y(1180) + 20, 1.2))
+    sc.put('Figures', SG.figure(1300, sc.y(1300) + 16, 0.95, bent=True))
+    sc.stroke('Detail', SG.curve([(1680, sc.y(1680) - 20), (1520, sc.y(1520) + 40), (1400, sc.y(1400) + 90)]),
+              P()['hazard'], 11, op=0.6)
+
+
+def s25(sc):
+    """Permafrost — Blatten: what came down, and what is being measured now."""
+    sc.sky([(1480, 400, 300, 0.66)])
+    sc.ground(SG.plain_and_massif(1010, 280))
+    xs = list(range(1420, 1801, 20))
+    sc.shape('Ground', [(x, sc.y(x)) for x in xs] + [(x, sc.y(x) + 56) for x in reversed(xs)],
+             P()['glacier'], smooth=True)
+    sc.shape('Detail', [(1560, sc.y(1560) - 10), (1200, sc.y(1200) + 10), (820, sc.y(820) + 20),
+                        (520, sc.y(520) + 26), (520, sc.y(520) + 86), (820, sc.y(820) + 80),
+                        (1200, sc.y(1200) + 70), (1560, sc.y(1560) + 46)],
+             SG.mix(P()['debris'], P()['shade'], 0.2), smooth=True)
+    for x, roof in ((330, 'ruin'), (410, 'ruin'), (500, 'pitch')):
+        sc.put('Built', SG.house(x, sc.y(x) + 34, 1.0, roof=roof))
+    sc.put('Built', borehole(1340, sc.y(1340) + 4, 1.1))
+    sc.put('Built', SG.warning(980, sc.y(980) - 50))
+    sc.text(300, sc.y(300) + 130, '28 May 2025', col=P()['dateInk'], italic=False)
+
+
+SCENES = {1: s01, 2: s02, 3: s03, 4: s04, 5: s05, 6: s06, 7: s07, 8: s08, 9: s09,
+          10: s10, 11: s11, 12: s12, 13: s13, 14: s14, 15: s15, 16: s16, 17: s17,
+          18: s18, 19: s19, 20: s20, 21: s21, 22: s22, 23: s23, 24: s24, 25: s25}
 
 
 def vignette(num, out):
-    doc = K.Doc(W, H, P['sky1'])
-    for nm in ['Back', 'Rock', 'Ice', 'Ground', 'Detail', 'Instruments', 'People', 'Air',
-               'Labels', 'Title']:
-        doc.layer(nm)
-    landscape(doc)
-    instruments(doc)
+    sc = SG.Scene()
+    SCENES[num](sc)
     station = [i + 1 for i, s in enumerate(ST.STATIONS) if s[0] == num][0]
-    title(doc, num, station)
-    open(out, 'w').write(doc.svg())
-    return doc
+    SG.title(sc, num, station, ST.TOPICS[num])
+    open(out, 'w').write(sc.svg())
+    return sc
 
 
 if __name__ == '__main__':
-    if '--light' in sys.argv:
+    light = '--light' in sys.argv
+    if light:
         R.use_light()
-        P = R.PAL
-    num, out = int(sys.argv[1]), sys.argv[2]
-    vignette(num, out)
+    which, out = sys.argv[1], sys.argv[2]
+    if which == 'all':
+        os.makedirs(out, exist_ok=True)
+        for n in range(1, 26):
+            p = os.path.join(out, 'vignette-%02d-%s.svg' % (n, 'light' if light else 'dark'))
+            vignette(n, p)
+            print('wrote', os.path.basename(p), flush=True)
+        raise SystemExit(0)
+    vignette(int(which), out)
     print('wrote', out)
