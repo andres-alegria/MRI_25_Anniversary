@@ -72,7 +72,7 @@ def at_x(profile, x):
 class Scene:
     """One vignette: layers, a ground profile, and helpers to stand on it."""
 
-    LAYERS = ['Sky', 'Far', 'Sub', 'Ground', 'Bands', 'Water', 'Detail', 'Ghost',
+    LAYERS = ['Sky', 'Far', 'Ground', 'Sub', 'Bands', 'Water', 'Detail', 'Ghost',
               'Flora', 'Built', 'Figures', 'Air', 'Labels', 'Title']
 
     def __init__(self):
@@ -130,9 +130,15 @@ class Scene:
         self.profile = profile
         xs = list(range(0, W + 1, step))
         pts = [(x, self.y(x)) for x in xs]
-        self.shape('Ground', pts + [(W, H), (0, H)], col or weigh(P()['rock'], weight), smooth=True)
+        # The smoothing trims half a step off each end and rounds whatever it is
+        # given, so the profile is carried past both edges and the mass is closed
+        # with straight lines. Smoothing the closing corners turned every frame
+        # into a boat hull.
+        run = [(-40, self.y(0))] + pts + [(W + 40, self.y(W))]
+        d = (curve(run) + 'L%s %s L%s %s Z' % (f1(W + 40), f1(H), f1(-40), f1(H)))
+        self.L('Ground').append(f'<path d="{d}" fill="{col or weigh(P()["rock"], weight)}"/>')
         if outline:
-            self.stroke('Ground', curve(pts), P()['inkSoft'], 3.0, op=0.7)
+            self.stroke('Ground', curve(run), P()['inkSoft'], 3.0, op=0.7)
 
     def sub(self, layers, step=24):
         """Bands below the ground: soil, permafrost, an aquifer.
