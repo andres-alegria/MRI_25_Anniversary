@@ -241,19 +241,19 @@ def s01(sc):
 
 def s02(sc):
     """Observation systems — a network that thins exactly where it matters."""
-    sc.sky([(380, 320, 500, 0.5), (1210, 360, 400, 0.44)])
-    sc.ground(SG.slope(1060, 330, bow=10))
-    scatter(sc, 'Flora', SG.conifer, 40, 760, 46, seed=2, k=1.25)
-    for x in (110, 230, 350, 470, 600, 730):               # dense below
+    sc.sky([(300, 330, 470, 0.5), (1240, 380, 360, 0.42)])
+    sc.ground(SG.shoulder(1010, 500))
+    scatter(sc, 'Flora', SG.conifer, 40, 700, 44, seed=2, k=1.25)
+    for x in (110, 230, 350, 470, 600, 720):               # dense below
         sc.put('Built', SG.mast(x, sc.y(x), 1.0))
-    sc.put('Built', SG.mast(1140, sc.y(1140), 1.15))        # and almost nothing above
-    sc.put('Built', SG.mast(1620, sc.y(1620), 1.15, dish=True))
+    sc.put('Built', SG.mast(1180, sc.y(1180), 1.15))        # and almost nothing above
+    sc.put('Built', SG.mast(1640, sc.y(1640), 1.15, dish=True))
     # the thinning said on the ground itself, not floating over it
-    sc.bands([(0, 880, SG.mix(P()['fieldGreen'], P()['sky1'], 0.35), 'a record you can trust'),
-              (880, 1800, SG.mix(P()['scree'], P()['sky1'], 0.45), 'and above here, guesswork')],
+    sc.bands([(0, 860, SG.mix(P()['fieldGreen'], P()['sky1'], 0.30), 'a record you can trust'),
+              (980, 1800, SG.mix(P()['scree'], P()['snow'], 0.22), 'and above here, guesswork')],
              thickness=74)
-    sc.put('Figures', SG.figure(1300, sc.y(1300), 1.15, load=True, staff=True))
-    sc.put('Figures', SG.figure(640, sc.y(640), 1.05))
+    sc.put('Figures', SG.figure(1340, sc.y(1340), 1.2, load=True, staff=True))
+    sc.put('Figures', SG.figure(630, sc.y(630), 1.1))
 
 
 def s03(sc):
@@ -298,23 +298,29 @@ def s04(sc):
 
 def s05(sc):
     """Water towers — what women grow with the runoff, downstream of the ice."""
-    sc.sky([(1480, 380, 300, 0.7)])
-    sc.ground(SG.plain_and_massif(990, 300))
-    xs = list(range(1400, 1801, 20))
-    sc.shape('Ground', [(x, sc.y(x)) for x in xs] + [(x, sc.y(x) + 70) for x in reversed(xs)],
-             P()['glacier'], smooth=True)
-    sc.stroke('Water', SG.curve([(1420, sc.y(1420) + 40), (1150, sc.y(1150) + 30),
-                                 (900, sc.y(900) + 20), (620, sc.y(620) + 16)]), P()['waterLine'], 6)
-    sc.stroke('Water', SG.curve([(620, sc.y(620) + 16), (420, sc.y(420) + 26), (120, sc.y(120) + 30)]),
-              P()['waterLine'], 8)
-    for i, x0 in enumerate(range(90, 760, 150)):
+    sc.sky([(1180, 420, 470, 0.5)])
+    sc.ground([(0, 660), (170, 452), (340, 340), (540, 492), (740, 716), (940, 894),
+               (1180, 964), (1440, 986), (1800, 996)])
+    xs = [x for x in range(120, 620, 16) if sc.y(x) < 540]
+    if len(xs) > 2:
+        n = len(xs) - 1
+        sc.shape('Ground',
+                 [(x, sc.y(x)) for x in xs]
+                 + [(x, sc.y(x) + 92 * (1 - abs(2 * i / n - 1)) ** 0.55)
+                    for i, x in reversed(list(enumerate(xs)))],
+                 P()['glacier'], smooth=True)
+    sc.stroke('Water', SG.curve([(430, sc.y(430) + 26), (700, sc.y(700) + 22),
+                                 (960, sc.y(960) + 18), (1240, sc.y(1240) + 16)]), P()['waterLine'], 6)
+    sc.stroke('Water', SG.curve([(1240, sc.y(1240) + 16), (1500, sc.y(1500) + 18), (1790, sc.y(1790) + 20)]),
+              P()['waterLine'], 9)
+    for i, x0 in enumerate(range(940, 1790, 142)):
         col = [P()['fieldGreen'], P()['fieldOchre'], P()['paddyGreen2']][i % 3]
-        sc.bands([(x0, x0 + 120, col, '')], thickness=56, names=False)
-    for x in (200, 430, 660):
-        sc.put('Figures', SG.figure(x, sc.y(x) + 18, 0.95, bent=True))
-    for x in (330, 560):
-        sc.put('Built', crate(x, sc.y(x) + 22))
-    sc.text(140, sc.y(140) + 130, 'runoff, and what it grows')
+        sc.bands([(x0 + 5, x0 + 132, col, '')], thickness=104, names=False)
+    for x in (1030, 1310, 1600):
+        sc.put('Figures', SG.figure(x, sc.y(x) + 62, 1.35, bent=True))
+    for x in (1180, 1460, 1730):
+        sc.put('Built', crate(x, sc.y(x) + 74, 1.35))
+    sc.text(960, sc.y(960) + 176, 'runoff, and what it grows')
 
 
 def s06(sc):
@@ -333,25 +339,25 @@ def s06(sc):
 
 def s07(sc):
     """Forests — the stand that stops what is coming down the slope."""
-    sc.sky([(1340, 380, 340, 0.5)])
-    sc.ground(SG.slope(1040, 350, bow=14))
+    sc.sky([(640, 400, 360, 0.5), (1420, 380, 330, 0.44)])
+    sc.ground(SG.valley(980, 400, 0.44), weight=0.46)
     sc.sub([(40, SG.weigh(P()['soil'], 0.05), 'soil'),
             (54, SG.weigh(P()['soil'], 0.4), 'carbon')])
-    # a stand with depth, not a row along the line
     rng = np.random.default_rng(77)
-    for _ in range(140):
-        x = float(rng.uniform(60, 1320))
-        sc.put('Flora', SG.conifer(x, sc.y(x) + float(rng.uniform(-10, 62)),
-                                   float(rng.uniform(0.85, 1.5))))
-    # the boulder, and where it stopped
-    sc.stroke('Detail', SG.curve([(1700, sc.y(1700) - 46), (1520, sc.y(1520) - 18), (1360, sc.y(1360) + 4)]),
+    for _ in range(160):                               # a stand with depth
+        x = float(rng.uniform(40, 1760))
+        if 700 < x < 1100:
+            continue                                   # the floor is kept clear
+        sc.put('Flora', SG.conifer(x, sc.y(x) + float(rng.uniform(-8, 70)),
+                                   float(rng.uniform(0.8, 1.45))))
+    sc.stroke('Detail', SG.curve([(1660, sc.y(1660) - 40), (1480, sc.y(1480) + 10), (1330, sc.y(1330) + 46)]),
               P()['hazard'], 5.0, dash='15 10')
-    for x, r in ((1620, 13), (1500, 16), (1410, 20)):
-        sc.put('Detail', f'<ellipse cx="{f1(x)}" cy="{f1(sc.y(x) + 6)}" rx="{r}" ry="{r * 0.75}" '
+    for x, r in ((1600, 13), (1470, 17), (1390, 21)):
+        sc.put('Detail', f'<ellipse cx="{f1(x)}" cy="{f1(sc.y(x) + 20)}" rx="{r}" ry="{r * 0.75}" '
                          f'fill="{P()["till"]}"/>')
-    sc.put('Detail', f'<ellipse cx="1330" cy="{f1(sc.y(1330) + 10)}" rx="30" ry="24" '
+    sc.put('Detail', f'<ellipse cx="1310" cy="{f1(sc.y(1310) + 50)}" rx="32" ry="25" '
                      f'fill="{P()["till"]}" stroke="{P()["ink"]}" stroke-width="2.4"/>')
-    sc.text(1296, sc.y(1296) + 76, 'stopped here', col=P()['hazard'], anchor='middle')
+    sc.text(1250, sc.y(1250) + 120, 'stopped here', col=P()['hazard'], anchor='middle')
 
 
 def s08(sc):
@@ -419,7 +425,7 @@ def s11(sc):
 def s12(sc):
     """Equity — who is free to be here, and who is turned back."""
     sc.sky([(1300, 400, 390, 0.46)])
-    sc.ground(SG.slope(1040, 370, bow=16))
+    sc.ground(SG.slope(1060, 330, bow=150))
     sc.bands([(0, 640, SG.mix(P()['fieldGreen'], P()['sky1'], 0.05), 'open to everyone'),
               (640, 1180, SG.mix(P()['fieldOchre'], P()['sky1'], 0.2), 'if you can get there'),
               (1180, 1800, SG.mix(P()['scree'], P()['snow'], 0.3), 'and then, a few of us')],
@@ -612,18 +618,23 @@ def s23(sc):
 
 def s24(sc):
     """Snow — where it lies, for how long, and what reads it."""
-    sc.sky([(1400, 420, 350, 0.74)])
-    sc.ground(SG.slope(1070, 330, bow=40))
-    xs = list(range(700, 1801, 20))
-    sc.shape('Ground', [(x, sc.y(x)) for x in xs] + [(x, sc.y(x) + 60) for x in reversed(xs)],
-             P()['snow'], smooth=True)
-    sc.stroke('Ghost', SG.curve([(x, sc.y(x) + 150) for x in range(380, 1801, 60)]),
+    sc.sky([(1480, 360, 430, 0.5)])
+    sc.ground(SG.cone(300, 1030, 800))
+    xs = [x for x in range(300, 1620, 14) if sc.y(x) < 580]
+    if len(xs) > 2:
+        n = len(xs) - 1
+        sc.shape('Ground',
+                 [(x, sc.y(x)) for x in xs]
+                 + [(x, sc.y(x) + 104 * (1 - abs(2 * i / n - 1)) ** 0.5)
+                    for i, x in reversed(list(enumerate(xs)))],
+                 P()['snow'], smooth=True)
+    sc.stroke('Ghost', SG.curve([(x, sc.y(x) + 168) for x in range(320, 1600, 50)]),
               P()['dateInk'], 3.4, dash='15 11')
-    sc.text(400, sc.y(400) + 196, 'the old snowline', col=P()['dateInk'])
-    arrows_up(sc, (620, 900), rise=74)
-    sc.put('Built', pit(1180, sc.y(1180) + 20, 1.2))
-    sc.put('Figures', SG.figure(1300, sc.y(1300) + 16, 0.95, bent=True))
-    sc.stroke('Detail', SG.curve([(1680, sc.y(1680) - 20), (1520, sc.y(1520) + 40), (1400, sc.y(1400) + 90)]),
+    sc.text(360, sc.y(360) + 212, 'the old snowline', col=P()['dateInk'])
+    arrows_up(sc, (560, 1340), rise=84)
+    sc.put('Built', pit(700, sc.y(700) + 54, 1.3))
+    sc.put('Figures', SG.figure(820, sc.y(820) + 62, 1.15, bent=True))
+    sc.stroke('Detail', SG.curve([(1180, sc.y(1180) + 20), (1320, sc.y(1320) + 110), (1420, sc.y(1420) + 190)]),
               P()['hazard'], 11, op=0.6)
 
 

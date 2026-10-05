@@ -73,14 +73,46 @@ class Scene:
     """One vignette: layers, a ground profile, and helpers to stand on it."""
 
     LAYERS = ['Sky', 'Far', 'Ground', 'Sub', 'Bands', 'Water', 'Detail', 'Ghost',
-              'Flora', 'Built', 'Figures', 'Air', 'Labels', 'Title']
+              'Flora', 'Built', 'Figures', 'Air', 'Fore', 'Labels', 'Title']
 
     def __init__(self):
         self.doc = K.Doc(W, H, P()['sky1'])
         for n in self.LAYERS:
             self.doc.layer(n)
         self.profile = [(0, 900), (W, 900)]
-        self.doc.layer('Sky').append(f'<rect width="{W}" height="{H}" fill="{P()["sky1"]}"/>')
+        self.air()
+
+    def air(self, clouds=True, seed=5):
+        """Sixty per cent of every frame is sky, so it is given something to do:
+        a vertical fall of tone toward the top, and a few bars of cloud lying
+        across the light. Not objects — atmosphere."""
+        top, low = weigh(P()['sky1'], 0.34), P()['sky1']
+        self.doc.defs.append(
+            f'<linearGradient id="air" x1="0" y1="0" x2="0" y2="1">'
+            f'<stop offset="0" stop-color="{top}"/>'
+            f'<stop offset="0.72" stop-color="{low}"/>'
+            f'<stop offset="1" stop-color="{mix(low, P()["light"], 0.07)}"/></linearGradient>')
+        self.doc.layer('Sky').append(f'<rect width="{W}" height="{H}" fill="url(#air)"/>')
+        if not clouds:
+            return
+        rng = np.random.default_rng(seed)
+        col = mix(P()['sky1'], P()['light'], 0.5)
+        for _ in range(4):
+            cx = float(rng.uniform(120, W - 120))
+            cy = float(rng.uniform(110, 430))
+            op = float(rng.uniform(0.05, 0.085))
+            # a cloud is a run of overlapping lozenges, not a bar: a rectangle at
+            # this opacity reads as an underline across the sky
+            parts = []
+            n = int(rng.integers(4, 7))
+            for i in range(n):
+                t = i / (n - 1) - 0.5
+                rx = float(rng.uniform(70, 150)) * (1.0 - 0.5 * abs(t))
+                ry = float(rng.uniform(11, 20)) * (1.0 - 0.45 * abs(t))
+                parts.append(f'<ellipse cx="{f1(cx + t * 300)}" cy="{f1(cy + rng.uniform(-6, 6))}" '
+                             f'rx="{f1(rx)}" ry="{f1(ry)}"/>')
+            self.doc.layer('Sky').append(
+                f'<g fill="{col}" fill-opacity="{op:.3f}">{"".join(parts)}</g>')
 
     # -- helpers ------------------------------------------------------------
     def L(self, name):
@@ -106,26 +138,39 @@ class Scene:
                                         italic=italic, anchor=anchor))
 
     # -- the landscape ------------------------------------------------------
-    def sky(self, peaks, base=1320, snow=True):
-        """Silhouettes behind everything, paled by distance.
+    def sky(self, peaks, base=1340, snow=True):
+        """Ranges rather than peaks.
 
-        The snow has to be cut from the peak's own geometry — a cap wider than
-        the mountain at that height reads as a lamp, not as a summit — so its
-        half-width is taken off the slope at the depth it lies."""
+        Each entry is still (centre, half-width, summit, distance), but it now
+        produces a whole ridgeline across the frame that happens to be highest
+        there — built from a fall-away curve with two octaves of ridge detail on
+        it. A row of identical triangles was the most pasted-looking thing in
+        the set; a skyline has silhouette interest of its own."""
         for (xm, half, top, t) in peaks:
-            t = min(t, 0.62)                      # beyond this they vanish into the sky
-            span = max(base - top, 1.0)
-            self.shape('Far', [(xm - half, base), (xm, top), (xm + half, base)],
-                       recede(P()['rock'], t))
+            t = min(t, 0.60)
+            rng = np.random.default_rng(int(abs(xm) * 13 + top))
+            ph = rng.uniform(0, 6.3, 4)
+            pts = []
+            for x in range(-80, W + 160, 34):
+                d = min(1.0, abs(x - xm) / max(half * 2.3, 1.0))
+                y = top + (base - top) * d ** 1.25
+                amp = (1 - d) * 0.55 + 0.45
+                y -= amp * (46 * np.sin(x / 190.0 + ph[0]) + 24 * np.sin(x / 83.0 + ph[1])
+                            + 11 * np.sin(x / 37.0 + ph[2]))
+                pts.append((x, y))
+            self.shape('Far', pts + [(W + 160, H), (-80, H)], recede(P()['rock'], t))
             if snow:
-                d = span * 0.26
-                hw = half * d / span
-                self.shape('Far', [(xm, top), (xm + hw, top + d), (xm + hw * 0.52, top + d * 0.84),
-                                   (xm + hw * 0.18, top + d * 1.1), (xm - hw * 0.3, top + d * 0.86),
-                                   (xm - hw * 0.66, top + d * 1.06), (xm - hw, top + d)],
-                           recede(P()['snow'], t * 0.7))
+                cap, out = [], []
+                for (x, y) in pts:
+                    if abs(x - xm) < half * 0.8 and y < top + (base - top) * 0.30:
+                        cap.append((x, y))
+                        out.append((x, y + 38 + 26 * np.sin(x / 29.0 + ph[3])))
+                if len(cap) > 2:
+                    # distant snow is dulled hard: a bright cap on a far ridge
+                    # reads as foreground and pulls the eye out of the picture
+                    self.shape('Far', cap + list(reversed(out)), recede(P()['snow'], 0.30 + t * 0.62))
 
-    def ground(self, profile, col=None, weight=0.14, outline=True, step=10):
+    def ground(self, profile, col=None, weight=0.30, outline=True, step=10, fore=True):
         """The ground line, and the mass beneath it."""
         self.profile = profile
         xs = list(range(0, W + 1, step))
@@ -139,6 +184,20 @@ class Scene:
         self.L('Ground').append(f'<path d="{d}" fill="{col or weigh(P()["rock"], weight)}"/>')
         if outline:
             self.stroke('Ground', curve(run), P()['inkSoft'], 3.0, op=0.7)
+        if fore and max(y for _x, y in pts) < 1150:
+            self.near()
+
+    def near(self, h=120, seed=9):
+        """A dark, slightly warm edge of ground at the very bottom of the frame.
+
+        The set had everything in one narrow band of cool mid-tones; this is the
+        near end of a value ladder, and it gives the picture a floor to stand on."""
+        rng = np.random.default_rng(seed)
+        ph = rng.uniform(0, 6.3, 2)
+        top = [(x, H - h + 16 * np.sin(x / 210.0 + ph[0]) + 7 * np.sin(x / 64.0 + ph[1]))
+               for x in range(-40, W + 80, 40)]
+        self.shape('Fore', top + [(W + 80, H + 10), (-40, H + 10)],
+                   mix(weigh(P()['rock'], 0.62), P()['soil'], 0.22))
 
     def sub(self, layers, step=24):
         """Bands below the ground: soil, permafrost, an aquifer.
@@ -225,26 +284,53 @@ class Scene:
 # The marks. One weight, flat fills, no modelling: a vocabulary rather than a
 # set of illustrations. Sizes are in page pixels; k scales the whole mark.
 # ---------------------------------------------------------------------------
-def figure(x, y, k=1.0, staff=False, load=False, bent=False, flip=1, col=None):
-    c = col or P()['figure']
-    h = 46 * k
-    g = [f'<circle cx="{f1(x)}" cy="{f1(y - h)}" r="{8.4 * k:.1f}" fill="{c}"/>']
-    if bent:
-        g.append(f'<path d="M{f1(x - 7 * k)} {f1(y - h + 10 * k)}L{f1(x + 10 * k)} {f1(y - 20 * k)}'
-                 f'L{f1(x + 4 * k)} {f1(y - 14 * k)}L{f1(x - 12 * k)} {f1(y - h + 4 * k)}Z" fill="{c}"/>')
-    else:
-        g.append(f'<path d="{poly([(x - 9.5 * k, y - h + 12 * k), (x + 9.5 * k, y - h + 12 * k), (x + 7 * k, y - 17 * k), (x - 7 * k, y - 17 * k)])}" fill="{c}"/>')
-    for s in (-1, 1):
-        g.append(f'<path d="M{f1(x + s * 3.6 * k)} {f1(y - 18 * k)}L{f1(x + s * 3.6 * k)} {f1(y)}" '
-                 f'stroke="{c}" stroke-width="{5.4 * k:.1f}" stroke-linecap="round"/>')
-    if staff:
-        g.append(f'<path d="M{f1(x + flip * 13 * k)} {f1(y + 3 * k)}L{f1(x + flip * 10 * k)} {f1(y - h - 10 * k)}" '
-                 f'stroke="{P()["ink"]}" stroke-width="{2.6 * k:.1f}" stroke-linecap="round"/>')
-    if load:
-        g.append(f'<rect x="{f1(x - flip * 18 * k)}" y="{f1(y - h + 8 * k)}" width="{12 * k:.1f}" '
-                 f'height="{15 * k:.1f}" rx="{2.5 * k:.1f}" fill="{P()["ink"]}"/>')
-    return ''.join(g)
+def figure(x, y, k=1.0, pose=None, staff=False, load=False, bent=False, flip=1, col=None, v=None):
+    """A person.
 
+    The old one was a round head on a featureless trapezoid, repeated
+    identically wherever a person was needed, and in a vocabulary this spare it
+    was the mark that let the set down. This one has a smaller head set forward
+    of the shoulders, a torso that tapers to the waist, and three builds; the
+    build is taken from the figure's own position unless asked for, so a row of
+    people is a row of different people without the scene having to say so.
+    """
+    c = col or P()['figure']
+    v = int(abs(x) / 7) % 3 if v is None else v % 3
+    pose = pose or ('walk' if v == 1 else 'stand')
+    h = 46 * k
+    hr = 6.3 * k
+    sh = (9.4, 8.6, 10.2)[v] * k                  # shoulder half-width
+    wa = sh * 0.70                                 # waist
+    tt, tb = y - h + 13 * k, y - 18 * k            # torso top and bottom
+    g = []
+    if bent:
+        g.append(f'<circle cx="{f1(x + flip * 11 * k)}" cy="{f1(y - h + 9 * k)}" r="{f1(hr)}" fill="{c}"/>')
+        g.append(f'<path d="{poly([(x - flip * 7 * k, y - 20 * k), (x + flip * 9 * k, y - h + 14 * k), (x + flip * 15 * k, y - h + 19 * k), (x - flip * 3 * k, y - 15 * k)])}" fill="{c}"/>')
+        for sgn, dx in ((-1, -4.6), (1, 3.0)):
+            g.append(f'<path d="M{f1(x + dx * k)} {f1(y - 17 * k)}L{f1(x + dx * k + sgn * 1.6 * k)} {f1(y)}" '
+                     f'stroke="{c}" stroke-width="{5.0 * k:.1f}" stroke-linecap="round"/>')
+        return ''.join(g)
+    g.append(f'<circle cx="{f1(x + flip * 1.4 * k)}" cy="{f1(y - h + 5.2 * k)}" r="{f1(hr)}" fill="{c}"/>')
+    g.append(f'<path d="{poly([(x - sh, tt + 1.2 * k), (x + sh, tt - 1.2 * k), (x + wa, tb), (x - wa, tb)])}" fill="{c}"/>')
+    if pose == 'walk':
+        g.append(f'<path d="M{f1(x - 1.0 * k)} {f1(tb - 1 * k)}L{f1(x - 5.4 * k)} {f1(y)}" '
+                 f'stroke="{c}" stroke-width="{5.0 * k:.1f}" stroke-linecap="round"/>')
+        g.append(f'<path d="M{f1(x + 1.6 * k)} {f1(tb - 1 * k)}L{f1(x + 6.0 * k)} {f1(y)}" '
+                 f'stroke="{c}" stroke-width="{5.0 * k:.1f}" stroke-linecap="round"/>')
+    else:
+        for sgn in (-1, 1):
+            g.append(f'<path d="M{f1(x + sgn * 3.4 * k)} {f1(tb - 1 * k)}L{f1(x + sgn * 3.4 * k)} {f1(y)}" '
+                     f'stroke="{c}" stroke-width="{5.0 * k:.1f}" stroke-linecap="round"/>')
+    if pose == 'point':
+        g.append(f'<path d="M{f1(x + flip * wa * 0.6)} {f1(tt + 8 * k)}L{f1(x + flip * 19 * k)} {f1(tt + 2 * k)}" '
+                 f'stroke="{c}" stroke-width="{3.6 * k:.1f}" stroke-linecap="round"/>')
+    if staff:
+        g.append(f'<path d="M{f1(x + flip * 13 * k)} {f1(y + 3 * k)}L{f1(x + flip * 9.5 * k)} {f1(y - h - 9 * k)}" '
+                 f'stroke="{P()["ink"]}" stroke-width="{2.4 * k:.1f}" stroke-linecap="round"/>')
+    if load:
+        g.append(f'<path d="{poly([(x - flip * (wa + 1 * k), tt + 3 * k), (x - flip * (wa + 12 * k), tt + 5 * k), (x - flip * (wa + 11 * k), tt + 19 * k), (x - flip * (wa + 0.5 * k), tt + 17 * k)])}" '
+                 f'fill="{P()["ink"]}"/>')
+    return ''.join(g)
 
 def house(x, y, k=1.0, roof='pitch', col=None, roofcol=None):
     w, h = 42 * k, 30 * k
@@ -415,3 +501,24 @@ def plain_and_massif(plain=980, top=300):
     """Lowland on the left, the mountain rising on the right."""
     return [(0, plain), (300, plain - 10), (620, plain - 30), (820, plain - 120),
             (1040, plain - 300), (1270, plain - 480), (1520, plain - 600), (1800, top)]
+
+
+def mirror(profile):
+    """The same ground, the other way round. Eleven of the twenty-five scenes
+    were the same rising diagonal; this is the cheapest way to break it."""
+    return [(W - x, y) for (x, y) in reversed(list(profile))]
+
+
+def shoulder(plain=1010, rise=520, lip=0.52):
+    """Flat ground, a steep rise, and a bench above it — a different silhouette
+    from a ramp, and the shape a monitoring network actually sits on."""
+    return [(0, plain), (W * 0.18, plain - 6), (W * (lip - 0.20), plain - 24),
+            (W * (lip - 0.06), plain - 190), (W * (lip + 0.08), rise + 90),
+            (W * (lip + 0.22), rise + 20), (W * 0.82, rise - 10), (W, rise - 46)]
+
+
+def twin(peak=340, col=620, base=1040):
+    """Two summits and the saddle between them."""
+    return [(0, base), (W * 0.12, base - 60), (W * 0.30, peak), (W * 0.42, col),
+            (W * 0.50, col + 40), (W * 0.60, col - 20), (W * 0.74, peak + 70),
+            (W * 0.90, base - 80), (W, base)]
