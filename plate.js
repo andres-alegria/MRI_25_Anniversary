@@ -510,10 +510,8 @@
     wrap.id = 'mri-index';
     wrap.setAttribute('tabindex', '-1');
     wrap.setAttribute('aria-label', 'The 25 stories, in order along the route');
-    var done = 0;
-    ms.forEach(function (b) { if (!pending(storyNum(b))) done++; });
     var head = document.createElement('h2');
-    head.textContent = 'The 25 stories, in route order · ' + done + ' published so far';
+    head.textContent = 'The 25 stories';
     wrap.appendChild(head);
     var ol = document.createElement('ol');
     ms.forEach(function (btn) {
