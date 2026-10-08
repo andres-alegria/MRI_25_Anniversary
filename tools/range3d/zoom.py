@@ -941,8 +941,13 @@ if __name__ == '__main__':
     if which == 'all':                                   # all 25, into a folder
         import os
         os.makedirs(out, exist_ok=True)
+        theme = 'light' if '--light' in sys.argv else 'dark'
         for r in range(1, 26):
-            p = os.path.join(out, 'story-%02d-%s.svg' % (r, 'light' if '--light' in sys.argv else 'dark'))
+            # A clip is drawn from its place in the route, but the page asks for
+            # it by story number (stories-data.js keys on that), so the file is
+            # named by the story. Naming by route order instead served 24 of the
+            # 25 clips against the wrong story.
+            p = os.path.join(out, 'story-%02d-%s.svg' % (ST.STATIONS[r - 1][0], theme))
             story(r, p)
             print('wrote', p, flush=True)
         raise SystemExit(0)

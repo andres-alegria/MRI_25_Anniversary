@@ -10,3 +10,9 @@ art/range-*-stations.json
 
 # Noun Project: downloaded icons stay out of a public repo (see tools/noun.py)
 tools/noun-cache/
+
+# READMEs are working notes, not public documentation
+README.md
+
+# review batches rendered for my own eyes
+closeups/
