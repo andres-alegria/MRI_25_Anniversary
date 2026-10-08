@@ -299,9 +299,10 @@ REPLACEMENTS = [
         '    <a href="#figures" style="color:#dbeaf4">Summary Figures</a>\n'
         '    <a href="#about" style="color:#fff;font-weight:600">About the Publication</a>',
     ),
-    # story photo: use the story's own image when it has one, otherwise fall
-    # back to the generic photos bundled with the export. objectFit is
-    # 'contain' for real images so figures and maps are never cropped.
+    # The figure at the top of every story is its zoom clip, the story's own
+    # corner of the mountain. A story that brings its own image (a photo, a
+    # map) keeps it, as a captioned figure after the lead — see the next
+    # replacement. objectFit is 'contain' for those so they are never cropped.
     (
         "openImg: openStory ? React.createElement('img', {\n"
         "        src: this.placeholderImgs[(openStory.num - 1) % 4],\n"
@@ -312,16 +313,38 @@ REPLACEMENTS = [
         # the clips are filed by the story's own number (storyNum), not by its
         # place on the climb (num, after the renumbering above): renumbering
         # the climb must not refile the artwork
-        "        src: (openStory.image && openStory.image.src) || ('art/clips/story-' +\n"
+        "        src: 'art/clips/story-' +\n"
         "               String(openStory.storyNum || openStory.num).padStart(2, '0') + '-' +\n"
         "               (document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark') +\n"
-        "               '.svg'),\n"
-        "        alt: (openStory.image && openStory.image.alt) || ('A zoom on the mountain for story ' + openStory.num),\n"
-        "        style: openStory.image\n"
-        "          ? { maxWidth: '100%', maxHeight: '70vh', width: 'auto', height: 'auto', display: 'block' }\n"
-        "          : { width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' },\n"
+        "               '.svg',\n"
+        "        alt: 'A zoom on the mountain for story ' + openStory.num,\n"
+        "        style: { width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' },\n"
         "      }) : null,\n"
-        "      photoCaption: (openStory && openStory.image && openStory.image.caption) || '',",
+        "      photoCaption: '',\n"
+        "      hasOwnFig: !!(openStory && openStory.image),\n"
+        "      ownFigImg: (openStory && openStory.image) ? React.createElement('img', {\n"
+        "        src: openStory.image.src,\n"
+        "        alt: openStory.image.alt || '',\n"
+        "        style: { maxWidth: '100%', maxHeight: '70vh', width: 'auto', height: 'auto', display: 'block' },\n"
+        "      }) : null,\n"
+        "      ownFigCaption: (openStory && openStory.image && openStory.image.caption) || '',",
+    ),
+    # The story's own image, after the lead. Written in the export's own
+    # styles (frame and caption as above) so the restyles below dress it the
+    # same way. Adjust the spacing around it here.
+    (
+        "{{ lead }}</p>",
+        "{{ lead }}</p>\n"
+        '        <sc-if value="{{ hasOwnFig }}" hint-placeholder-val="{{ false }}">\n'
+        '        <div style="margin:4px 0 30px">\n'
+        '          <div style="margin-bottom:8px;overflow:hidden;background:#e6e0d0;'
+        'max-height:70vh;display:flex;align-items:center;justify-content:center">\n'
+        "            {{ ownFigImg }}\n"
+        "          </div>\n"
+        "          <div style=\"font:italic 400 13px 'Source Serif 4',Georgia,serif;"
+        'color:#7d7666">{{ ownFigCaption }}</div>\n'
+        "        </div>\n"
+        "        </sc-if>",
     ),
     # The photo frame was locked to 16:9, which pillarboxed portrait images
     # like the Blatten aerial. Let the frame follow the image instead; the
