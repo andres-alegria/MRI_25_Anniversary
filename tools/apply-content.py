@@ -514,8 +514,9 @@ def move_hero(doc: str) -> str:
     eyebrow = inner(r'<div style="[^"]*letter-spacing:\.3em[^"]*">(.*?)</div>')
     title = inner(r'<h1[^>]*>(.*?)</h1>')
     standfirst = inner(r'<p[^>]*>(.*?)</p>')
-    # the button now points down the page, to the mountain
-    ascent = inner(r'<a href="#journey"[^>]*>(.*?)</a>').replace('\u2191', '\u2193')
+    # the button's words only: the export's arrow is dropped
+    ascent = re.sub(r'\s*[\u2190-\u21ff]\s*', ' ',
+                    inner(r'<a href="#journey"[^>]*>(.*?)</a>')).strip()
     new = (HERO_SECTION.replace('__EYEBROW__', eyebrow).replace('__TITLE__', title)
            .replace('__STANDFIRST__', standfirst).replace('__ASCENT__', ascent))
     doc = doc[:m.start()] + doc[m.end():]
