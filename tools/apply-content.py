@@ -399,8 +399,11 @@ REPLACEMENTS = [
     # BRAND_STYLE); the sections' scroll-margin-top follows the bar height.
     (
         'style="height:130px;width:auto;display:block;margin:-12px 0 -48px;'
-        'box-shadow:0 2px 10px rgba(43,39,33,.14)"',
-        'style="height:56px;width:auto;display:block"',
+        'box-shadow:0 2px 10px rgba(43,39,33,.14)">',
+        'style="height:56px;width:auto;display:block">\n'
+        # past the introduction the bar carries the title (TOP_BAR); the
+        # words are the hero's own, filled in by move_hero()
+        '    <a href="#intro" data-mri-bar-title="">__BAR_TITLE__</a>',
     ),
     (
         'gap:16px;padding:12px clamp(20px,4vw,48px);border-bottom',
@@ -519,7 +522,11 @@ def move_hero(doc: str) -> str:
     journey = "<!-- ============ JOURNEY"
     if doc.count(journey) != 1:
         sys.exit(f"Expected one JOURNEY section marker, found {doc.count(journey)}")
-    return doc.replace(journey, new + journey, 1)
+    doc = doc.replace(journey, new + journey, 1)
+    # the top bar shows the same title once the introduction has scrolled away
+    if doc.count('__BAR_TITLE__') != 1:
+        sys.exit("Expected one __BAR_TITLE__ slot in the top bar.")
+    return doc.replace('__BAR_TITLE__', title, 1)
 
 
 # --- 2b. the mountain host --------------------------------------------------
@@ -787,6 +794,39 @@ __THEMES__
     [data-mri-globe] { flex: none; width: min(210px, 60vw); align-self: center; }   /* globe size on a phone */
   }
 
+  /* --- the top bar ------------------------------------------------------
+     Past the introduction the bar carries the publication's title beside
+     the logo, where there is room for it beside the menu. Scrolling down
+     slides the bar (and the theme switch over its corner) out of the way;
+     any scroll up brings it back. The script is TOP_BAR in
+     tools/apply-content.py. Adjust the title type, timing and breakpoint
+     here. */
+  header[data-screen-label="Top bar"] { transition: transform .3s ease; }
+  header[data-screen-label="Top bar"] > div:first-child { min-width: 0; }
+  html[data-mri-bar="hidden"] header[data-screen-label="Top bar"] { transform: translateY(-100%); }
+  #mri-theme { transition: transform .3s ease; }
+  html[data-mri-bar="hidden"] #mri-theme { transform: translateY(calc(-1 * var(--mri-bar-h, 80px))); }
+  [data-mri-bar-title] {
+    display: none; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font: 600 17px/1.2 Jost, 'Century Gothic', system-ui, sans-serif;
+    letter-spacing: -.01em; color: var(--mri-text);
+    opacity: 0; visibility: hidden; transform: translateY(4px);
+    transition: opacity .25s ease, transform .25s ease, visibility 0s linear .25s;
+  }
+  [data-mri-bar-title]:hover { color: var(--mri-accent); text-decoration: none; }
+  html[data-mri-past-intro] [data-mri-bar-title] {
+    opacity: 1; visibility: visible; transform: none;
+    transition: opacity .25s ease, transform .25s ease;
+  }
+  @media (min-width: 1000px) {                           /* where the title fits beside the menu */
+    [data-mri-bar-title] { display: block; }
+    header[data-screen-label="Top bar"] nav { flex-shrink: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    header[data-screen-label="Top bar"], #mri-theme, [data-mri-bar-title] { transition: none; }
+  }
+
   /* the journey follows the introduction, under a hairline */
   #journey { border-top: 1px solid var(--mri-line); }
 
@@ -992,6 +1032,7 @@ def patch_template(doc: str) -> str:
            # drawn; its tag also covers their folders (see asset())
            + asset('embeds.js', also=('figures/globe', 'figures/timeline'))
            + THEME_TOGGLE
+           + TOP_BAR
            + doc[i:])
 
     return doc
@@ -1054,7 +1095,13 @@ THEME_TOGGLE = """<script>
     if (!nav) return;
     var n = nav.getBoundingClientRect(), r = b.getBoundingClientRect();
     if (!n.height || !r.height) return;
-    var top = n.top + (n.height - r.height) / 2;
+    /* measure where the menu sits at rest, even while the bar is slid away */
+    var hdr = nav.closest('header'), shift = 0;
+    if (hdr && window.DOMMatrix) {
+      var tf = getComputedStyle(hdr).transform;
+      if (tf && tf !== 'none') shift = new DOMMatrix(tf).m42;
+    }
+    var top = n.top - shift + (n.height - r.height) / 2;
     b.style.top = Math.max(6, Math.round(top)) + 'px';
     b.style.right = Math.max(10, Math.round(window.innerWidth - n.right)) + 'px';
   }
@@ -1089,6 +1136,56 @@ THEME_TOGGLE = """<script>
       setTimeout(retry, 60);
     })();
   }
+})();
+</script>"""
+
+
+# --- 8b. the top bar ---------------------------------------------------------
+# Past the introduction the bar carries the publication's title beside the
+# logo; while the reader scrolls down it slides out of the way, and any scroll
+# up brings it back. The state is written onto <html> (data-mri-past-intro,
+# data-mri-bar) where the page's own re-renders cannot reset it; the look is
+# in BRAND_STYLE. A reader who prefers reduced motion keeps a bar that stays.
+TOP_BAR = """<script>
+(function () {
+  var TOL = 8;      // px of travel before the bar answers a change of direction; adjust here
+  var root = document.documentElement;
+  var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var lastY = 0, queued = false;
+
+  function bar() { return document.querySelector('header[data-screen-label="Top bar"]'); }
+  function flag(name, on, value) {
+    if (on) root.setAttribute(name, value || '');
+    else root.removeAttribute(name);
+  }
+
+  function update() {
+    queued = false;
+    var b = bar();
+    if (!b) return;
+    var bh = b.offsetHeight, y = Math.max(0, window.scrollY);
+    root.style.setProperty('--mri-bar-h', bh + 'px');
+    /* past the introduction: its title has gone up under the bar */
+    var h1 = document.querySelector('#intro h1');
+    var past = !!h1 && h1.getBoundingClientRect().bottom < bh;
+    flag('data-mri-past-intro', past);
+    if (!past || still) { flag('data-mri-bar', false); lastY = y; return; }
+    if (Math.abs(y - lastY) < TOL) return;
+    flag('data-mri-bar', y > lastY, 'hidden');
+    lastY = y;
+  }
+  function queue() {
+    if (!queued) { queued = true; requestAnimationFrame(update); }
+  }
+
+  window.addEventListener('scroll', queue, { passive: true });
+  window.addEventListener('resize', queue);
+  /* a keyboard reader tabbing into the menu always finds it on screen */
+  document.addEventListener('focusin', function (e) {
+    var b = bar(), t = document.getElementById('mri-theme');
+    if ((b && b.contains(e.target)) || (t && t.contains(e.target))) flag('data-mri-bar', false);
+  });
+  window.MRI_BAR = { update: update };   // for the console
 })();
 </script>"""
 
