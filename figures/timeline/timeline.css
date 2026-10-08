@@ -1,0 +1,139 @@
+/* ---------------------------------------------------------------------------
+   Treaty timeline - styles
+   Colours come from the anniversary site's tokens (--mri-*), so the chart
+   follows its light/dark theme. Fallbacks are the site's dark values.
+--------------------------------------------------------------------------- */
+
+.mtl {
+  /* adjust chart colours here */
+  --mtl-l1:      var(--mri-accent, #4FA3D9);       /* mountain-specific marks */
+  --mtl-l2:      #3E5F7E;                         /* background agreements; light value below. Its own value, not
+                                                     the site's --mri-marker-dim, which the mountain plate redefines */
+  --mtl-ipcc:    var(--mri-tag-climate, #c68268);  /* assessments: IPCC, WMO (the site's climate tag colour) */
+  --mtl-decision: #e3c567;                         /* treaty decisions: UNFCCC, CBD; light value below */
+  --mtl-assembly: var(--mri-text, #DCE8F1);        /* UN General Assembly: resolutions, observances, SDGs */
+  --mtl-text:    var(--mri-text, #DCE8F1);
+  --mtl-dim:     var(--mri-text-dim, #93A9BC);
+  --mtl-line:    var(--mri-line, #12395C);         /* gridlines, axis, chip borders */
+  --mtl-surface: var(--mri-panel, #0B2740);        /* gaps and dot rings */
+  /* adjust fonts here */
+  --mtl-font: 'Jost', system-ui, sans-serif;
+  font-family: var(--mtl-font);
+  color: var(--mtl-text);
+  position: relative;
+}
+
+:root[data-theme="light"] .mtl { --mtl-decision: #c08f00; --mtl-l2: #b3b3aa; }   /* adjust light-theme colours here */
+
+/* ---- controls row ---- */
+.mtl-controls {
+  display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center;
+  margin: 0 0 14px;                                 /* adjust spacing under the controls */
+}
+.mtl-group { display: flex; flex-wrap: wrap; gap: 6px; }
+.mtl-chip {
+  font: 500 13px/1 var(--mtl-font);                 /* adjust chip font size here */
+  letter-spacing: 0.01em;
+  padding: 7px 12px; border-radius: 999px;
+  border: 1px solid var(--mtl-line); background: transparent; color: var(--mtl-dim);
+  cursor: pointer; transition: background .15s, color .15s, border-color .15s;
+}
+.mtl-chip:hover { color: var(--mtl-text); }
+.mtl-chip[aria-pressed="true"] {                    /* same treatment as the site's figure switcher */
+  background: var(--mtl-text); color: var(--mtl-surface); border-color: var(--mtl-text); font-weight: 600;
+}
+.mtl-chip:focus-visible { outline: 2px solid var(--mtl-l1); outline-offset: 2px; }
+
+/* ---- legend ---- */
+.mtl-legend {
+  display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center;
+  font-size: 13px; color: var(--mtl-dim); margin: 0 0 6px;   /* adjust legend size here */
+}
+.mtl-key { display: inline-flex; align-items: center; gap: 7px; }
+.mtl-key b { color: var(--mtl-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.mtl-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.mtl-swatch.l1 { background: var(--mtl-l1); }
+.mtl-swatch.l2 { background: var(--mtl-l2); }
+.mtl-swatch.ev-assessment { background: var(--mtl-ipcc); }
+.mtl-swatch.ev-decision   { background: var(--mtl-decision); }
+.mtl-swatch.ev-assembly   { background: var(--mtl-assembly); }
+.mtl-swatch.ev-assessment_hollow, .mtl-swatch.ev-decision_hollow { box-sizing: border-box; border: 1.5px solid; }
+.mtl-swatch.ev-assessment_hollow { border-color: var(--mtl-ipcc); }
+.mtl-swatch.ev-decision_hollow   { border-color: var(--mtl-decision); }
+.mtl-unit { font-size: 12px; color: var(--mtl-dim); margin: 0 0 4px; }
+
+/* ---- chart ---- */
+.mtl-chart { position: relative; }
+.mtl svg { display: block; width: 100%; overflow: visible; }
+.mtl text { font-family: var(--mtl-font); fill: var(--mtl-dim); }
+.mtl .tick text  { font-size: 11px; font-variant-numeric: tabular-nums; }  /* adjust axis label size */
+.mtl .grid line  { stroke: var(--mtl-line); stroke-width: 1; }
+.mtl .baseline   { stroke: var(--mtl-dim); stroke-width: 1; opacity: .6; }
+.mtl .brick      { transition: opacity .15s; }
+.mtl .brick.l1   { fill: var(--mtl-l1); }
+.mtl .brick.l2   { fill: var(--mtl-l2); }
+.mtl .brick.ev-assessment { fill: var(--mtl-ipcc); }
+.mtl .brick.ev-decision   { fill: var(--mtl-decision); }
+.mtl .brick.ev-assembly   { fill: var(--mtl-assembly); }
+.mtl .brick.ev-assessment_hollow { fill: var(--mtl-surface); stroke: var(--mtl-ipcc); stroke-width: 1.5; }
+.mtl .brick.ev-decision_hollow   { fill: var(--mtl-surface); stroke: var(--mtl-decision); stroke-width: 1.5; }
+.mtl .col-hit    { fill: transparent; cursor: default; }
+.mtl.is-hover .brick { opacity: .45; }
+.mtl.is-hover .brick.on { opacity: 1; }
+.mtl .lane-label { font-size: 12px; fill: var(--mtl-text); }               /* adjust lane label size */
+.mtl .lane-label .n { fill: var(--mtl-dim); }
+.mtl .lane-line  { stroke: var(--mtl-dim); stroke-width: 1; opacity: .5; }  /* a family's span, under its blocks */
+.mtl .lane-hit   { fill: transparent; cursor: pointer; outline: none; }
+.mtl .cap-label { font-size: 11px; fill: var(--mtl-dim); pointer-events: none; }   /* adjust milestone label size */
+.mtl .cap-leader { stroke: var(--mtl-dim); stroke-width: 1; opacity: .6; pointer-events: none; }
+
+/* ---- family panel (collapsed by default) ---- */
+.mtl-lanes { margin-top: 10px; font-size: 13px; }
+.mtl-lanes summary { cursor: pointer; color: var(--mtl-text); }
+.mtl-lanes svg { margin-top: 6px; }
+
+/* ---- tooltip ---- */
+.mtl-tip {
+  position: absolute; z-index: 5; pointer-events: none;
+  max-width: 300px; padding: 10px 12px;
+  background: var(--mtl-surface); color: var(--mtl-text);
+  border: 1px solid var(--mtl-line); border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.18);
+  font-size: 13px; line-height: 1.35;                 /* adjust tooltip text size */
+}
+.mtl-tip[hidden] { display: none; }
+.mtl-tip .h   { font-weight: 600; font-size: 14px; margin: 0 0 4px; }
+.mtl-tip .sub { color: var(--mtl-dim); font-size: 12px; margin: 0 0 6px; }
+.mtl-tip .row { display: flex; gap: 8px; align-items: baseline; margin: 3px 0; }
+.mtl-tip .key {                            /* square keys, the same rounded block as the chart */
+  flex: 0 0 8px; width: 8px; height: 8px;   /* adjust key size here */
+  border-radius: 1.5px; box-sizing: border-box;
+}
+.mtl-tip .key.l1 { background: var(--mtl-l1); }
+.mtl-tip .key.l2 { background: var(--mtl-l2); }
+.mtl-tip .key.ev-assessment { background: var(--mtl-ipcc); }
+.mtl-tip .key.ev-decision   { background: var(--mtl-decision); }
+.mtl-tip .key.ev-assembly   { background: var(--mtl-assembly); }
+.mtl-tip .key.ev-assessment_hollow { border: 1.5px solid var(--mtl-ipcc); }       /* outlined, like the block */
+.mtl-tip .key.ev-decision_hollow   { border: 1.5px solid var(--mtl-decision); }
+.mtl-tip b   { font-weight: 600; font-variant-numeric: tabular-nums; }
+.mtl-tip ul  { list-style: none; margin: 2px 0 6px 6px; padding: 0; color: var(--mtl-dim); font-size: 12px; }
+.mtl-tip li  { margin: 1px 0; position: relative; padding-left: 13px; }
+.mtl-tip li::before {                      /* square bullets, the same rounded block as the chart */
+  content: ''; position: absolute; left: 0; top: .42em;
+  width: 7px; height: 7px; border-radius: 1.5px;   /* adjust bullet size here */
+  background: var(--mtl-dim);
+}
+.mtl-tip ul.l1 li::before { background: var(--mtl-l1); }
+.mtl-tip ul.l2 li::before { background: var(--mtl-l2); }
+.mtl-tip li.more::before  { display: none; }
+.mtl-tip .note { color: var(--mtl-dim); font-size: 12px; font-style: italic; margin-top: 6px; }
+
+/* ---- table view + source ---- */
+.mtl-table { margin-top: 14px; font-size: 13px; color: var(--mtl-dim); }
+.mtl-table summary { cursor: pointer; color: var(--mtl-text); }
+.mtl-table table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+.mtl-table th, .mtl-table td { text-align: left; padding: 5px 8px 5px 0; border-bottom: 1px solid var(--mtl-line); vertical-align: top; }
+.mtl-table th { font-weight: 600; color: var(--mtl-text); }
+.mtl-table td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mtl-source { margin-top: 10px; font-size: 12px; color: var(--mtl-dim); }

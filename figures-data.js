@@ -12,22 +12,23 @@
 
      id        short slug, used only as a key
      title     label on the switcher rail; keep it short, it has to fit
-     subtitle  one line under the heading when this figure is showing
+     subtitle  the figure's title, one line above it while it is showing
      src       path to the image, 16:9, relative to index.html
      alt       description for screen readers — say what the figure shows,
                not that it is a figure
-     caption   sits under the image; should tell a small story of its own
-               rather than repeating the title
+     embed     instead of src/alt: the name of a live figure drawn by
+               embeds.js (only 'timeline' so far, from figures/timeline/)
+     caption   sits under the figure; should tell a small story of its own
+               rather than repeating the title. Leave empty for none.
 --------------------------------------------------------------------------- */
 
 const FIGURES = [
   {
     id: 'policy',
     title: 'Policy Process',
-    subtitle: 'Mountains in global policy processes, through space and time',
-    src: 'figures/policy-process.jpg',
-    alt: 'A world map shading each country by the share of its territory that is mountainous — more than 30 per cent of global land — with 26 countries party to a regional mountain-specific agreement, and a timeline from 1990 to 2027 marking IPCC assessments, UNFCCC treaty decisions, UN General Assembly resolutions and global and regional instruments.',
-    caption: 'More than 30% of the world’s land is mountainous, yet only 26 countries are party to an agreement written specifically for mountains — most of them in Europe. The timeline below tracks how scientific evidence has gradually underwritten the case for mountains in global policy.'
+    subtitle: 'Mountains in global policy processes through time',
+    embed: 'timeline',
+    caption: ''
   },
   {
     id: 'observatories',

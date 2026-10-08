@@ -109,6 +109,10 @@ RENDER_CODE = """
     const _figs = _fg.FIGURES || [];
     const _fi = Math.min(this.state.figIdx || 0, Math.max(0, _figs.length - 1));
     const _fcur = _figs[_fi] || null;
+    // A live figure (figures-data.js `embed`) is an empty host that
+    // embeds.js draws into, e.g. <div data-mri-timeline>.
+    const _fhost = {};
+    if (_fcur && _fcur.embed) _fhost['data-mri-' + _fcur.embed] = '';
     const _figChips = _figs.map((f, i) => ({
       name: f.title,
       fw: i === _fi ? '600' : '500',
@@ -124,27 +128,33 @@ RENDER_CODE = """
 # chip styling. Sits after the hero and before "About the Publication".
 FIGURES_SECTION = """
 <!-- ============ FIGURES ============ -->
-<section id="figures" data-screen-label="Figures" style="background:#f5f1e6;padding:clamp(48px,7vw,84px) clamp(20px,4vw,48px);border-top:1px solid rgba(58,54,48,.25);scroll-margin-top:95px">
+<section id="figures" data-screen-label="Figures" style="background:#f5f1e6;padding:clamp(48px,7vw,84px) clamp(20px,4vw,48px);border-top:1px solid rgba(58,54,48,.25);scroll-margin-top:80px">
   <div style="max-width:1000px;margin:0 auto">
     <div style="font:500 11px Jost,sans-serif;letter-spacing:.22em;color:#7d7666;margin-bottom:10px">{{ figEyebrow }}</div>
     <h2 style="margin:0 0 10px;font:700 clamp(26px,4vw,34px)/1.15 'Source Serif 4',Georgia,serif;color:#2b2721">{{ figHeading }}</h2>
     <p style="margin:0 0 26px;max-width:62ch;font:400 16px/1.62 'Source Serif 4',Georgia,serif;color:#55503f;text-wrap:pretty">{{ figStandfirst }}</p>
 
-    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px">
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:30px">
       <sc-for list="{{ figChips }}" as="f" hint-placeholder-count="4">
         <button sc-camel-on-click="{{ f.onPick }}" style="cursor:pointer;white-space:nowrap;font:{{ f.fw }} 13.5px Jost,sans-serif;letter-spacing:.02em;padding:7px 16px;border-radius:999px;border:1px solid {{ f.bc }};background:{{ f.bg }};color:{{ f.color }}" style-hover="border-color:#3a3630">{{ f.name }}</button>
       </sc-for>
     </div>
 
+    <!-- The figure's title sits on top, plain, so the frame holds only the
+         figure. Adjust its size here. -->
+    <h3 style="margin:0 0 12px;font:600 19px/1.3 'Source Serif 4',Georgia,serif;color:#2b2721;text-wrap:balance">{{ figSubtitle }}</h3>
+
     <!-- Same hairline as an unselected chip, so the frame recedes and the
-         figure carries itself. Adjust border weight/tint here. -->
-    <div style="border:1px solid rgba(58,54,48,.35);border-radius:6px;background:#f5f1e6;overflow:hidden">
-      <div style="position:relative;width:100%;aspect-ratio:16/9">
+         figure carries itself. Images keep a 16:9 frame; a live figure sets
+         its own height, with room around it. Adjust border weight/tint here. -->
+    <div style="border:1px solid rgba(58,54,48,.35);border-radius:6px;background:#f5f1e6">
+      <div style="position:relative;width:100%;box-sizing:border-box;aspect-ratio:{{ figAspect }};padding:{{ figPad }}">
         {{ figImg }}
       </div>
     </div>
-    <div style="font:500 13px Jost,sans-serif;letter-spacing:.02em;color:#55503f;margin-top:14px">{{ figSubtitle }}</div>
-    <div style="font:italic 400 14px/1.6 'Source Serif 4',Georgia,serif;color:#7d7666;margin-top:5px;max-width:66ch;text-wrap:pretty">{{ figCaption }}</div>
+    <sc-if value="{{ figHasCaption }}" hint-placeholder-val="{{ true }}">
+      <div style="font:italic 400 14px/1.6 'Source Serif 4',Georgia,serif;color:#7d7666;margin-top:12px;max-width:66ch;text-wrap:pretty">{{ figCaption }}</div>
+    </sc-if>
   </div>
 </section>
 
@@ -166,13 +176,17 @@ REPLACEMENTS = [
         "      authorLine: _authors,\n      quote: _quote,\n"
         "      hasQuote: !!_quote,\n      storyTopic: openStory ? (openStory.topic || '') : '',\n"
         "      figChips: _figChips,\n"
-        "      figImg: _fcur ? React.createElement('img', {\n"
+        "      figImg: !_fcur ? null : _fcur.embed ? React.createElement('div', _fhost)\n"
+        "        : React.createElement('img', {\n"
         "        src: _fcur.src, alt: _fcur.alt,\n"
         "        style: { position: 'absolute', inset: 0, width: '100%', height: '100%',\n"
         "                 objectFit: 'contain', display: 'block' }\n"
-        "      }) : null,\n"
+        "      }),\n"
+        "      figAspect: _fcur && _fcur.embed ? 'auto' : '16/9',\n"
+        "      figPad: _fcur && _fcur.embed ? 'clamp(14px,2.4vw,26px)' : '0',\n"
         "      figSubtitle: _fcur ? _fcur.subtitle : '',\n"
         "      figCaption: _fcur ? _fcur.caption : '',\n"
+        "      figHasCaption: !!(_fcur && _fcur.caption),\n"
         "      figEyebrow: _fg.FIGURES_EYEBROW || '',\n"
         "      figHeading: _fg.FIGURES_HEADING || '',\n"
         "      figStandfirst: _fg.FIGURES_STANDFIRST || '',",
@@ -377,16 +391,44 @@ REPLACEMENTS = [
     ),
     # map frame: 2:1 -> 16:9
     ("aspect-ratio:2/1", "aspect-ratio:16/9"),
-    # hero box: same 16:9 frame, contents centred within it
+    # (the hero is rebuilt whole and moved to the top: see HERO_SECTION)
+
+    # --- the top bar -----------------------------------------------------
+    # The logo sits inside the bar instead of hanging below it, and the bar
+    # slims to fit. Adjust the logo size here (the phone size is in
+    # BRAND_STYLE); the sections' scroll-margin-top follows the bar height.
     (
-        'style="max-width:860px;text-align:center;border:1px solid rgba(58,54,48,.5);'
-        'outline:1px solid rgba(58,54,48,.5);outline-offset:5px;'
-        'padding:clamp(36px,6vw,64px) clamp(24px,6vw,72px)"',
-        'style="max-width:860px;width:100%;aspect-ratio:16/9;box-sizing:border-box;'
-        'display:flex;flex-direction:column;align-items:center;justify-content:center;'
-        'text-align:center;border:1px solid rgba(58,54,48,.5);'
-        'outline:1px solid rgba(58,54,48,.5);outline-offset:5px;'
-        'padding:clamp(24px,4vw,48px) clamp(24px,6vw,72px)"',
+        'style="height:130px;width:auto;display:block;margin:-12px 0 -48px;'
+        'box-shadow:0 2px 10px rgba(43,39,33,.14)"',
+        'style="height:56px;width:auto;display:block"',
+    ),
+    (
+        'gap:16px;padding:12px clamp(20px,4vw,48px);border-bottom',
+        'gap:16px;padding:10px clamp(20px,4vw,48px);border-bottom',
+    ),
+    # The line under the theme chips that counted the stories and changed on
+    # every pick is gone from view. It stays in the page for screen readers,
+    # whose announcement (plate.js) reads it back out.
+    (
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">',
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:30px">',
+    ),
+    (
+        '<div style="min-height:20px;font:400 13px Jost,sans-serif;color:#7d7666;'
+        'margin-bottom:22px">{{ filterCaption }}</div>',
+        '<div style="position:absolute;width:1px;height:1px;margin:-1px;padding:0;'
+        'overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0">'
+        '{{ filterCaption }}</div>',
+    ),
+    # The journey's heading had 52px above it to clear the hanging logo; it
+    # now follows the introduction, under a hairline (BRAND_STYLE).
+    (
+        'gap:12px;margin-bottom:30px;padding-top:52px"',
+        'gap:12px;margin-bottom:26px;padding-top:30px"',
+    ),
+    (
+        '56px;scroll-margin-top:95px;background:',
+        '56px;scroll-margin-top:80px;background:',
     ),
     # marker coordinates, restretched onto the taller frame
     (
@@ -431,6 +473,55 @@ REPLACEMENTS = [
     ("num: s.num,", "num: s.num,\n        numLabel: String(s.num),"),
 ]
 
+# --- 2a. the introduction ---------------------------------------------------
+# The export puts the title in a double-ruled box below the mountain. It is
+# rebuilt here without the box and moved to the top of the page, with an empty
+# host beside it that embeds.js draws the mountain globe into. The words are
+# read out of the export's own hero, so a re-export that rewords it still
+# carries through. Styling lives in BRAND_STYLE ([data-mri-hero]).
+HERO_RE = re.compile(r'<!-- =+ HERO =+ -->\s*<section id="intro".*?</section>\s*', re.S)
+HERO_SECTION = """<!-- ============ HERO ============ -->
+<section id="intro" data-screen-label="Hero" data-mri-hero="">
+  <div data-mri-hero-row="">
+    <div data-mri-hero-text="">
+      <div data-mri-eyebrow="">__EYEBROW__</div>
+      <h1>__TITLE__</h1>
+      <p>__STANDFIRST__</p>
+      <a href="#journey" data-mri-ascent="">__ASCENT__</a>
+    </div>
+    <div data-mri-globe=""></div>
+  </div>
+</section>
+
+"""
+
+
+def move_hero(doc: str) -> str:
+    m = HERO_RE.search(doc)
+    if not m:
+        sys.exit("Could not find the hero section.")
+    old = m.group(0)
+
+    def inner(pattern: str) -> str:
+        hit = re.search(pattern, old, re.S)
+        if not hit:
+            sys.exit(f"Hero changed shape; could not read {pattern!r}.")
+        return hit.group(1).strip()
+
+    eyebrow = inner(r'<div style="[^"]*letter-spacing:\.3em[^"]*">(.*?)</div>')
+    title = inner(r'<h1[^>]*>(.*?)</h1>')
+    standfirst = inner(r'<p[^>]*>(.*?)</p>')
+    # the button now points down the page, to the mountain
+    ascent = inner(r'<a href="#journey"[^>]*>(.*?)</a>').replace('\u2191', '\u2193')
+    new = (HERO_SECTION.replace('__EYEBROW__', eyebrow).replace('__TITLE__', title)
+           .replace('__STANDFIRST__', standfirst).replace('__ASCENT__', ascent))
+    doc = doc[:m.start()] + doc[m.end():]
+    journey = "<!-- ============ JOURNEY"
+    if doc.count(journey) != 1:
+        sys.exit(f"Expected one JOURNEY section marker, found {doc.count(journey)}")
+    return doc.replace(journey, new + journey, 1)
+
+
 # --- 2b. the mountain host --------------------------------------------------
 # The export draws its own mountain into this <svg>. We do not use it: plate.js
 # generates the artwork at runtime, in the right theme and the right layout.
@@ -467,9 +558,6 @@ UI_RESTYLE = [
     ("rgba(58,54,48,.3)", "#e2e2da"),
     ("rgba(58,54,48,.25)", "#e2e2da"),
 
-    # monospaced metadata reads as measurement rather than decoration
-    ('font:400 13px Inter,system-ui,sans-serif;color:#5f5f58;margin-bottom:22px',
-     "font:400 12px 'IBM Plex Mono',ui-monospace,monospace;color:#5f5f58;margin-bottom:22px"),
 ]
 
 FONT_LINK = ('<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
@@ -656,6 +744,59 @@ __THEMES__
     border: 1px solid var(--mri-line); border-radius: 999px;
     cursor: pointer; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   }
+  /* --- the introduction --------------------------------------------------
+     The publication's title opens the page, unboxed, with the mountain globe
+     beside it as context; on a phone the globe drops below the text. The
+     markup is HERO_SECTION in tools/apply-content.py. Adjust sizes and
+     spacing here. */
+  [data-mri-hero] {
+    padding: clamp(36px, 5vw, 64px) clamp(16px, 3.5vw, 44px) clamp(32px, 4.5vw, 56px);
+  }
+  [data-mri-hero-row] {
+    max-width: 1240px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: clamp(28px, 5vw, 80px);
+  }
+  [data-mri-hero-text] { flex: 1 1 0; min-width: 0; max-width: 720px; }
+  [data-mri-eyebrow] {
+    font: 500 12px Inter, system-ui, sans-serif; letter-spacing: .3em;
+    color: var(--mri-accent); margin-bottom: 18px;
+  }
+  [data-mri-hero] h1 {                                   /* adjust title size here */
+    margin: 0; color: var(--mri-text); text-wrap: balance;
+    font: 700 clamp(34px, 5vw, 60px)/1.08 Jost, 'Century Gothic', system-ui, sans-serif;
+  }
+  [data-mri-hero] p {
+    margin: 20px 0 0; max-width: 34em; color: var(--mri-text-dim); text-wrap: pretty;
+    font: 400 clamp(16px, 1.7vw, 19px)/1.6 Jost, 'Century Gothic', system-ui, sans-serif;
+  }
+  [data-mri-ascent] {
+    display: inline-block; margin-top: 28px;
+    font: 500 13.5px Inter, system-ui, sans-serif; letter-spacing: .12em;
+    color: var(--mri-accent); border: 1.5px solid var(--mri-accent);
+    border-radius: 999px; padding: 11px 24px;
+  }
+  [data-mri-ascent]:hover {
+    color: #fff; background: #0067b2; border-color: #0067b2; text-decoration: none;
+  }
+  [data-mri-globe] { flex: 0 0 clamp(220px, 22vw, 290px); min-width: 0; }   /* adjust globe size here */
+  [data-mri-globe] .mtg { font-family: Inter, system-ui, sans-serif; }
+  [data-mri-globe] .mtg-key { font-size: 12px; margin-top: 12px; }
+  @media (max-width: 760px) {
+    [data-mri-hero-row] { flex-direction: column; align-items: stretch; }
+    [data-mri-globe] { flex: none; width: min(210px, 60vw); align-self: center; }   /* globe size on a phone */
+  }
+
+  /* the journey follows the introduction, under a hairline */
+  #journey { border-top: 1px solid var(--mri-line); }
+
+  /* live figures among the summary figures: interface text in the page's
+     sans, like the switcher chips above them */
+  [data-mri-timeline] .mtl { --mtl-font: Inter, system-ui, sans-serif; }
+  /* the timeline's own range switch sits under the figure chips, so it is a
+     size smaller and reads as part of the figure. Adjust it here. */
+  [data-mri-timeline] .mtl-chip { font-size: 12px; padding: 5px 11px; }
+
   /* the navigation is right-aligned, so it has to yield the corner */
   header nav { padding-right: 104px; }
   @media (max-width: 720px) { header nav { padding-right: 46px; } }
@@ -669,16 +810,9 @@ __THEMES__
     #mri-theme { padding: 8px; gap: 0; }
     #mri-theme .mri-theme-label { display: none; }
 
-    /* The logo hangs below the header by design — but that is a desktop
-       gesture. On a phone the header is short and the filter chips sit
-       directly under it, so the overhang lands on top of them. Here the mark
-       is smaller and sits inside its bar. The declarations carry !important
-       because the size and the negative margin are inline on the element. */
-    header img {
-      height: 62px !important;
-      margin: 0 !important;
-      box-shadow: none !important;
-    }
+    /* a smaller mark on a phone, so the bar stays short; !important because
+       the desktop size is inline on the element. Adjust it here. */
+    header img { height: 44px !important; }
   }
 </style>"""
 
@@ -712,7 +846,7 @@ def brand_style() -> str:
 
 
 
-def asset(name: str) -> str:
+def asset(name: str, also=()) -> str:
     """A <script> tag whose URL changes when the file does.
 
     index.html, stories-data.js, plate.js and motion.js are separate requests,
@@ -720,12 +854,23 @@ def asset(name: str) -> str:
     the others — locally that shows up as edits that appear to do nothing, and
     on GitHub Pages it would serve readers a stale script against new markup.
     Hashing the contents into the query string makes that impossible.
+
+    `also` lists files or folders the script loads by itself (embeds.js and
+    the figures/ folders): they go into the same hash, and the script passes
+    its tag on to them.
     """
     f = ROOT / name
     tag = ""
     if f.exists():
         import hashlib
-        tag = "?v=" + hashlib.sha1(f.read_bytes()).hexdigest()[:10]
+        h = hashlib.sha1(f.read_bytes())
+        for extra in also:
+            p = ROOT / extra
+            for q in (sorted(p.rglob('*')) if p.is_dir() else [p]):
+                if q.is_file() and not q.name.startswith('.'):
+                    h.update(q.relative_to(ROOT).as_posix().encode())
+                    h.update(q.read_bytes())
+        tag = "?v=" + h.hexdigest()[:10]
     return f'<script src="{name}{tag}"></script>'
 
 
@@ -801,6 +946,9 @@ def patch_template(doc: str) -> str:
     if n != 1:
         sys.exit("Could not find the elevation scale block.")
 
+    # the title opens the page
+    doc = move_hero(doc)
+
     # the figures section, ahead of "About the Publication"
     about = "<!-- ============ ABOUT"
     if doc.count(about) != 1:
@@ -840,6 +988,9 @@ def patch_template(doc: str) -> str:
            # so it loads after both.
            + asset('plate.js')
            + asset('motion.js')
+           # embeds.js loads the two live figures itself, after the page has
+           # drawn; its tag also covers their folders (see asset())
+           + asset('embeds.js', also=('figures/globe', 'figures/timeline'))
            + THEME_TOGGLE
            + doc[i:])
 

@@ -25,7 +25,6 @@ SERIF = "/System/Library/Fonts/Supplemental/Georgia.ttf"
 SANS = "/System/Library/Fonts/Supplemental/Futura.ttc"
 
 FIGURES = [
-    ("policy-process.jpg", "Policy Process"),
     ("observatories-ecvs.jpg", "Observatories & ECVs"),
     ("populations-hazards.jpg", "Populations & Hazards"),
     ("glaciers.jpg", "Glaciers"),
