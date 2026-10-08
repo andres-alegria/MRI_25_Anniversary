@@ -287,15 +287,17 @@ REPLACEMENTS = [
     # to it cannot collide: Summary Figures is added between Journey and
     # About; Print Edition is dropped, because the theme control now sits in
     # that corner and the print edition is still announced in the About
-    # section where it belongs; and About takes the accent in its place, so
-    # the menu keeps exactly one highlighted item.
+    # section where it belongs; and About takes the highlight in its place,
+    # so the menu keeps exactly one highlighted item. The bar is MRI blue in
+    # both themes, so the menu is white: the highlight full white and heavier,
+    # the rest a softer white (4.8:1 on the blue). Adjust the colours here.
     (
         '<a href="#journey" style="color:#2b2721">The Journey</a>\n'
         '    <a href="#about" style="color:#2b2721">About the Publication</a>\n'
         '    <a href="#about" style="color:#0067b2">Print Edition</a>',
-        '<a href="#journey" style="color:#2b2721">The Journey</a>\n'
-        '    <a href="#figures" style="color:#2b2721">Summary Figures</a>\n'
-        '    <a href="#about" style="color:#0067b2">About the Publication</a>',
+        '<a href="#journey" style="color:#dbeaf4">The Journey</a>\n'
+        '    <a href="#figures" style="color:#dbeaf4">Summary Figures</a>\n'
+        '    <a href="#about" style="color:#fff;font-weight:600">About the Publication</a>',
     ),
     # story photo: use the story's own image when it has one, otherwise fall
     # back to the generic photos bundled with the export. objectFit is
@@ -397,24 +399,25 @@ REPLACEMENTS = [
     # (the hero is rebuilt whole and moved to the top: see HERO_SECTION)
 
     # --- the top bar -----------------------------------------------------
-    # The logo fills the bar from top to bottom, and its own blue (#0067b2,
-    # the logo's ground) runs on from its left side to the edge of the
-    # screen: the bar has no left or vertical padding, and the logo carries
-    # a blue left padding of its own. Adjust the logo size here (the phone
-    # size is in BRAND_STYLE); the sections' scroll-margin-top follows the
-    # bar height.
+    # The bar is the logo's own blue (#0067b2, MRI blue) in both themes, with
+    # no vertical padding and no rule under it, so the logo fills it from top
+    # to bottom and reads as one band with it. Adjust the logo size here (the
+    # phone size is in BRAND_STYLE); the sections' scroll-margin-top follows
+    # the bar height.
     (
         'style="height:130px;width:auto;display:block;margin:-12px 0 -48px;'
         'box-shadow:0 2px 10px rgba(43,39,33,.14)">',
-        'style="height:76px;width:auto;display:block;box-sizing:content-box;'
-        'padding-left:clamp(20px,4vw,48px);background:#0067b2">\n'
+        'style="height:76px;width:auto;display:block">\n'
         # past the introduction the bar carries the title (TOP_BAR); the
         # words are the hero's own, filled in by move_hero()
         '    <a href="#intro" data-mri-bar-title="">__BAR_TITLE__</a>',
     ),
     (
-        'gap:16px;padding:12px clamp(20px,4vw,48px);border-bottom',
-        'gap:16px;padding:0 clamp(20px,4vw,48px) 0 0;border-bottom',
+        'background:#ffffff;display:flex;justify-content:space-between;'
+        'align-items:center;gap:16px;padding:12px clamp(20px,4vw,48px);'
+        'border-bottom:1px solid rgba(58,54,48,.25)"',
+        'background:#0067b2;display:flex;justify-content:space-between;'
+        'align-items:center;gap:16px;padding:0 clamp(20px,4vw,48px)"',
     ),
     # The line under the theme chips that counted the stories and changed on
     # every pick is gone from view. It stays in the page for screen readers,
@@ -755,8 +758,9 @@ __THEMES__
     padding: 7px 13px 7px 11px;
     font: 500 12px 'IBM Plex Mono', ui-monospace, monospace;
     letter-spacing: .06em;
-    color: var(--mri-text); background: var(--mri-panel);
-    border: 1px solid var(--mri-line); border-radius: 999px;
+    /* it sits on the blue bar, so it is drawn in white in both themes */
+    color: #fff; background: transparent;
+    border: 1px solid rgba(255, 255, 255, .55); border-radius: 999px;
     cursor: pointer; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   }
   /* --- the introduction --------------------------------------------------
@@ -818,11 +822,13 @@ __THEMES__
     display: none; min-width: 0;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     font: 600 17px/1.2 Jost, 'Century Gothic', system-ui, sans-serif;
-    letter-spacing: -.01em; color: var(--mri-text); margin-left: 6px;
+    letter-spacing: -.01em; color: #fff; margin-left: 6px;
     opacity: 0; visibility: hidden; transform: translateY(4px);
     transition: opacity .25s ease, transform .25s ease, visibility 0s linear .25s;
   }
-  [data-mri-bar-title]:hover { color: var(--mri-accent); text-decoration: none; }
+  [data-mri-bar-title]:hover {
+    color: #fff; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px;
+  }
   html[data-mri-past-intro] [data-mri-bar-title] {
     opacity: 1; visibility: visible; transform: none;
     transition: opacity .25s ease, transform .25s ease;
@@ -849,8 +855,10 @@ __THEMES__
   header nav { padding-right: 104px; }
   @media (max-width: 720px) { header nav { padding-right: 46px; } }
 
-  #mri-theme:hover { border-color: var(--mri-accent); color: var(--mri-accent); }
-  #mri-theme:focus-visible { outline: 2px solid var(--mri-accent); outline-offset: 2px; }
+  #mri-theme:hover { border-color: #fff; background: rgba(255, 255, 255, .12); }
+  #mri-theme:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  /* focus on the blue bar: a white ring the browser's own blue would lose */
+  header[data-screen-label="Top bar"] a:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   #mri-theme svg { width: 14px; height: 14px; display: block; fill: currentColor; }
   #mri-theme .mri-theme-label { display: inline-block; }
   @media (max-width: 720px) {
