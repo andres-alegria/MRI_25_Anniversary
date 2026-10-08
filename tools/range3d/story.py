@@ -11,6 +11,7 @@ import view as V
 import landcover as LC
 import svgkit as K
 import features as F
+import marks as MK
 
 f1 = K.f1
 
@@ -267,6 +268,27 @@ def animal(sx, sy, kind, fl, P, k=1.0):
     return f'<path d="{d}" fill="{col}" stroke="{P["shade"]}" stroke-width="0.25" stroke-opacity="0.7"/>'
 
 
+# How tall each drawn animal stands per unit of k, px: a library mark replacing
+# it is drawn to the same height, so the plate keeps its proportions.
+_STANDS = {'llama': 16.5, 'yak': 12.5}
+# The plate's marks keep the plate's own fine edge rather than the clips' halo.
+_PLATE_EDGE = dict(shadow=False, halo=0.15, halo_opacity=0.7)
+
+
+def _stock(sx, sy, kind, fl, P, k):
+    """One head of stock on the plate: the library silhouette when icons are
+    on (marks.py), the drawn one otherwise, the same size either way."""
+    return (MK.mark(kind, sx, sy, P, 0, face=fl, height=_STANDS[kind] * k, halo_colour=P['shade'],
+                    **_PLATE_EDGE)
+            or animal(sx, sy, kind, fl, P, k))
+
+
+def _herder(x, y, P, k, face):
+    """The herder with the stock, as above: library figure or drawn, same height."""
+    return (MK.mark('walker', x, y, P, 4.6 * k, face=face, halo_colour=P['shade'], **_PLATE_EDGE)
+            or person(x, y, P, staff=True, k=k))
+
+
 def herd(doc, G, H, L, P, rng, x0, y0, n=9, kind='llama'):
     """A herd grazing the alpine grassland, with the herder and a tent."""
     lay = doc.layer('People-animals')
@@ -282,13 +304,13 @@ def herd(doc, G, H, L, P, rng, x0, y0, n=9, kind='llama'):
             continue
         items.append((sx, sy, -1 if rng.random() < 0.5 else 1))
     for sx, sy, fl in sorted(items, key=lambda q: q[1]):
-        out.append(animal(sx, sy, kind, fl, P, 0.68 if kind == 'llama' else 0.82))
+        out.append(_stock(sx, sy, kind, fl, P, 0.68 if kind == 'llama' else 0.82))
     # the herder and a tent (a white cone with a dark door)
     tx, ty = x0 + 0.024, y0 - 0.006
     z = V.sample(H, tx, ty); sx, sy = V.project(tx, ty, z)
     out.append(f'<path d="M{f1(sx - 7.5)} {f1(sy)}L{f1(sx)} {f1(sy - 10.5)}L{f1(sx + 7.5)} {f1(sy)}Z" fill="{P["tentWhite"]}" stroke="{P["shade"]}" stroke-width="0.45"/>')
     out.append(f'<path d="M{f1(sx - 1.8)} {f1(sy)}L{f1(sx)} {f1(sy - 4.2)}L{f1(sx + 1.8)} {f1(sy)}Z" fill="{P["tent"]}"/>')
-    out.append(person(sx + 13, sy, P, staff=True, k=1.2))
+    out.append(_herder(sx + 13, sy, P, 1.2, face=-1))      # facing back towards the herd
     lay.append(''.join(out))
 
 
@@ -504,8 +526,8 @@ def pictograms(doc, G, H, P):
         out.append(f'<path d="M{f1(gap[0] - 0.5)} {f1(gap[1] - 2)}l0 4" stroke="{P["paper"]}" stroke-width="1.6"/>')
         out.append(F.box(c[0] - 26, c[1] - 4, 15, 9, 6, 'flat', dict(P, roofFlat=P['thatch'])))
         for k_, (dx_, dy_) in enumerate(((-6, 2), (3, -1), (8, 4))):
-            out.append(animal(c[0] + dx_, c[1] + dy_, 'yak' if k_ else 'llama', 1 if k_ % 2 else -1, P, 0.6))
-        out.append(person(c[0] - 15, c[1] + 6, P, staff=True, k=1.1))
+            out.append(_stock(c[0] + dx_, c[1] + dy_, 'yak' if k_ else 'llama', 1 if k_ % 2 else -1, P, 0.6))
+        out.append(_herder(c[0] - 15, c[1] + 6, P, 1.1, face=1))
     # rows of planted saplings and check dams on the restored slope
     rx, ry = 0.205, 0.44
     for row in range(3):

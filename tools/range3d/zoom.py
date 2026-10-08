@@ -673,7 +673,11 @@ def mast(x, y, k=1.0):
     Slender: the instrument is a pole with a cross-arm, and what makes it read
     at this size is the silhouette of the cups against the slope, not the
     weight of the pole. It gets guys and a contact shadow so it stands on the
-    ground rather than over it."""
+    ground rather than over it.
+
+    Kept drawn in the icon pass (Oct 2026): the library's weather stations are
+    instrument close-ups — a vane on a stand, cups on a base, a windsock — and
+    none reads as a station standing in a landscape; "met mast" finds nothing."""
     h = 54 * k
     pole = f'M{f1(x)} {f1(y)}l0 {f1(-h)}'
     guys = (f'M{f1(x - 15 * k)} {f1(y)}L{f1(x)} {f1(y - h * 0.74)}'
@@ -711,6 +715,8 @@ def stake(x, y, k=1.0):
 
     Banded rather than dashed — alternating marks are what a reader
     recognises, and a dashed line at this size just looks like a broken pole.
+    Kept drawn in the icon pass (Oct 2026): the library has no stake, ranging
+    pole, survey pole or staff gauge at all.
     """
     h = 26 * k
     g = [f'<ellipse cx="{f1(x)}" cy="{f1(y)}" rx="{f1(3.4 * k)}" ry="{f1(1.2 * k)}" '

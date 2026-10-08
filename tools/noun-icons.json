@@ -132,6 +132,15 @@
   "permalink": "/icon/gaur-8416666/",
   "term": "gaur"
  },
+ "llama": {
+  "attribution": "Llama by Izwar Muis from Noun Project",
+  "creator": "Izwar Muis",
+  "id": "8416662",
+  "license": "creative-commons-attribution",
+  "note": "plate: the llama herd and the corral's stock",
+  "permalink": "/icon/llama-8416662/",
+  "term": "Llama"
+ },
  "painter": {
   "attribution": "painter by Gan Khoon Lay from Noun Project",
   "creator": "Gan Khoon Lay",
@@ -203,5 +212,23 @@
   "note": "clips: villagers and herders, walking",
   "permalink": "/icon/walking-1926283/",
   "term": "Walking"
+ },
+ "yak/1": {
+  "attribution": "Yak by Amethyst Studio from Noun Project",
+  "creator": "Amethyst Studio",
+  "id": "4132779",
+  "license": "creative-commons-attribution",
+  "note": "plate: the yak herd and the corral's stock",
+  "permalink": "/icon/yak-4132779/",
+  "term": "Yak"
+ },
+ "yak/2": {
+  "attribution": "Yak by Amethyst Studio from Noun Project",
+  "creator": "Amethyst Studio",
+  "id": "4132677",
+  "license": "creative-commons-attribution",
+  "note": "plate: the yak herd and the corral's stock",
+  "permalink": "/icon/yak-4132677/",
+  "term": "Yak"
  }
 }
