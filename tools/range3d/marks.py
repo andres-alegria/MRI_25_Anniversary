@@ -64,7 +64,7 @@ ROLES = {
 # the clips, one for the plate (chosen 8 Oct 2026 from tests at 1, 1.6 and
 # 2.2); MRI_ICON_SCALE / MRI_PLATE_ICON_SCALE override them for a test render
 # — adjust here.
-EXAG = float(os.environ.get('MRI_ICON_SCALE', '1.6'))
+EXAG = float(os.environ.get('MRI_ICON_SCALE', '2.4'))
 EXAG_PLATE = float(os.environ.get('MRI_PLATE_ICON_SCALE', '2.2'))
 HALO = 0.8          # px of halo outside the silhouette, in the paper colour — adjust here
 HALO_OPACITY = 0.8  # — adjust here
