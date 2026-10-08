@@ -57,6 +57,14 @@ ROLES = {
     'yak':     (('yak/1', 'yak/2'), 0.90, 'yak'),
     'falcon':  (tuple('falcon/%d' % i for i in range(1, 10)), 1.0, 'ink'),
 }
+# How much larger than true scale the library marks are drawn. At true scale a
+# person on a clip is 38 px of an 1800 px drawing, which the page shows at a
+# third of that: correct, and too small to see. The marks are read rather than
+# measured, so they are exaggerated, as the motifs already are. One knob for
+# the clips, one for the plate; MRI_ICON_SCALE / MRI_PLATE_ICON_SCALE override
+# them for a test render — adjust here.
+EXAG = float(os.environ.get('MRI_ICON_SCALE', '1.0'))
+EXAG_PLATE = float(os.environ.get('MRI_PLATE_ICON_SCALE', '1.0'))
 HALO = 0.8          # px of halo outside the silhouette, in the paper colour — adjust here
 HALO_OPACITY = 0.8  # — adjust here
 SHADOW = 0.42       # opacity of the contact shadow — adjust here
@@ -90,7 +98,7 @@ def available(role):
 
 def mark(role, x, y, P, person_h, flip=False, pick=None, anchor='bottom', shadow=True,
          scale=1.0, colour=None, opacity=1.0, width=None, halo=True, height=None,
-         halo_colour=None, halo_opacity=None, face=None):
+         halo_colour=None, halo_opacity=None, face=None, exag=None):
     """The silhouette for `role` standing on (x, y), or None to fall back.
 
     person_h is the height of a standing person at this spot, in px; the role's
@@ -101,7 +109,8 @@ def mark(role, x, y, P, person_h, flip=False, pick=None, anchor='bottom', shadow
     height sets the height outright, as the plate does at its own scale.
     halo is True for the standard halo, a number for a halo of that many px,
     or False. face=+1/-1 asks for an animal facing right/left, whichever way
-    its icon happens to be drawn; it overrides flip."""
+    its icon happens to be drawn; it overrides flip. exag is the exaggeration
+    over true scale, EXAG unless the caller (the plate) says otherwise."""
     if not ENABLED:
         return None
     slots, share, key = ROLES[role]
@@ -112,8 +121,9 @@ def mark(role, x, y, P, person_h, flip=False, pick=None, anchor='bottom', shadow
     inner, (x0, y0, x1, y1) = _geometry(ok[i])
     if face is not None:
         flip = (face < 0) != (ok[i] in FACES_LEFT)
-    h = height if height else person_h * share * scale
-    s = width / max(x1 - x0, 1e-6) if width else h / max(y1 - y0, 1e-6)
+    ex = EXAG if exag is None else exag
+    h = (height if height else person_h * share * scale) * ex
+    s = width * ex / max(x1 - x0, 1e-6) if width else h / max(y1 - y0, 1e-6)
     w = (x1 - x0) * s
     cx = (x0 + x1) / 2
     ty = y - (y1 if anchor == 'bottom' else (y0 + y1) / 2) * s
@@ -139,12 +149,12 @@ def mark(role, x, y, P, person_h, flip=False, pick=None, anchor='bottom', shadow
     return ''.join(out)
 
 
-def size(role, person_h, pick=0):
+def size(role, person_h, pick=0, height=None, exag=None):
     """(width, height) in px that mark() would give, for spacing a group."""
     slots, share, _ = ROLES[role]
     ok = [s for s in slots if _geometry(s)]
     if not ok:
         return person_h * 0.5, person_h
     _, (x0, y0, x1, y1) = _geometry(ok[pick % len(ok)])
-    h = person_h * share
+    h = (height if height else person_h * share) * (EXAG if exag is None else exag)
     return (x1 - x0) * h / (y1 - y0), h

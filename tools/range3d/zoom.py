@@ -30,6 +30,10 @@ CANVAS = (1800, 1300)          # clip canvas, px — adjust here
 CLIP_VE = 0.75                 # vertical exaggeration of the clips (1 = true scale) — adjust here
 SKIRT = 44                     # depth of the cut face below the ground, px — adjust here
 ICON = 6.3                     # how much larger the motifs are than on the whole plate
+# The clips carry no words: the station number, the title and the callouts all
+# belong to the page around the clip, not to the drawing. True puts the badge,
+# the title and the two hand-built clips' callouts back — adjust here.
+TEXT = False
 
 
 def world_to_local(pts, frame):
@@ -144,6 +148,8 @@ def terraces_clip(doc, G, H, Lc, step=14):
 
 
 def title(doc, cfg, num):
+    if not TEXT:
+        return
     lay = doc.layer('Title')
     lay.append(f'<circle cx="112" cy="84" r="24" fill="{P["paper"]}" stroke="{P["red"]}" stroke-width="3"/>')
     lay.append(f'<text x="112" y="92" text-anchor="middle" font-family="{K.SANS}" font-weight="700" font-size="22" '
@@ -152,6 +158,8 @@ def title(doc, cfg, num):
 
 
 def scale_bar(doc, cfg, x=90, y=1250):
+    if not TEXT:
+        return
     lay = doc.layer('Labels')
     span = LC.SPAN_M * cfg['size']
     L_m = 1000
@@ -167,6 +175,8 @@ def scale_bar(doc, cfg, x=90, y=1250):
 
 
 def callout(doc, x, y, text_, dx, dy, col=None):
+    if not TEXT:                                   # the leader goes with its words
+        return
     lay = doc.layer('Labels')
     ex, ey = x + dx, y + dy
     lay.append(f'<path d="M{f1(x)} {f1(y)}L{f1(ex)} {f1(ey)}" stroke="{P["inkSoft"]}" stroke-width="0.8"/>')
@@ -412,13 +422,14 @@ def agriculture(out):
     spots = find(Lc, H, G, cls == LC.PADDY, rng, n=12, spacing=0.07)
     for k, (x, y) in enumerate(sorted(spots, key=lambda q: -q[1])):
         sx, sy = at(H, x, y)
+        e = MK.EXAG if MK.available('planter') else 1.0     # library marks spread as they grow
         if k % 4 == 3:
             pl.append(MK.mark('buffalo', sx, sy, P, AG_FIG, flip=k % 2 == 0) or buffalo(sx, sy, 2.4, 1 if k % 2 else -1))
-            pl.append(MK.mark('walker', sx + 26, sy, P, AG_FIG, flip=True) or ST.person(sx + 26, sy, P, staff=True, k=2.4))
+            pl.append(MK.mark('walker', sx + 26 * e, sy, P, AG_FIG, flip=True) or ST.person(sx + 26, sy, P, staff=True, k=2.4))
         else:
             pl.append(MK.mark('planter', sx, sy, P, AG_FIG, flip=k % 2 == 0) or farmer_bent(sx, sy, 2.5, 1 if k % 2 else -1))
-            pl.append(MK.mark('planter', sx + 18, sy + 5, P, AG_FIG, flip=k % 2 == 1) or farmer_bent(sx + 18, sy + 5, 2.3, -1 if k % 2 else 1))
-            pl.append(MK.mark('planter', sx - 16, sy + 3, P, AG_FIG) or farmer_bent(sx - 16, sy + 3, 2.2, 1))
+            pl.append(MK.mark('planter', sx + 18 * e, sy + 5 * e, P, AG_FIG, flip=k % 2 == 1) or farmer_bent(sx + 18, sy + 5, 2.3, -1 if k % 2 else 1))
+            pl.append(MK.mark('planter', sx - 16 * e, sy + 3 * e, P, AG_FIG) or farmer_bent(sx - 16, sy + 3, 2.2, 1))
     # the village on the foot-slope between the paddies and the terraces
     vsites = find(Lc, H, G, (H > lo + 85) & (H < lo + 200) & (sl < 12), rng, n=1)
     sl_ = doc.layer('Settlements')
@@ -793,12 +804,14 @@ def motif(doc, kind, Lc, H, G, rng, P_, num=None):
         for (x, y) in _sites(Lc, H, G, rng, [LC.ALPINE, LC.DRY, LC.GROUND], 1, smax=16):
             c = at(H, x, y)
             ux, vy = F.axes()
-            ring = np.array([c + ux * 22 * ICON * np.cos(t) + vy * 14 * ICON * np.sin(t) for t in np.linspace(0, 2 * np.pi, 26)])
+            # with library stock the fold grows with the animals, so they fit
+            e = MK.EXAG if num in HERD and MK.available(HERD[num]) else 1.0
+            ring = np.array([c + ux * 22 * ICON * e * np.cos(t) + vy * 14 * ICON * e * np.sin(t) for t in np.linspace(0, 2 * np.pi, 26)])
             sl_.append(f'<path d="{K.d_poly(ring, True, 0.6)}" fill="{P_["alpine"]}" fill-opacity="0.35" '
                        f'stroke="{P_["wallLit"]}" stroke-width="1.6"/>')
-            sl_.append(F.box(c[0] - 34 * ICON, c[1] - 4, 18 * ICON, 11 * ICON, 8 * ICON, 'flat', dict(P_, roofFlat=P_['thatch'])))
+            sl_.append(F.box(c[0] - 34 * ICON * e, c[1] - 4, 18 * ICON, 11 * ICON, 8 * ICON, 'flat', dict(P_, roofFlat=P_['thatch'])))
             for k_, (dx_, dy_) in enumerate(((-8 * ICON, 3 * ICON), (4 * ICON, -2 * ICON), (10 * ICON, 5 * ICON))):
-                pl.append((MK.mark(HERD[num], c[0] + dx_, c[1] + dy_, P_, FIG, flip=k_ % 2 == 0)
+                pl.append((MK.mark(HERD[num], c[0] + dx_ * e, c[1] + dy_ * e, P_, FIG, flip=k_ % 2 == 0)
                            if num in HERD else None)
                           or ST.animal(c[0] + dx_, c[1] + dy_, 'yak' if k_ else 'llama', 1 if k_ % 2 else -1, P_, 0.75 * ICON))
     elif kind == 'camp':
@@ -853,7 +866,7 @@ def motif(doc, kind, Lc, H, G, rng, P_, num=None):
         for (x, y) in _sites(Lc, H, G, rng, [LC.GLACIER, LC.SNOW], 1, smax=24):
             pts = (file_of(H, G, x, y, 3, 'trekker', 1.3 * ICON) if MK.available('trekker') else
                    [at(H, np.clip(x + i * 0.01, 0.02, 0.98), np.clip(y + i * 0.008, 0.02, 0.98)) for i in range(3)])
-            ry = 0.45 * FIG if MK.available('trekker') else 6        # the rope at the harness
+            ry = 0.45 * FIG * MK.EXAG if MK.available('trekker') else 6   # the rope at the harness
             for a_, b_ in zip(pts[:-1], pts[1:]):
                 pl.append(f'<path d="M{f1(a_[0])} {f1(a_[1] - ry)}L{f1(b_[0])} {f1(b_[1] - ry)}" stroke="{P_["red"]}" stroke-width="1.1"/>')
             for i, q in enumerate(pts):

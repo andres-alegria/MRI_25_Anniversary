@@ -271,8 +271,9 @@ def animal(sx, sy, kind, fl, P, k=1.0):
 # How tall each drawn animal stands per unit of k, px: a library mark replacing
 # it is drawn to the same height, so the plate keeps its proportions.
 _STANDS = {'llama': 16.5, 'yak': 12.5}
-# The plate's marks keep the plate's own fine edge rather than the clips' halo.
-_PLATE_EDGE = dict(shadow=False, halo=0.15, halo_opacity=0.7)
+# The plate's marks keep the plate's own fine edge rather than the clips' halo,
+# and the plate's own exaggeration (marks.EXAG_PLATE).
+_PLATE_EDGE = dict(shadow=False, halo=0.15, halo_opacity=0.7, exag=MK.EXAG_PLATE)
 
 
 def _stock(sx, sy, kind, fl, P, k):
@@ -303,8 +304,19 @@ def herd(doc, G, H, L, P, rng, x0, y0, n=9, kind='llama'):
         if any(abs(sx - a) < 10 and abs(sy - b) < 6 for a, b, _ in items):
             continue
         items.append((sx, sy, -1 if rng.random() < 0.5 else 1))
+    k = 0.68 if kind == 'llama' else 0.82
+    if MK.available(kind) and MK.EXAG_PLATE > 1:
+        # Larger library marks would hide one another at the drawn spacing.
+        # Thin the herd rather than move it: the positions come from the same
+        # random numbers, so nothing drawn after the herd moves either.
+        w, h = MK.size(kind, 0, height=_STANDS[kind] * k, exag=MK.EXAG_PLATE)
+        kept = []
+        for it in sorted(items, key=lambda q: q[1]):
+            if all(abs(it[0] - a) > 0.8 * w or abs(it[1] - b) > 0.45 * h for a, b, _ in kept):
+                kept.append(it)
+        items = kept
     for sx, sy, fl in sorted(items, key=lambda q: q[1]):
-        out.append(_stock(sx, sy, kind, fl, P, 0.68 if kind == 'llama' else 0.82))
+        out.append(_stock(sx, sy, kind, fl, P, k))
     # the herder and a tent (a white cone with a dark door)
     tx, ty = x0 + 0.024, y0 - 0.006
     z = V.sample(H, tx, ty); sx, sy = V.project(tx, ty, z)
@@ -516,18 +528,19 @@ def pictograms(doc, G, H, P):
     if cxw is not None:
         c = np.array(V.project(cxw, cyw, float(V.sample(H, cxw, cyw))))
         ux, vy = F.axes()
-        ring = [c + ux * 17 * np.cos(t) + vy * 11 * np.sin(t) for t in np.linspace(0, 2 * np.pi, 26)]
+        e = MK.EXAG_PLATE if MK.available('yak') else 1.0     # the fold grows with library stock
+        ring = [c + ux * 17 * e * np.cos(t) + vy * 11 * e * np.sin(t) for t in np.linspace(0, 2 * np.pi, 26)]
         ring = np.array(ring)
         out.append(f'<path d="{K.d_poly(ring, True, 0.6)}" fill="{P["alpine"]}" fill-opacity="0.35" '
                    f'stroke="{P["wallLit"]}" stroke-width="1.3" stroke-opacity="0.9"/>')
         out.append(f'<path d="{K.d_poly(ring * 0.97 + c * 0.03, True, 0.6)}" fill="none" '
                    f'stroke="{P["shade"]}" stroke-width="0.6" stroke-opacity="0.5"/>')
-        gap = c + ux * 17                                    # the gateway in the wall
+        gap = c + ux * 17 * e                                # the gateway in the wall
         out.append(f'<path d="M{f1(gap[0] - 0.5)} {f1(gap[1] - 2)}l0 4" stroke="{P["paper"]}" stroke-width="1.6"/>')
-        out.append(F.box(c[0] - 26, c[1] - 4, 15, 9, 6, 'flat', dict(P, roofFlat=P['thatch'])))
+        out.append(F.box(c[0] - 26 * e, c[1] - 4, 15, 9, 6, 'flat', dict(P, roofFlat=P['thatch'])))
         for k_, (dx_, dy_) in enumerate(((-6, 2), (3, -1), (8, 4))):
-            out.append(_stock(c[0] + dx_, c[1] + dy_, 'yak' if k_ else 'llama', 1 if k_ % 2 else -1, P, 0.6))
-        out.append(_herder(c[0] - 15, c[1] + 6, P, 1.1, face=1))
+            out.append(_stock(c[0] + dx_ * e, c[1] + dy_ * e, 'yak' if k_ else 'llama', 1 if k_ % 2 else -1, P, 0.6))
+        out.append(_herder(c[0] - 15 * e, c[1] + 6 * e, P, 1.1, face=1))
     # rows of planted saplings and check dams on the restored slope
     rx, ry = 0.205, 0.44
     for row in range(3):
