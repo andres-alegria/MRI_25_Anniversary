@@ -307,8 +307,11 @@ REPLACEMENTS = [
         "        style: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' }\n"
         "      }) : null,",
         "openImg: openStory ? React.createElement('img', {\n"
+        # the clips are filed by the story's own number (storyNum), not by its
+        # place on the climb (num, after the renumbering above): renumbering
+        # the climb must not refile the artwork
         "        src: (openStory.image && openStory.image.src) || ('art/clips/story-' +\n"
-        "               String(openStory.num).padStart(2, '0') + '-' +\n"
+        "               String(openStory.storyNum || openStory.num).padStart(2, '0') + '-' +\n"
         "               (document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark') +\n"
         "               '.svg'),\n"
         "        alt: (openStory.image && openStory.image.alt) || ('A zoom on the mountain for story ' + openStory.num),\n"

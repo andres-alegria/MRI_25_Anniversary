@@ -14,13 +14,13 @@ Noun Project icon chosen for it and carries its credit. Slots are filled when
 an icon is chosen (`python3 tools/noun.py use SLOT ID "note"`), never while
 drawing, so parallel renders only ever read the manifest.
 
-Icons are opt-in: `--icons` on the command line, or MRI_ICONS=1. Two licence
-questions to Noun Project are still open — whether an icon may be modified, and
-whether finished artwork carrying icon geometry may sit in a public repository
-— so the clips the page serves keep the hand-drawn marks until both are
-answered. The icon files live in the git-ignored cache; where a slot or its
-file is missing, mark() returns None and the caller draws the old mark, so a
-fresh clone of this repository still renders.
+Icons are on by default, and on the page, since 8 October 2026.
+`--no-icons` (or MRI_ICONS=0) draws the hand-drawn marks instead. Two licence
+questions to Noun Project were still open when they went on — whether an icon
+may be modified, and whether finished artwork carrying icon geometry may sit in
+a public repository. The icon files live in the git-ignored cache; where a slot
+or its file is missing, mark() returns None and the caller draws the old mark,
+so a fresh clone of this repository still renders, with the drawn marks.
 
 The set (October 2026): people by Gan Khoon Lay (leremy), one hand for every
 human role; animals from izwarm's Mammal Glyph set, yaks from AmethystStudio
@@ -38,7 +38,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))   # tool
 import noun as N                                                             # noqa: E402
 import iconkit as KIT                                                        # noqa: E402
 
-ENABLED = '--icons' in sys.argv or os.environ.get('MRI_ICONS') == '1'
+ENABLED = not ('--no-icons' in sys.argv or os.environ.get('MRI_ICONS') == '0')
 
 # role -> (slots, height as a share of a standing person, palette key)
 # Heights are of the icon's whole silhouette, props included — adjust sizes here.
@@ -61,10 +61,11 @@ ROLES = {
 # person on a clip is 38 px of an 1800 px drawing, which the page shows at a
 # third of that: correct, and too small to see. The marks are read rather than
 # measured, so they are exaggerated, as the motifs already are. One knob for
-# the clips, one for the plate; MRI_ICON_SCALE / MRI_PLATE_ICON_SCALE override
-# them for a test render — adjust here.
-EXAG = float(os.environ.get('MRI_ICON_SCALE', '1.0'))
-EXAG_PLATE = float(os.environ.get('MRI_PLATE_ICON_SCALE', '1.0'))
+# the clips, one for the plate (chosen 8 Oct 2026 from tests at 1, 1.6 and
+# 2.2); MRI_ICON_SCALE / MRI_PLATE_ICON_SCALE override them for a test render
+# — adjust here.
+EXAG = float(os.environ.get('MRI_ICON_SCALE', '1.6'))
+EXAG_PLATE = float(os.environ.get('MRI_PLATE_ICON_SCALE', '2.2'))
 HALO = 0.8          # px of halo outside the silhouette, in the paper colour — adjust here
 HALO_OPACITY = 0.8  # — adjust here
 SHADOW = 0.42       # opacity of the contact shadow — adjust here

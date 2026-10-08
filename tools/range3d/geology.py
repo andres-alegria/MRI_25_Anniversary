@@ -166,6 +166,10 @@ def draw(doc, H, P, rng, tone_of, frame=(0.0, 0.0, 1.0), annotate=True):
         if hi.sum() > 5:
             ptop = np.where(hi, ztop - 18, ztop)
             pbot = np.where(hi, ztop - 18 - np.clip((ztop - S['permafrost']) * 0.6, 0, 1200), ztop)
+            # it carries on below the block, but is cut where the block is: a clip's
+            # floor is only a few tens of metres down, and unclipped the band hung
+            # out underneath it
+            pbot = np.maximum(pbot, V.ZBASE)
             t_ = np.stack(V.project(x, y, ptop), 1); b_ = np.stack(V.project(x, y, pbot), 1)
             poly = np.concatenate([t_, b_[::-1]])
             lay.append(f'<path d="{K.d_poly(poly, True, 1.0)}" fill="{P["permafrost"]}" fill-opacity="0.34" '

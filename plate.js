@@ -524,7 +524,11 @@
       b.className = 'mri-tile';
       b.href = '#story/' + slug(name);
       b.setAttribute('data-for', n);
-      var file = n.length < 2 ? '0' + n : n;        /* the thumbnails are filed 01-25 */
+      /* the thumbnails, like the clips, are filed by the story's own number,
+         not by the climb number on the badge: renumbering the climb must not
+         refile them */
+      var sn = String(storyNum(btn));
+      var file = sn.length < 2 ? '0' + sn : sn;
       b.innerHTML = '<img loading="lazy" alt="" src="art/thumbs/story-' + file + '-' + theme() + '.png">'
         + '<figcaption><b>' + n + '</b><span>' + name + '</span></figcaption>';
       b.setAttribute('aria-label', 'Station ' + n + ': ' + name

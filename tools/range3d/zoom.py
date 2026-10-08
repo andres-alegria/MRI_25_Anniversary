@@ -4,11 +4,11 @@ drawn as its own block diagram with the detail the overview cannot hold.
 
     python3 zoom.py agriculture OUT.svg
     python3 zoom.py urban OUT.svg
-    python3 zoom.py 17 OUT.svg [--light] [--icons]     one clip, by route station
-    python3 zoom.py all OUTDIR [--light] [--icons]     all 25, named by story number
+    python3 zoom.py 17 OUT.svg [--light] [--no-icons]     one clip, by route station
+    python3 zoom.py all OUTDIR [--light] [--no-icons]     all 25, named by story number
 
---icons draws the people and animals from the Noun Project set (marks.py)
-instead of the hand-drawn marks; see marks.py for why it is not the default.
+People and animals come from the Noun Project set (marks.py); --no-icons draws
+the hand-drawn marks instead.
 """
 import sys
 import numpy as np
@@ -30,6 +30,13 @@ CANVAS = (1800, 1300)          # clip canvas, px — adjust here
 CLIP_VE = 0.75                 # vertical exaggeration of the clips (1 = true scale) — adjust here
 SKIRT = 44                     # depth of the cut face below the ground, px — adjust here
 ICON = 6.3                     # how much larger the motifs are than on the whole plate
+# The page shows a clip at 16:9 and crops the rest (object-fit: cover), so of
+# the 1300 px height only the middle 1012 px are seen. The block is fitted
+# inside that band, with air around it, rather than in the whole canvas, which
+# had cut the floor off every block on the page.
+SEEN = CANVAS[0] * 9 / 16                          # height the page shows, px
+PAD = 36                                           # air around the block inside it, px — adjust here
+MARGIN = (80, (CANVAS[1] - SEEN) / 2 + PAD, 80, (CANVAS[1] - SEEN) / 2 + PAD)   # l, t, r, b
 # The clips carry no words: the station number, the title and the callouts all
 # belong to the page around the clip, not to the drawing. True puts the badge,
 # the title and the two hand-built clips' callouts back — adjust here.
@@ -75,10 +82,10 @@ def base_block(name, rng, recover=None):
     relief = float(H.max() - H.min())
     lo = float(min(H[0, :].min(), H[:, 0].min()))
     V.ZBASE = lo - 0.04 * relief
-    V.fit(H, margin=(90, 215, 90, 70))     # the title sits in the top margin
+    V.fit(H, margin=MARGIN)
     skirt = cfg.get('skirt', SKIRT)
     V.ZBASE = lo - skirt / V.ZK
-    V.fit(H, margin=(90, 215, 90, 70))
+    V.fit(H, margin=MARGIN)
     G = V.GBuffer(H, V.W, V.H_PX)
     doc = K.Doc(V.W, V.H_PX, P['sky1'])
     for nm in ['Sky', 'Ground'] + ['Cover-' + n for n in LC.NAMES[1:]] + \
@@ -219,6 +226,55 @@ def _overlaps(sx, sy, w, h, items):
                for a, b, w2, h2, _, _ in items)
 
 
+# Everything placed on a clip claims its patch of screen, so the people and
+# animals placed after it keep clear: at their exaggerated size a figure that
+# stands behind a house is otherwise painted across its roof. Used only when
+# the library marks are on; the drawn marks' renders must not change.
+FIGURES = {'people', 'trekkers', 'roped-party', 'terrace-farmers', 'painter', 'herd', 'falcons'}
+
+
+def keepout(doc):
+    if not hasattr(doc, 'keepout'):
+        doc.keepout = []
+    return doc.keepout
+
+
+def claim(doc, box):
+    keepout(doc).append(box)
+
+
+def clear(doc, box, pad=4):
+    x0, y0, x1, y1 = box
+    return not any(x0 - pad < b[2] and x1 + pad > b[0] and y0 - pad < b[3] and y1 + pad > b[1]
+                   for b in keepout(doc))
+
+
+def mark_box(role, x, y, person_h=None):
+    w, h = MK.size(role, FIG if person_h is None else person_h)
+    return (x - w / 2, y - h, x + w / 2, y)
+
+
+def house_box(sx, sy, w, d, h):
+    """Screen box of a building F.box draws at (sx, sy), with room for a gable."""
+    ux, vy = F.axes()
+    pts = [np.array([sx, sy]) + a * ux * w / 2 + b * vy * d / 2 for a in (-1, 1) for b in (-1, 1)]
+    xs = [q[0] for q in pts]; ys = [q[1] for q in pts]
+    return (min(xs), min(ys) - h - 0.6 * max(w, d), max(xs), max(ys))
+
+
+def clear_sites(doc, sites, role, H, n):
+    """The first n of `sites` (world points) where a `role` mark stands clear."""
+    out = []
+    for (x, y) in sites:
+        q = at(H, x, y)
+        box = mark_box(role, q[0], q[1])
+        if clear(doc, box):
+            out.append(q); claim(doc, box)
+        if len(out) >= n:
+            break
+    return out
+
+
 def herd_icons(doc, G, H, Lc, P_, rng, x0, y0, species, n=5, companions=None, story=None):
     """A herd at clip scale: animals on ground they would use, spread so none
     hides another, a herder at the edge, painted back to front."""
@@ -248,19 +304,36 @@ def herd_icons(doc, G, H, Lc, P_, rng, x0, y0, species, n=5, companions=None, st
             if not G.visible(x, y, z + 1):
                 continue
             sx, sy = V.project(x, y, z)
-            if _overlaps(sx, sy, w, h, items):
+            if _overlaps(sx, sy, w, h, items) or not clear(doc, (sx - w / 2, sy - h, sx + w / 2, sy)):
                 continue
             items.append((sx, sy, w, h, rng.random() < 0.5, kind)); count -= 1
 
     items = []
     w, _ = MK.size(species, FIG)
     spread = 1.4 * w / V.SCALE                     # world units: a few bodies across
+    if companions:                                 # the big ones first, while there is room
+        place(companions[0], companions[1], 4.5 * spread, items)
     place(species, n, spread, items)
     place('walker', 1, 1.6 * spread, items)        # the herder, at the edge
-    if companions:
-        place(companions[0], companions[1], 3.5 * spread, items)
-    for sx, sy, _, _, fl, kind in sorted(items, key=lambda q: q[1]):
+    for sx, sy, w_, h_, fl, kind in sorted(items, key=lambda q: q[1]):
+        claim(doc, (sx - w_ / 2, sy - h_, sx + w_ / 2, sy))
         pl.append(MK.mark(kind, sx, sy, P_, FIG, flip=fl) or '')
+
+
+def single_file(doc, H, sites, role, k, n=3):
+    """The first of `sites` where n people in single file all stand clear;
+    the first site if none does. Their places are claimed."""
+    best = sites[:1]
+    for (x, y) in sites:
+        pts = file_of(H, None, x, y, n, role, k)
+        boxes = [mark_box(role, q[0], q[1], 4.6 * k) for q in pts]
+        if all(clear(doc, b) for b in boxes):
+            best = [(x, y)]
+            break
+    for (x, y) in best:
+        for q in file_of(H, None, x, y, n, role, k):
+            claim(doc, mark_box(role, q[0], q[1], 4.6 * k))
+    return best
 
 
 def file_of(H, G, x, y, n, role, k):
@@ -422,7 +495,7 @@ def agriculture(out):
     spots = find(Lc, H, G, cls == LC.PADDY, rng, n=12, spacing=0.07)
     for k, (x, y) in enumerate(sorted(spots, key=lambda q: -q[1])):
         sx, sy = at(H, x, y)
-        e = MK.EXAG if MK.available('planter') else 1.0     # library marks spread as they grow
+        e = 1.3 * MK.EXAG if MK.available('planter') else 1.0   # library marks spread as they grow
         if k % 4 == 3:
             pl.append(MK.mark('buffalo', sx, sy, P, AG_FIG, flip=k % 2 == 0) or buffalo(sx, sy, 2.4, 1 if k % 2 else -1))
             pl.append(MK.mark('walker', sx + 26 * e, sy, P, AG_FIG, flip=True) or ST.person(sx + 26, sy, P, staff=True, k=2.4))
@@ -772,13 +845,19 @@ def motif(doc, kind, Lc, H, G, rng, P_, num=None):
     farm = [LC.FIELD, LC.TERRACE, LC.PADDY, LC.ALPINE, LC.DRY, LC.GROUND]
     if kind == 'village':
         for (x, y) in _sites(Lc, H, G, rng, farm, 1, smax=14):
-            F.settlement(doc, G, H, Lc, P_, rng, x, y, 0.20, 13, 'village', k=1.5 * ICON, gap=(9.5, 6.2))
+            houses = F.settlement(doc, G, H, Lc, P_, rng, x, y, 0.20, 13, 'village', k=1.5 * ICON, gap=(9.5, 6.2))
+            for hx, hy, _ in houses:
+                claim(doc, house_box(hx, hy, 8 * 1.5 * ICON, 6.5 * 1.5 * ICON, 6 * 1.5 * ICON))
             for dx, dy in ((-0.02, 0.012), (0.022, -0.008)):
                 q = at(H, np.clip(x + dx, 0.02, 0.98), np.clip(y + dy, 0.02, 0.98))
                 sl_.append(granary(q[0], q[1], 0.6 * ICON))
+                g_ = 0.6 * ICON
+                claim(doc, (q[0] - 9 * g_, q[1] - 23 * g_, q[0] + 9 * g_, q[1]))
     elif kind == 'village-emptying':
         for (x, y) in _sites(Lc, H, G, rng, farm, 1, smax=14):
-            F.settlement(doc, G, H, Lc, P_, rng, x, y, 0.20, 9, 'village', k=1.5 * ICON, gap=(10.5, 6.8))
+            houses = F.settlement(doc, G, H, Lc, P_, rng, x, y, 0.20, 9, 'village', k=1.5 * ICON, gap=(10.5, 6.8))
+            for hx, hy, _ in houses:
+                claim(doc, house_box(hx, hy, 8 * 1.5 * ICON, 6.5 * 1.5 * ICON, 6 * 1.5 * ICON))
             for dx, dy in ((-0.03, 0.02), (0.03, 0.015), (0.01, -0.03)):   # roofless, abandoned
                 q = at(H, np.clip(x + dx, 0.02, 0.98), np.clip(y + dy, 0.02, 0.98))
                 sl_.append(F.box(q[0], q[1], 7 * ICON, 5 * ICON, 2.4 * ICON, 'flat',
@@ -789,7 +868,12 @@ def motif(doc, kind, Lc, H, G, rng, P_, num=None):
             q = at(H, x, y)
             sl_.append(market(q[0], q[1], 0.5 * ICON))
     elif kind == 'people':
-        for (x, y) in _sites(Lc, H, G, rng, farm + [LC.FOREST], 3, spacing=0.05, smax=22):
+        if MK.available('walker'):                 # three clear spots out of more candidates
+            for q in clear_sites(doc, _sites(Lc, H, G, rng, farm + [LC.FOREST], 10, spacing=0.05, smax=22),
+                                 'walker', H, 3):
+                pl.append(MK.mark('walker', q[0], q[1], P_, FIG, flip=rng.random() < 0.5))
+        for (x, y) in ([] if MK.available('walker') else
+                       _sites(Lc, H, G, rng, farm + [LC.FOREST], 3, spacing=0.05, smax=22)):
             q = at(H, x, y)
             staff = rng.random() < 0.5
             pl.append(figure('walker', q[0], q[1], 1.3 * ICON, P_, flip=staff, staff=staff))
@@ -810,19 +894,25 @@ def motif(doc, kind, Lc, H, G, rng, P_, num=None):
             sl_.append(f'<path d="{K.d_poly(ring, True, 0.6)}" fill="{P_["alpine"]}" fill-opacity="0.35" '
                        f'stroke="{P_["wallLit"]}" stroke-width="1.6"/>')
             sl_.append(F.box(c[0] - 34 * ICON * e, c[1] - 4, 18 * ICON, 11 * ICON, 8 * ICON, 'flat', dict(P_, roofFlat=P_['thatch'])))
+            claim(doc, house_box(c[0] - 34 * ICON * e, c[1] - 4, 18 * ICON, 11 * ICON, 8 * ICON))
             for k_, (dx_, dy_) in enumerate(((-8 * ICON, 3 * ICON), (4 * ICON, -2 * ICON), (10 * ICON, 5 * ICON))):
+                if num in HERD and MK.available(HERD[num]):
+                    claim(doc, mark_box(HERD[num], c[0] + dx_ * e, c[1] + dy_ * e))
                 pl.append((MK.mark(HERD[num], c[0] + dx_ * e, c[1] + dy_ * e, P_, FIG, flip=k_ % 2 == 0)
                            if num in HERD else None)
                           or ST.animal(c[0] + dx_, c[1] + dy_, 'yak' if k_ else 'llama', 1 if k_ % 2 else -1, P_, 0.75 * ICON))
     elif kind == 'camp':
         for (x, y) in _sites(Lc, H, G, rng, [LC.ALPINE, LC.DRY, LC.SCREE, LC.GROUND], 1, smax=16):
             q = at(H, x, y)
+            claim(doc, (q[0] - 9 * ICON, q[1] - 12 * ICON, q[0] + 9 * ICON, q[1]))
             pl.append(f'<path d="M{f1(q[0] - 9 * ICON)} {f1(q[1])}L{f1(q[0])} {f1(q[1] - 12 * ICON)}L{f1(q[0] + 9 * ICON)} {f1(q[1])}Z" '
                       f'fill="{P_["tentWhite"]}" stroke="{P_["shade"]}" stroke-width="0.6"/>')
             pl.append(f'<path d="M{f1(q[0] - 2 * ICON)} {f1(q[1])}L{f1(q[0])} {f1(q[1] - 5 * ICON)}L{f1(q[0] + 2 * ICON)} {f1(q[1])}Z" fill="{P_["tent"]}"/>')
             pl.append(figure('standing', q[0] + 15 * ICON, q[1], 1.3 * ICON, P_, staff=True))
     elif kind == 'trekkers':
-        for (x, y) in _sites(Lc, H, G, rng, [LC.ALPINE, LC.FOREST, LC.DRY], 1, smax=22):
+        for (x, y) in (single_file(doc, H, _sites(Lc, H, G, rng, [LC.ALPINE, LC.FOREST, LC.DRY], 6, smax=22),
+                                   'trekker', 1.35 * ICON)
+                       if MK.available('trekker') else _sites(Lc, H, G, rng, [LC.ALPINE, LC.FOREST, LC.DRY], 1, smax=22)):
             pts = (file_of(H, G, x, y, 3, 'trekker', 1.35 * ICON) if MK.available('trekker') else
                    [at(H, np.clip(x + i * 0.012, 0.02, 0.98), np.clip(y + i * 0.01, 0.02, 0.98)) for i in range(3)])
             for i, q in enumerate(pts):
@@ -831,14 +921,17 @@ def motif(doc, kind, Lc, H, G, rng, P_, num=None):
         for (x, y) in _sites(Lc, H, G, rng, [LC.ALPINE, LC.FOREST, LC.DRY], 1, smax=14):
             q = at(H, x, y)
             sl_.append(F.box(q[0], q[1], 30 * ICON, 17 * ICON, 12 * ICON, 'gable', dict(P_, roof=P_['metalRoof'])))
+            claim(doc, house_box(q[0], q[1], 30 * ICON, 17 * ICON, 12 * ICON))
     elif kind == 'stupa':
         for (x, y) in _sites(Lc, H, G, rng, farm + [LC.FOREST], 1, smax=16):
             q = at(H, x, y)
             sl_.append(stupa(q[0], q[1], 1.2 * ICON))
+            claim(doc, (q[0] - 10.8 * ICON, q[1] - 24 * ICON, q[0] + 10.8 * ICON, q[1]))
     elif kind == 'mast':
         for (x, y) in _sites(Lc, H, G, rng, [LC.ROCK, LC.SCREE, LC.ALPINE, LC.DRYROCK, LC.SNOW], 1, smax=26):
             q = at(H, x, y)
             inf.append(mast(q[0], q[1], 0.46 * ICON))
+            claim(doc, (q[0] - 7 * ICON, q[1] - 27 * ICON, q[0] + 7 * ICON, q[1]))
     elif kind == 'hut':
         for (x, y) in _sites(Lc, H, G, rng, [LC.ROCK, LC.SCREE, LC.ALPINE, LC.DRYROCK], 1, smax=20):
             q = at(H, x, y)
@@ -846,6 +939,7 @@ def motif(doc, kind, Lc, H, G, rng, P_, num=None):
                        f'ry="{f1(2.4 * ICON)}" fill="{P_["shade"]}" fill-opacity="0.42"/>')
             sl_.append(F.box(q[0], q[1], 11 * ICON, 7 * ICON, 5 * ICON, 'gable',
                              dict(P_, roof=P_['metalRoof'])))
+            claim(doc, house_box(q[0], q[1], 11 * ICON, 7 * ICON, 5 * ICON))
     elif kind == 'pillar':
         j, i = np.unravel_index(H.argmax(), H.shape)
         q = at(H, i / (H.shape[0] - 1), j / (H.shape[0] - 1))
@@ -862,8 +956,11 @@ def motif(doc, kind, Lc, H, G, rng, P_, num=None):
                 q = at(H, xx, yy)
                 if G.visible(xx, yy, float(V.sample(H, xx, yy)) + 2):
                     inf.append(stake(q[0], q[1], 0.52 * ICON))
+                    claim(doc, (q[0] - 2 * ICON, q[1] - 14 * ICON, q[0] + 2 * ICON, q[1]))
     elif kind == 'roped-party':
-        for (x, y) in _sites(Lc, H, G, rng, [LC.GLACIER, LC.SNOW], 1, smax=24):
+        for (x, y) in (single_file(doc, H, _sites(Lc, H, G, rng, [LC.GLACIER, LC.SNOW], 6, smax=24),
+                                   'trekker', 1.3 * ICON)
+                       if MK.available('trekker') else _sites(Lc, H, G, rng, [LC.GLACIER, LC.SNOW], 1, smax=24)):
             pts = (file_of(H, G, x, y, 3, 'trekker', 1.3 * ICON) if MK.available('trekker') else
                    [at(H, np.clip(x + i * 0.01, 0.02, 0.98), np.clip(y + i * 0.008, 0.02, 0.98)) for i in range(3)])
             ry = 0.45 * FIG * MK.EXAG if MK.available('trekker') else 6   # the rope at the harness
@@ -979,6 +1076,7 @@ def motif(doc, kind, Lc, H, G, rng, P_, num=None):
         # springs on the plain, far from the peak.
         for (x, y) in _sites(Lc, H, G, rng, farm + [LC.GROUND], 3, spacing=0.07, smax=10):
             q = at(H, x, y)
+            claim(doc, (q[0] - 2.6 * ICON, q[1] - 1.2 * ICON, q[0] + 2.6 * ICON, q[1] + 1.2 * ICON))
             inf.append(f'<ellipse cx="{f1(q[0])}" cy="{f1(q[1])}" rx="{2.2 * ICON:.1f}" '
                        f'ry="{0.9 * ICON:.1f}" fill="{P_["water"]}" stroke="{P_["waterLine"]}" '
                        f'stroke-width="1.2"/>')
@@ -1006,6 +1104,7 @@ def motif(doc, kind, Lc, H, G, rng, P_, num=None):
         for (x, y) in _sites(Lc, H, G, rng, farm + [LC.FOREST], 1, smax=12):
             q = at(H, x, y)
             sl_.append(F.box(q[0], q[1], 26 * ICON, 15 * ICON, 11 * ICON, 'flat', dict(P_, roofFlat=P_['metalRoof'])))
+            claim(doc, house_box(q[0], q[1], 26 * ICON, 15 * ICON, 11 * ICON))
             inf.append(f'<rect x="{f1(q[0] + 18)}" y="{f1(q[1] - 6)}" width="20" height="10" fill="{P_["shade"]}" '
                        f'fill-opacity="0.45" stroke="{P_["pylon"]}" stroke-width="0.8"/>')
     elif kind == 'canal':
@@ -1032,12 +1131,22 @@ def motif(doc, kind, Lc, H, G, rng, P_, num=None):
                     inf.append(f'<rect x="{f1(a_[0] - 4)}" y="{f1(a_[1] - 5)}" width="8" height="8" fill="{P_["concrete"]}" '
                                f'stroke="{P_["shade"]}" stroke-width="0.7"/>')
     elif kind == 'terrace-farmers':
-        for (x, y) in _sites(Lc, H, G, rng, [LC.TERRACE, LC.FIELD, LC.DRY], 3, spacing=0.04, smax=26):
-            q = at(H, x, y)
+        if MK.available('planter'):                # three clear spots out of more candidates
+            cand = clear_sites(doc, _sites(Lc, H, G, rng, [LC.TERRACE, LC.FIELD, LC.DRY], 9, spacing=0.04, smax=26),
+                               'planter', H, 3)
+        else:
+            cand = [at(H, x, y) for (x, y) in _sites(Lc, H, G, rng, [LC.TERRACE, LC.FIELD, LC.DRY], 3,
+                                                     spacing=0.04, smax=26)]
+        for q in cand:
             fl = 1 if rng.random() < 0.5 else -1
             pl.append(MK.mark('planter', q[0], q[1], P_, FIG, flip=fl < 0) or farmer_bent(q[0], q[1], 1.5 * ICON, fl))
     elif kind == 'painter':
-        for (x, y) in _sites(Lc, H, G, rng, [LC.ALPINE, LC.FOREST, LC.DRY, LC.SCREE], 1, smax=22):
+        if MK.available('painter'):                # a clear spot out of a few
+            more = _sites(Lc, H, G, rng, [LC.ALPINE, LC.FOREST, LC.DRY, LC.SCREE], 5, smax=22)
+            sites = [p for p in more if clear(doc, mark_box('painter', *at(H, *p), 4.6 * 1.5 * ICON))][:1] or more[:1]
+        else:
+            sites = _sites(Lc, H, G, rng, [LC.ALPINE, LC.FOREST, LC.DRY, LC.SCREE], 1, smax=22)
+        for (x, y) in sites:
             q = at(H, x, y)
             m = MK.mark('painter', q[0], q[1], P_, 4.6 * 1.5 * ICON)
             if m:                                          # the icon brings its own easel
@@ -1065,7 +1174,10 @@ def story(order, out):
         F.fields(doc, G, H, Lc, P, rng, k=1 / cfg['size'] * 0.75, v_range=(-0.3, 1.3))
         terraces_clip(doc, G, H, Lc, step=18)          # closer in, the risers read again
         F.trees(doc, G, H, Lc, P, rng, scale=2.6, step=0.05)
-        for kind in MOTIFS.get(num, ('village',)):
+        kinds = MOTIFS.get(num, ('village',))
+        if MK.ENABLED:                             # built things first, so the figures keep clear of them
+            kinds = sorted(kinds, key=lambda k_: k_ in FIGURES)
+        for kind in kinds:
             motif(doc, kind, Lc, H, G, rng, P, num)
         title(doc, cfg, order)
     finally:
