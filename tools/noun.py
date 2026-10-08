@@ -190,6 +190,19 @@ def similar(icon_id, query=None, limit=24):
         query=query, limit=limit, thumbnail_size=200, blacklist=1))
 
 
+def collection(collection_id, limit=100, refresh=False):
+    """Every icon in one of a creator's collections, with vectors.
+
+    A collection is one person drawing one family of marks in one style, so it
+    is the surest way to a set that agrees with itself: search finds a figure
+    whose drawing is right, its `collections` field names the family, and this
+    brings back the rest of that family."""
+    name = 'collections/%s.json' % int(collection_id)
+    return _cached(name, lambda: call(
+        '/v2/collection/%d' % int(collection_id), _kind='service', limit=limit,
+        thumbnail_size=200, include_svg=1, blacklist=1), refresh)
+
+
 def icon(icon_id, refresh=False):
     """One icon with its SVG — an *icon* call. Prefer `search --svg` when you
     can: it costs a quarter as much and the trial allows thirteen times more."""
@@ -358,9 +371,11 @@ def manifest():
 def use(slot, icon_id, note=''):
     """Register an icon as used in the artwork, with its credit.
 
-    Called by the drawing code, not by hand: an icon cannot be placed without
-    passing through here, so the credits list can never drift out of step with
-    what is actually on the page."""
+    Called once, when an icon is chosen for a slot. The drawing code places
+    icons only by slot (range3d/marks.py), so nothing reaches the artwork
+    without passing through here, and the credits list cannot drift from what
+    is drawn. It is not called while drawing: renders run in parallel, and
+    every one of them writing this file would race."""
     icon_id = str(int(icon_id))
     meta = CACHE / 'meta' / ('%s.json' % icon_id)
     d = json.loads(meta.read_text()) if meta.exists() else {}

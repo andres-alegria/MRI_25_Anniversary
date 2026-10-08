@@ -1,9 +1,207 @@
 {
-  "_comment": "Icons chosen from the Noun Project, by slot. 'id' is the Noun Project icon id; 'attribution' is the credit line their API returns and the publication must carry. The icon files themselves live in tools/noun-cache/ and are deliberately not committed - see tools/noun.py.",
-  "_example": {
-    "id": "0000000",
-    "attribution": "Thing by Someone from Noun Project",
-    "license": "creative-commons-attribution",
-    "note": "what it is used for"
-  }
+ "_comment": "Icons chosen from the Noun Project, by slot. 'id' is the Noun Project icon id; 'attribution' is the credit line their API returns and the publication must carry. The icon files themselves live in tools/noun-cache/ and are deliberately not committed - see tools/noun.py.",
+ "_example": {
+  "attribution": "Thing by Someone from Noun Project",
+  "id": "0000000",
+  "license": "creative-commons-attribution",
+  "note": "what it is used for"
+ },
+ "buffalo": {
+  "attribution": "buffalo by Izwar Muis from Noun Project",
+  "creator": "Izwar Muis",
+  "id": "8416664",
+  "license": "creative-commons-attribution",
+  "note": "clips: story 10, buffalo ploughing the paddies",
+  "permalink": "/icon/buffalo-8416664/",
+  "term": "buffalo"
+ },
+ "cattle/1": {
+  "attribution": "Cow by Izwar Muis from Noun Project",
+  "creator": "Izwar Muis",
+  "id": "8416671",
+  "license": "creative-commons-attribution",
+  "note": "clips: story 23, herders' cattle below Kilimanjaro",
+  "permalink": "/icon/cow-8416671/",
+  "term": "Cow"
+ },
+ "cattle/2": {
+  "attribution": "bull by Izwar Muis from Noun Project",
+  "creator": "Izwar Muis",
+  "id": "8416673",
+  "license": "creative-commons-attribution",
+  "note": "clips: story 23, herders' cattle below Kilimanjaro",
+  "permalink": "/icon/bull-8416673/",
+  "term": "bull"
+ },
+ "elephant": {
+  "attribution": "Elephant by Izwar Muis from Noun Project",
+  "creator": "Izwar Muis",
+  "id": "8416670",
+  "license": "creative-commons-attribution",
+  "note": "clips: story 23, Amboseli elephants",
+  "permalink": "/icon/elephant-8416670/",
+  "term": "Elephant"
+ },
+ "falcon/1": {
+  "attribution": "Falcon by ProSymbols from Noun Project",
+  "creator": "ProSymbols",
+  "id": "2183295",
+  "license": "creative-commons-attribution",
+  "note": "clips: story 17, Amur falcons in flight",
+  "permalink": "/icon/falcon-2183295/",
+  "term": "Falcon"
+ },
+ "falcon/2": {
+  "attribution": "Falcon by ProSymbols from Noun Project",
+  "creator": "ProSymbols",
+  "id": "2183258",
+  "license": "creative-commons-attribution",
+  "note": "clips: story 17, Amur falcons in flight",
+  "permalink": "/icon/falcon-2183258/",
+  "term": "Falcon"
+ },
+ "falcon/3": {
+  "attribution": "Falcon by ProSymbols from Noun Project",
+  "creator": "ProSymbols",
+  "id": "2183253",
+  "license": "creative-commons-attribution",
+  "note": "clips: story 17, Amur falcons in flight",
+  "permalink": "/icon/falcon-2183253/",
+  "term": "Falcon"
+ },
+ "falcon/4": {
+  "attribution": "Falcon by ProSymbols from Noun Project",
+  "creator": "ProSymbols",
+  "id": "2183243",
+  "license": "creative-commons-attribution",
+  "note": "clips: story 17, Amur falcons in flight",
+  "permalink": "/icon/falcon-2183243/",
+  "term": "Falcon"
+ },
+ "falcon/5": {
+  "attribution": "Falcon by ProSymbols from Noun Project",
+  "creator": "ProSymbols",
+  "id": "2183231",
+  "license": "creative-commons-attribution",
+  "note": "clips: story 17, Amur falcons in flight",
+  "permalink": "/icon/falcon-2183231/",
+  "term": "Falcon"
+ },
+ "falcon/6": {
+  "attribution": "Falcon by ProSymbols from Noun Project",
+  "creator": "ProSymbols",
+  "id": "2183229",
+  "license": "creative-commons-attribution",
+  "note": "clips: story 17, Amur falcons in flight",
+  "permalink": "/icon/falcon-2183229/",
+  "term": "Falcon"
+ },
+ "falcon/7": {
+  "attribution": "Falcon by ProSymbols from Noun Project",
+  "creator": "ProSymbols",
+  "id": "2183200",
+  "license": "creative-commons-attribution",
+  "note": "clips: story 17, Amur falcons in flight",
+  "permalink": "/icon/falcon-2183200/",
+  "term": "Falcon"
+ },
+ "falcon/8": {
+  "attribution": "Falcon by ProSymbols from Noun Project",
+  "creator": "ProSymbols",
+  "id": "2183195",
+  "license": "creative-commons-attribution",
+  "note": "clips: story 17, Amur falcons in flight",
+  "permalink": "/icon/falcon-2183195/",
+  "term": "Falcon"
+ },
+ "falcon/9": {
+  "attribution": "Falcon by ProSymbols from Noun Project",
+  "creator": "ProSymbols",
+  "id": "2183193",
+  "license": "creative-commons-attribution",
+  "note": "clips: story 17, Amur falcons in flight",
+  "permalink": "/icon/falcon-2183193/",
+  "term": "Falcon"
+ },
+ "gaur": {
+  "attribution": "gaur by Izwar Muis from Noun Project",
+  "creator": "Izwar Muis",
+  "id": "8416666",
+  "license": "creative-commons-attribution",
+  "note": "clips: story 18, mithun (domestic gaur) of the Naga Hills",
+  "permalink": "/icon/gaur-8416666/",
+  "term": "gaur"
+ },
+ "painter": {
+  "attribution": "painter by Gan Khoon Lay from Noun Project",
+  "creator": "Gan Khoon Lay",
+  "id": "974074",
+  "license": "creative-commons-attribution",
+  "note": "clips: story 22, the painter at the easel",
+  "permalink": "/icon/painter-974074/",
+  "term": "painter"
+ },
+ "planter": {
+  "attribution": "Planting Plant by Gan Khoon Lay from Noun Project",
+  "creator": "Gan Khoon Lay",
+  "id": "859751",
+  "license": "creative-commons-attribution",
+  "note": "clips: farmers planting, terraces and paddies",
+  "permalink": "/icon/planting-plant-859751/",
+  "term": "Planting Plant"
+ },
+ "trekker/1": {
+  "attribution": "tourist by Gan Khoon Lay from Noun Project",
+  "creator": "Gan Khoon Lay",
+  "id": "1034014",
+  "license": "creative-commons-attribution",
+  "note": "clips: trekkers and roped parties",
+  "permalink": "/icon/tourist-1034014/",
+  "term": "tourist"
+ },
+ "trekker/2": {
+  "attribution": "foreigner by Gan Khoon Lay from Noun Project",
+  "creator": "Gan Khoon Lay",
+  "id": "1034015",
+  "license": "creative-commons-attribution",
+  "note": "clips: trekkers and roped parties",
+  "permalink": "/icon/foreigner-1034015/",
+  "term": "foreigner"
+ },
+ "trekker/3": {
+  "attribution": "Traveler by Gan Khoon Lay from Noun Project",
+  "creator": "Gan Khoon Lay",
+  "id": "1034018",
+  "license": "creative-commons-attribution",
+  "note": "clips: a traveller standing, by the camp",
+  "permalink": "/icon/traveler-1034018/",
+  "term": "Traveler"
+ },
+ "walker/1": {
+  "attribution": "Walking by Gan Khoon Lay from Noun Project",
+  "creator": "Gan Khoon Lay",
+  "id": "1587072",
+  "license": "creative-commons-attribution",
+  "note": "clips: villagers and herders, walking",
+  "permalink": "/icon/walking-1587072/",
+  "term": "Walking"
+ },
+ "walker/2": {
+  "attribution": "Walking by Gan Khoon Lay from Noun Project",
+  "creator": "Gan Khoon Lay",
+  "id": "1926408",
+  "license": "creative-commons-attribution",
+  "note": "clips: villagers, walking",
+  "permalink": "/icon/walking-1926408/",
+  "term": "Walking"
+ },
+ "walker/3": {
+  "attribution": "Walking by Gan Khoon Lay from Noun Project",
+  "creator": "Gan Khoon Lay",
+  "id": "1926283",
+  "license": "creative-commons-attribution",
+  "note": "clips: villagers and herders, walking",
+  "permalink": "/icon/walking-1926283/",
+  "term": "Walking"
+ }
 }

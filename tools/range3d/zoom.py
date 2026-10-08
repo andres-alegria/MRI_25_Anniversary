@@ -4,6 +4,11 @@ drawn as its own block diagram with the detail the overview cannot hold.
 
     python3 zoom.py agriculture OUT.svg
     python3 zoom.py urban OUT.svg
+    python3 zoom.py 17 OUT.svg [--light] [--icons]     one clip, by route station
+    python3 zoom.py all OUTDIR [--light] [--icons]     all 25, named by story number
+
+--icons draws the people and animals from the Noun Project set (marks.py)
+instead of the hand-drawn marks; see marks.py for why it is not the default.
 """
 import sys
 import numpy as np
@@ -17,6 +22,7 @@ import geology as GEO
 import labels as LB
 import render as R
 import story as ST
+import marks as MK
 
 f1 = K.f1
 P = R.PAL
@@ -173,6 +179,90 @@ def at(H, x, y, lift=0.0):
 
 
 # ---------------------------------------------------------------------------
+# library marks (marks.py), with the drawn ones as the fallback. The fallback
+# path draws exactly what it drew before, random numbers included, so a render
+# without --icons is the same picture as before the icons existed.
+# ---------------------------------------------------------------------------
+FIG = 4.6 * 1.3 * ICON          # height of a standing person on a story clip, px — adjust here
+AG_FIG = 22.0                   # the same on the wider agriculture clip, px — adjust here
+
+# Which animal a story's herd is. The herds used to be yak or llama at random,
+# which put llamas on Kilimanjaro and yaks in the Naga Hills.
+HERD = {18: 'gaur',             # the Naga Hills: mithun, the domestic gaur
+        23: 'cattle'}           # below Kilimanjaro: herders' cattle at Amboseli
+COMPANIONS = {23: ('elephant', 2)}   # and the wildlife that shares the water there
+
+
+def figure(role, x, y, k, P_, flip=False, pick=None, **drawn):
+    """A person: the library silhouette for the role when icons are on, the
+    drawn figure (story.person, sized by k) otherwise."""
+    return MK.mark(role, x, y, P_, 4.6 * k, flip=flip, pick=pick) or ST.person(x, y, P_, k=k, **drawn)
+
+
+# Where a library animal may stand. Herds used to land wherever the site
+# finder fell back to, which on a glacier window put cattle on the ice.
+WOODS = [LC.ALPINE, LC.DRY, LC.GROUND, LC.FIELD, LC.TERRACE, LC.FOREST]
+
+
+def _overlaps(sx, sy, w, h, items):
+    return any(abs(sx - a) < 0.5 * (w + w2) and abs(sy - b) < 0.28 * (h + h2)
+               for a, b, w2, h2, _, _ in items)
+
+
+def herd_icons(doc, G, H, Lc, P_, rng, x0, y0, species, n=5, companions=None, story=None):
+    """A herd at clip scale: animals on ground they would use, spread so none
+    hides another, a herder at the edge, painted back to front."""
+    pl = doc.layer('People-animals')
+    cls, sl = Lc['cls'], Lc['slope']
+    N = H.shape[0] - 1
+    ok = np.isin(cls, WOODS) & (sl < 24)
+    j0, i0 = int(round(y0 * N)), int(round(x0 * N))
+    if not ok[j0, i0]:                             # the site finder settled for less: look again
+        edge = np.zeros_like(ok)
+        edge[int(0.10 * N):int(0.80 * N), int(0.12 * N):int(0.88 * N)] = True
+        got = find(Lc, H, G, ok & edge, rng, n=1)
+        if not got:
+            print('story %s: no ground for a herd in this window; left out' % story, file=sys.stderr)
+            return
+        x0, y0 = got[0]
+
+    def place(kind, count, spread, items):
+        w, h = MK.size(kind, FIG)
+        for _ in range(400):
+            if count <= 0:
+                break
+            x, y = x0 + rng.normal(0, spread), y0 + rng.normal(0, spread * 0.7)
+            if not (0.04 < x < 0.96 and 0.04 < y < 0.96) or not ok[int(round(y * N)), int(round(x * N))]:
+                continue
+            z = float(V.sample(H, x, y))
+            if not G.visible(x, y, z + 1):
+                continue
+            sx, sy = V.project(x, y, z)
+            if _overlaps(sx, sy, w, h, items):
+                continue
+            items.append((sx, sy, w, h, rng.random() < 0.5, kind)); count -= 1
+
+    items = []
+    w, _ = MK.size(species, FIG)
+    spread = 1.4 * w / V.SCALE                     # world units: a few bodies across
+    place(species, n, spread, items)
+    place('walker', 1, 1.6 * spread, items)        # the herder, at the edge
+    if companions:
+        place(companions[0], companions[1], 3.5 * spread, items)
+    for sx, sy, _, _, fl, kind in sorted(items, key=lambda q: q[1]):
+        pl.append(MK.mark(kind, sx, sy, P_, FIG, flip=fl) or '')
+
+
+def file_of(H, G, x, y, n, role, k):
+    """n people in single file, spaced by their own width on screen, walking
+    right and a little up the slope — where the icons face."""
+    w, _ = MK.size(role, 4.6 * k)
+    step = 1.35 * w / (np.cos(V.THETA) * V.SCALE)
+    return [at(H, np.clip(x + i * step, 0.02, 0.98), np.clip(y + i * step * 0.18, 0.02, 0.98))
+            for i in range(n)]
+
+
+# ---------------------------------------------------------------------------
 # people at work, animals, small built things (px sizes, clip scale)
 # ---------------------------------------------------------------------------
 def farmer_bent(x, y, k=2.2, fl=1):
@@ -323,12 +413,12 @@ def agriculture(out):
     for k, (x, y) in enumerate(sorted(spots, key=lambda q: -q[1])):
         sx, sy = at(H, x, y)
         if k % 4 == 3:
-            pl.append(buffalo(sx, sy, 2.4, 1 if k % 2 else -1))
-            pl.append(ST.person(sx + 26, sy, P, staff=True, k=2.4))
+            pl.append(MK.mark('buffalo', sx, sy, P, AG_FIG, flip=k % 2 == 0) or buffalo(sx, sy, 2.4, 1 if k % 2 else -1))
+            pl.append(MK.mark('walker', sx + 26, sy, P, AG_FIG, flip=True) or ST.person(sx + 26, sy, P, staff=True, k=2.4))
         else:
-            pl.append(farmer_bent(sx, sy, 2.5, 1 if k % 2 else -1))
-            pl.append(farmer_bent(sx + 18, sy + 5, 2.3, -1 if k % 2 else 1))
-            pl.append(farmer_bent(sx - 16, sy + 3, 2.2, 1))
+            pl.append(MK.mark('planter', sx, sy, P, AG_FIG, flip=k % 2 == 0) or farmer_bent(sx, sy, 2.5, 1 if k % 2 else -1))
+            pl.append(MK.mark('planter', sx + 18, sy + 5, P, AG_FIG, flip=k % 2 == 1) or farmer_bent(sx + 18, sy + 5, 2.3, -1 if k % 2 else 1))
+            pl.append(MK.mark('planter', sx - 16, sy + 3, P, AG_FIG) or farmer_bent(sx - 16, sy + 3, 2.2, 1))
     # the village on the foot-slope between the paddies and the terraces
     vsites = find(Lc, H, G, (H > lo + 85) & (H < lo + 200) & (sl < 12), rng, n=1)
     sl_ = doc.layer('Settlements')
@@ -658,7 +748,7 @@ def sapling(x, y, k=1.0):
             f'<circle cx="{f1(x)}" cy="{f1(y - 9 * k)}" r="{f1(3.2 * k)}" fill="{P["sapling"]}" stroke="{P["shade"]}" stroke-width="0.5"/>')
 
 
-def motif(doc, kind, Lc, H, G, rng, P_):
+def motif(doc, kind, Lc, H, G, rng, P_, num=None):
     """Draw one story motif somewhere it belongs on this clip."""
     cls, sl = Lc['cls'], Lc['slope']
     sl_ = doc.layer('Settlements'); pl = doc.layer('People-animals'); inf = doc.layer('Infrastructure')
@@ -684,10 +774,15 @@ def motif(doc, kind, Lc, H, G, rng, P_):
     elif kind == 'people':
         for (x, y) in _sites(Lc, H, G, rng, farm + [LC.FOREST], 3, spacing=0.05, smax=22):
             q = at(H, x, y)
-            pl.append(ST.person(q[0], q[1], P_, staff=rng.random() < 0.5, k=1.3 * ICON))
+            staff = rng.random() < 0.5
+            pl.append(figure('walker', q[0], q[1], 1.3 * ICON, P_, flip=staff, staff=staff))
     elif kind == 'herd':
         for (x, y) in _sites(Lc, H, G, rng, [LC.ALPINE, LC.DRY], 1, smax=18):
-            ST.herd(doc, G, H, Lc, P_, rng, x, y, 8, 'yak' if rng.random() < 0.5 else 'llama')
+            drawn = 'yak' if rng.random() < 0.5 else 'llama'
+            if num in HERD and MK.available(HERD[num]):
+                herd_icons(doc, G, H, Lc, P_, rng, x, y, HERD[num], companions=COMPANIONS.get(num), story=num)
+            else:
+                ST.herd(doc, G, H, Lc, P_, rng, x, y, 8, drawn)
     elif kind == 'corral':
         for (x, y) in _sites(Lc, H, G, rng, [LC.ALPINE, LC.DRY, LC.GROUND], 1, smax=16):
             c = at(H, x, y)
@@ -697,19 +792,22 @@ def motif(doc, kind, Lc, H, G, rng, P_):
                        f'stroke="{P_["wallLit"]}" stroke-width="1.6"/>')
             sl_.append(F.box(c[0] - 34 * ICON, c[1] - 4, 18 * ICON, 11 * ICON, 8 * ICON, 'flat', dict(P_, roofFlat=P_['thatch'])))
             for k_, (dx_, dy_) in enumerate(((-8 * ICON, 3 * ICON), (4 * ICON, -2 * ICON), (10 * ICON, 5 * ICON))):
-                pl.append(ST.animal(c[0] + dx_, c[1] + dy_, 'yak' if k_ else 'llama', 1 if k_ % 2 else -1, P_, 0.75 * ICON))
+                pl.append((MK.mark(HERD[num], c[0] + dx_, c[1] + dy_, P_, FIG, flip=k_ % 2 == 0)
+                           if num in HERD else None)
+                          or ST.animal(c[0] + dx_, c[1] + dy_, 'yak' if k_ else 'llama', 1 if k_ % 2 else -1, P_, 0.75 * ICON))
     elif kind == 'camp':
         for (x, y) in _sites(Lc, H, G, rng, [LC.ALPINE, LC.DRY, LC.SCREE, LC.GROUND], 1, smax=16):
             q = at(H, x, y)
             pl.append(f'<path d="M{f1(q[0] - 9 * ICON)} {f1(q[1])}L{f1(q[0])} {f1(q[1] - 12 * ICON)}L{f1(q[0] + 9 * ICON)} {f1(q[1])}Z" '
                       f'fill="{P_["tentWhite"]}" stroke="{P_["shade"]}" stroke-width="0.6"/>')
             pl.append(f'<path d="M{f1(q[0] - 2 * ICON)} {f1(q[1])}L{f1(q[0])} {f1(q[1] - 5 * ICON)}L{f1(q[0] + 2 * ICON)} {f1(q[1])}Z" fill="{P_["tent"]}"/>')
-            pl.append(ST.person(q[0] + 15 * ICON, q[1], P_, staff=True, k=1.3 * ICON))
+            pl.append(figure('standing', q[0] + 15 * ICON, q[1], 1.3 * ICON, P_, staff=True))
     elif kind == 'trekkers':
         for (x, y) in _sites(Lc, H, G, rng, [LC.ALPINE, LC.FOREST, LC.DRY], 1, smax=22):
-            for i in range(3):
-                q = at(H, np.clip(x + i * 0.012, 0.02, 0.98), np.clip(y + i * 0.01, 0.02, 0.98))
-                pl.append(ST.person(q[0], q[1], P_, staff=True, load=True, k=1.35 * ICON))
+            pts = (file_of(H, G, x, y, 3, 'trekker', 1.35 * ICON) if MK.available('trekker') else
+                   [at(H, np.clip(x + i * 0.012, 0.02, 0.98), np.clip(y + i * 0.01, 0.02, 0.98)) for i in range(3)])
+            for i, q in enumerate(pts):
+                pl.append(figure('trekker', q[0], q[1], 1.35 * ICON, P_, pick=i, staff=True, load=True))
     elif kind == 'lodge':
         for (x, y) in _sites(Lc, H, G, rng, [LC.ALPINE, LC.FOREST, LC.DRY], 1, smax=14):
             q = at(H, x, y)
@@ -747,11 +845,13 @@ def motif(doc, kind, Lc, H, G, rng, P_):
                     inf.append(stake(q[0], q[1], 0.52 * ICON))
     elif kind == 'roped-party':
         for (x, y) in _sites(Lc, H, G, rng, [LC.GLACIER, LC.SNOW], 1, smax=24):
-            pts = [at(H, np.clip(x + i * 0.01, 0.02, 0.98), np.clip(y + i * 0.008, 0.02, 0.98)) for i in range(3)]
+            pts = (file_of(H, G, x, y, 3, 'trekker', 1.3 * ICON) if MK.available('trekker') else
+                   [at(H, np.clip(x + i * 0.01, 0.02, 0.98), np.clip(y + i * 0.008, 0.02, 0.98)) for i in range(3)])
+            ry = 0.45 * FIG if MK.available('trekker') else 6        # the rope at the harness
             for a_, b_ in zip(pts[:-1], pts[1:]):
-                pl.append(f'<path d="M{f1(a_[0])} {f1(a_[1] - 6)}L{f1(b_[0])} {f1(b_[1] - 6)}" stroke="{P_["red"]}" stroke-width="1.1"/>')
-            for q in pts:
-                pl.append(ST.person(q[0], q[1], P_, staff=True, k=1.3 * ICON))
+                pl.append(f'<path d="M{f1(a_[0])} {f1(a_[1] - ry)}L{f1(b_[0])} {f1(b_[1] - ry)}" stroke="{P_["red"]}" stroke-width="1.1"/>')
+            for i, q in enumerate(pts):
+                pl.append(figure('trekker', q[0], q[1], 1.3 * ICON, P_, pick=i, staff=True))
     elif kind == 'boulders':
         for (x, y) in _sites(Lc, H, G, rng, [LC.SCREE, LC.ROCK, LC.DRYROCK], 1, smax=30):
             c = at(H, x, y)
@@ -834,7 +934,9 @@ def motif(doc, kind, Lc, H, G, rng, P_):
                 dy = rng.normal(0, 1) * 34 - 120 - abs(i - 13) * 7
                 k_ = 3.4 + 2.6 * rng.random()
                 bx, by = q0[0] + dx, q0[1] + dy
-                pl.append(f'<path d="M{f1(bx - k_)} {f1(by)}q{f1(k_ * 0.5)} {f1(-k_ * 0.8)} {f1(k_)} 0'
+                pl.append(MK.mark('falcon', bx, by, P_, 0, pick=i, anchor='centre', shadow=False,
+                                  width=3.2 * k_, halo=False)
+                          or f'<path d="M{f1(bx - k_)} {f1(by)}q{f1(k_ * 0.5)} {f1(-k_ * 0.8)} {f1(k_)} 0'
                           f'q{f1(k_ * 0.5)} {f1(-k_ * 0.8)} {f1(k_)} 0" fill="none" '
                           f'stroke="{P_["ink"]}" stroke-width="{1.5:.1f}" stroke-linecap="round"/>')
     elif kind == 'lake-works':
@@ -852,7 +954,7 @@ def motif(doc, kind, Lc, H, G, rng, P_):
                            f'stroke="{P_["concrete"]}" stroke-width="{0.9 * ICON:.1f}" '
                            f'stroke-linecap="round"/>')
             inf.append(post(q[0] - 7 * ICON, q[1] + 2 * ICON, 1.3 * ICON))
-            pl.append(ST.person(q[0] - 4 * ICON, q[1] + 3 * ICON, P_, staff=True, k=1.2 * ICON))
+            pl.append(figure('walker', q[0] - 4 * ICON, q[1] + 3 * ICON, 1.2 * ICON, P_, staff=True))
     elif kind == 'springs':
         # Kilimanjaro routes most of its water underground; it reappears as
         # springs on the plain, far from the peak.
@@ -913,10 +1015,15 @@ def motif(doc, kind, Lc, H, G, rng, P_):
     elif kind == 'terrace-farmers':
         for (x, y) in _sites(Lc, H, G, rng, [LC.TERRACE, LC.FIELD, LC.DRY], 3, spacing=0.04, smax=26):
             q = at(H, x, y)
-            pl.append(farmer_bent(q[0], q[1], 1.5 * ICON, 1 if rng.random() < 0.5 else -1))
+            fl = 1 if rng.random() < 0.5 else -1
+            pl.append(MK.mark('planter', q[0], q[1], P_, FIG, flip=fl < 0) or farmer_bent(q[0], q[1], 1.5 * ICON, fl))
     elif kind == 'painter':
         for (x, y) in _sites(Lc, H, G, rng, [LC.ALPINE, LC.FOREST, LC.DRY, LC.SCREE], 1, smax=22):
             q = at(H, x, y)
+            m = MK.mark('painter', q[0], q[1], P_, 4.6 * 1.5 * ICON)
+            if m:                                          # the icon brings its own easel
+                pl.append(m)
+                continue
             pl.append(ST.person(q[0] - 8 * ICON, q[1], P_, k=1.5 * ICON))
             pl.append(f'<path d="M{f1(q[0] + 4)} {f1(q[1])}L{f1(q[0] + 8)} {f1(q[1] - 14)}L{f1(q[0] + 12)} {f1(q[1])}'
                       f'M{f1(q[0] + 8)} {f1(q[1] - 14)}l0 14" stroke="{P_["figure"]}" stroke-width="1" fill="none"/>')
@@ -940,7 +1047,7 @@ def story(order, out):
         terraces_clip(doc, G, H, Lc, step=18)          # closer in, the risers read again
         F.trees(doc, G, H, Lc, P, rng, scale=2.6, step=0.05)
         for kind in MOTIFS.get(num, ('village',)):
-            motif(doc, kind, Lc, H, G, rng, P)
+            motif(doc, kind, Lc, H, G, rng, P, num)
         title(doc, cfg, order)
     finally:
         R.FACE_RECEDE = keep
