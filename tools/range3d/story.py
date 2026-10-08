@@ -292,18 +292,52 @@ def herd(doc, G, H, L, P, rng, x0, y0, n=9, kind='llama'):
     lay.append(''.join(out))
 
 
-def person(x, y, P, staff=False, load=False, k=1.0):
-    """A small standing figure as one silhouette (head, coat, legs)."""
-    q = lambda a, b: f'{f1(x + a * k)} {f1(y - b * k)}'
-    d = (f'M{q(-0.95, 0)}L{q(-0.95, 3.3)}L{q(-1.45, 7.2)}Q{q(0, 8.4)} {q(1.45, 7.2)}L{q(0.95, 3.3)}'
-         f'L{q(0.95, 0)}L{q(0.3, 0)}L{q(0.3, 3.1)}L{q(-0.3, 3.1)}L{q(-0.3, 0)}Z')
-    s_ = f'<path d="{d}" fill="{P["figure"]}"/><circle cx="{f1(x)}" cy="{f1(y - 9.3 * k)}" r="{f1(1.15 * k)}" fill="{P["figure"]}"/>'
-    if staff:
-        s_ += f'<path d="M{q(2, 0)}L{q(2.6, 10)}" stroke="{P["figure"]}" stroke-width="{f1(0.6 * k)}"/>'
-    if load:
-        s_ += f'<path d="M{q(-1.6, 7.4)}L{q(-3.4, 6.8)}L{q(-3.1, 3.6)}L{q(-1.2, 4)}Z" fill="{P["figure"]}"/>'
-    return s_
+def person(x, y, P, staff=False, load=False, k=1.0, v=None, walk=None):
+    """A person, as a billboard standing on the ground.
 
+    In an axonometric drawing the things that lie in the ground plane are
+    built in the projection, and the things that are read rather than seen —
+    people, animals, instruments — are drawn upright facing the reader. This
+    is one of the second kind, so it is a flat silhouette by design.
+
+    The old one was a round head on a featureless trapezoid, repeated
+    identically wherever a person was needed. This has a smaller head set
+    forward of the shoulders, a torso that tapers to the waist and three
+    builds, taken from the figure's own position unless asked for, so a group
+    is a group of different people without the caller having to say so.
+    """
+    u = k / 8.4                                   # the old call sites sized by this
+    v = int(abs(x) / 7) % 3 if v is None else v % 3
+    walk = (v == 1) if walk is None else walk
+    c = P['figure']
+    h = 8.4 * u * 4.6
+    hr = 6.3 * u * 1.0
+    sh = (9.4, 8.6, 10.2)[v] * u
+    wa = sh * 0.70
+    tt, tb = y - h + 13 * u, y - 18 * u
+    g = [f'<circle cx="{f1(x + 1.4 * u)}" cy="{f1(y - h + 5.2 * u)}" r="{f1(hr)}" fill="{c}"/>',
+         f'<path d="M{f1(x - sh)} {f1(tt + 1.2 * u)}L{f1(x + sh)} {f1(tt - 1.2 * u)}'
+         f'L{f1(x + wa)} {f1(tb)}L{f1(x - wa)} {f1(tb)}Z" fill="{c}"/>']
+    if walk:
+        g.append(f'<path d="M{f1(x - 1.0 * u)} {f1(tb - u)}L{f1(x - 5.4 * u)} {f1(y)}" '
+                 f'stroke="{c}" stroke-width="{5.0 * u:.2f}" stroke-linecap="round"/>')
+        g.append(f'<path d="M{f1(x + 1.6 * u)} {f1(tb - u)}L{f1(x + 6.0 * u)} {f1(y)}" '
+                 f'stroke="{c}" stroke-width="{5.0 * u:.2f}" stroke-linecap="round"/>')
+    else:
+        for sgn in (-1, 1):
+            g.append(f'<path d="M{f1(x + sgn * 3.4 * u)} {f1(tb - u)}L{f1(x + sgn * 3.4 * u)} {f1(y)}" '
+                     f'stroke="{c}" stroke-width="{5.0 * u:.2f}" stroke-linecap="round"/>')
+    if staff:
+        g.append(f'<path d="M{f1(x + 13 * u)} {f1(y + 3 * u)}L{f1(x + 9.5 * u)} {f1(y - h - 9 * u)}" '
+                 f'stroke="{P["ink"]}" stroke-width="{2.4 * u:.2f}" stroke-linecap="round"/>')
+    if load:
+        g.append(f'<path d="M{f1(x - wa - u)} {f1(tt + 3 * u)}L{f1(x - wa - 12 * u)} {f1(tt + 5 * u)}'
+                 f'L{f1(x - wa - 11 * u)} {f1(tt + 19 * u)}L{f1(x - wa - 0.5 * u)} {f1(tt + 17 * u)}Z" '
+                 f'fill="{P["ink"]}"/>')
+    # a contact shadow, so the figure stands on the slope instead of over it
+    g.insert(0, f'<ellipse cx="{f1(x)}" cy="{f1(y)}" rx="{f1(sh * 1.15)}" ry="{f1(sh * 0.34)}" '
+                f'fill="{P["shade"]}" fill-opacity="0.42"/>')
+    return ''.join(g)
 
 def rock_glacier(doc, G, H, L, P, x0=0.215, y0=0.772):
     """A rock glacier: one blunt tongue of frozen debris creeping down the

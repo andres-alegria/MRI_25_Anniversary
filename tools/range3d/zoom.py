@@ -22,6 +22,7 @@ f1 = K.f1
 P = R.PAL
 CANVAS = (1800, 1300)          # clip canvas, px — adjust here
 CLIP_VE = 0.75                 # vertical exaggeration of the clips (1 = true scale) — adjust here
+SKIRT = 44                     # depth of the cut face below the ground, px — adjust here
 ICON = 6.3                     # how much larger the motifs are than on the whole plate
 
 
@@ -50,10 +51,19 @@ def base_block(name, rng, recover=None):
     # heights: the overview's px-per-metre ratio, scaled so the clip's true
     # vertical exaggeration is CLIP_VE (its ground span is `size` of the block)
     V.SCALE = 1330.0
-    V.ZK = 0.086 / (1.8 / CLIP_VE) / cfg['size'] * (1330.0 / 1330.0)
+    V.ZK = 0.086 / (1.8 / cfg.get('ve', CLIP_VE)) / cfg['size'] * (1330.0 / 1330.0)
+    # The band of rock below the ground used to be a fraction of the clip's
+    # relief, so the steeper the station the deeper the slab — on a summit it
+    # swallowed two-thirds of the picture. It is now a fixed number of screen
+    # pixels. fit() sets ZK, and ZK sets how many metres a pixel is worth, so
+    # the two are solved by fitting twice: a provisional floor, then the real
+    # one once the scale is known.
     relief = float(H.max() - H.min())
-    V.ZBASE = float(H.min()) - max(25.0, 0.16 * relief)   # a low sediment band under the ground
+    V.ZBASE = float(H.min()) - 0.04 * relief
     V.fit(H, margin=(90, 215, 90, 70))     # the title sits in the top margin
+    skirt = cfg.get('skirt', SKIRT)
+    V.ZBASE = float(H.min()) - skirt / V.ZK
+    V.fit(H, margin=(90, 215, 90, 70))
     G = V.GBuffer(H, V.W, V.H_PX)
     doc = K.Doc(V.W, V.H_PX, P['sky1'])
     for nm in ['Sky', 'Ground'] + ['Cover-' + n for n in LC.NAMES[1:]] + \
@@ -484,16 +494,31 @@ MOTIFS = {                      # story number -> the things drawn on its clip
     25: ('boulders', 'mast'),               # Permafrost
 }
 BESPOKE = {10: 'agriculture', 16: 'urban'}      # the two clips drawn by hand
-CLIP_SIZE = {1: 0.06, 3: 0.06, 20: 0.055, 24: 0.065, 25: 0.06}   # closer still
+CLIP_SIZE = {1: 0.06, 3: 0.06, 20: 0.042, 24: 0.040, 25: 0.06}   # closer still
+
+# Where the station sits inside its own window, as a fraction from the near
+# corner. The default centres it, which puts high ground at the front and
+# leaves the reader looking at a wall with a slab under it. Pushing a station
+# back makes the ground climb away from the viewer instead.
+ANCHOR = {20: 0.74}
+# And a deeper or shallower cut face where one clip needs it.
+SKIRT_BY = {}
+# Vertical exaggeration, per clip. A station on a summit or a headwall drops
+# more than a kilometre inside its own window, and at the set's usual 0.75 the
+# block comes out as a tower whose sides are most of the picture. Flattening
+# the vertical is what trades cut face for ground.
+VE_BY = {20: 0.42, 24: 0.44}
 
 
 def story_cfg(num):
-    """The window for one story: centred on its station, inside the block."""
+    """The window for one story, placed so the ground rises away from the eye."""
     st = [s for s in ST.STATIONS if s[0] == num][0]
     size = CLIP_SIZE.get(num, 0.065)  # a close window: the motifs carry the clip
-    x0 = float(np.clip(st[1] - size / 2, 0.0, 1.0 - size))
-    y0 = float(np.clip(st[2] - size / 2, 0.0, 1.0 - size))
-    return dict(x0=x0, y0=y0, size=size, title=ST.TOPICS[num])
+    a = ANCHOR.get(num, 0.5)
+    x0 = float(np.clip(st[1] - a * size, 0.0, 1.0 - size))
+    y0 = float(np.clip(st[2] - a * size, 0.0, 1.0 - size))
+    return dict(x0=x0, y0=y0, size=size, title=ST.TOPICS[num],
+                skirt=SKIRT_BY.get(num, SKIRT), ve=VE_BY.get(num, CLIP_VE))
 
 
 def _sites(Lc, H, G, rng, kinds, n=1, spacing=0.09, lo=None, hi=None, smax=None):
@@ -513,10 +538,16 @@ def _sites(Lc, H, G, rng, kinds, n=1, spacing=0.09, lo=None, hi=None, smax=None)
     got = find(Lc, H, G, cond & edge, rng, n=n, spacing=spacing)
     if got:
         return got
-    # nothing of that kind in this window: take open ground instead, so a
-    # story is never left without its motif
-    loose = ~np.isin(cls, [LC.WATER, LC.GLACIER]) & (sl < 26) & edge
-    return find(Lc, H, G, loose, rng, n=n, spacing=spacing)
+    # Nothing of that kind here. Fall back by degrees rather than once: a
+    # station on a summit has no ground under twenty-six degrees anywhere in
+    # its window, and a single lenient pass still found nothing, so the clip
+    # came out with no motif at all and no complaint.
+    for lim in (26, 34, 44, 90):
+        loose = ~np.isin(cls, [LC.WATER]) & (sl < lim) & edge
+        got = find(Lc, H, G, loose, rng, n=n, spacing=spacing)
+        if got:
+            return got
+    return find(Lc, H, G, edge, rng, n=n, spacing=spacing)
 
 
 def stupa(x, y, k=1.0):
@@ -530,14 +561,34 @@ def stupa(x, y, k=1.0):
 
 
 def mast(x, y, k=1.0):
-    """An automatic weather station: mast, cross-arms, cups and a vane."""
-    m = (f'M{f1(x)} {f1(y)}l0 {f1(-30 * k)}M{f1(x - 7 * k)} {f1(y - 22 * k)}l{f1(14 * k)} 0'
-         f'M{f1(x - 6 * k)} {f1(y - 15 * k)}l{f1(12 * k)} 0')
-    return (f'<path d="{m}" stroke="{P["shade"]}" stroke-width="{f1(3.4 * k)}" stroke-opacity="0.6" fill="none"/>'
-            f'<path d="{m}" stroke="{P["light"]}" stroke-width="{f1(1.7 * k)}" fill="none"/>'
-            f'<circle cx="{f1(x - 6 * k)}" cy="{f1(y - 32 * k)}" r="{f1(2.2 * k)}" fill="none" stroke="{P["light"]}" stroke-width="{f1(1.2 * k)}"/>'
-            f'<circle cx="{f1(x + 6 * k)}" cy="{f1(y - 32 * k)}" r="{f1(2.2 * k)}" fill="none" stroke="{P["light"]}" stroke-width="{f1(1.2 * k)}"/>'
-            f'<path d="M{f1(x)} {f1(y - 30 * k)}l0 {f1(-5 * k)}l{f1(8 * k)} {f1(2.5 * k)}Z" fill="{P["light"]}"/>')
+    """An automatic weather station, as a billboard standing on the ground.
+
+    Slender: the instrument is a pole with a cross-arm, and what makes it read
+    at this size is the silhouette of the cups against the slope, not the
+    weight of the pole. It gets guys and a contact shadow so it stands on the
+    ground rather than over it."""
+    h = 54 * k
+    pole = f'M{f1(x)} {f1(y)}l0 {f1(-h)}'
+    guys = (f'M{f1(x - 15 * k)} {f1(y)}L{f1(x)} {f1(y - h * 0.74)}'
+            f'M{f1(x + 15 * k)} {f1(y)}L{f1(x)} {f1(y - h * 0.74)}')
+    arm = f'M{f1(x - 11 * k)} {f1(y - h + 4 * k)}l{f1(22 * k)} 0'
+    g = [f'<ellipse cx="{f1(x)}" cy="{f1(y)}" rx="{f1(7 * k)}" ry="{f1(2.4 * k)}" '
+         f'fill="{P["shade"]}" fill-opacity="0.45"/>',
+         f'<path d="{guys}" stroke="{P["light"]}" stroke-width="{f1(0.8 * k)}" '
+         f'stroke-opacity="0.55" fill="none"/>',
+         f'<path d="{pole}" stroke="{P["shade"]}" stroke-width="{f1(3.0 * k)}" '
+         f'stroke-opacity="0.5" fill="none"/>',
+         f'<path d="{pole}{arm}" stroke="{P["light"]}" stroke-width="{f1(1.6 * k)}" '
+         f'fill="none" stroke-linecap="round"/>']
+    for sgn in (-1, 1):                                   # the cups
+        g.append(f'<circle cx="{f1(x + sgn * 11 * k)}" cy="{f1(y - h + 4 * k)}" r="{f1(2.4 * k)}" '
+                 f'fill="{P["light"]}"/>')
+    g.append(f'<path d="M{f1(x)} {f1(y - h)}l0 {f1(-5 * k)}l{f1(9 * k)} {f1(2.6 * k)}Z" fill="{P["light"]}"/>')
+    # the radiation shield, halfway down, which is what says weather station
+    g.append(f'<path d="M{f1(x - 3.4 * k)} {f1(y - h * 0.52)}l{f1(6.8 * k)} 0'
+             f'l{f1(-1.4 * k)} {f1(4.2 * k)}l{f1(-4 * k)} 0Z" fill="{P["light"]}"/>')
+    return ''.join(g)
+
 
 
 def pillar(x, y, k=1.0):
@@ -549,10 +600,24 @@ def pillar(x, y, k=1.0):
 
 
 def stake(x, y, k=1.0):
-    """A snow stake: a graduated pole in the snow."""
-    return (f'<path d="M{f1(x)} {f1(y)}l0 {f1(-22 * k)}" stroke="{P["shade"]}" stroke-width="{f1(2.6 * k)}"/>'
-            f'<path d="M{f1(x)} {f1(y - 4 * k)}l0 {f1(-18 * k)}" stroke="{P["red"]}" stroke-width="{f1(1.4 * k)}" '
-            f'stroke-dasharray="{f1(3 * k)} {f1(3 * k)}"/>')
+    """A snow stake: a graduated pole read off against the surface.
+
+    Banded rather than dashed — alternating marks are what a reader
+    recognises, and a dashed line at this size just looks like a broken pole.
+    """
+    h = 26 * k
+    g = [f'<ellipse cx="{f1(x)}" cy="{f1(y)}" rx="{f1(3.4 * k)}" ry="{f1(1.2 * k)}" '
+         f'fill="{P["shade"]}" fill-opacity="0.45"/>',
+         f'<path d="M{f1(x)} {f1(y)}l0 {f1(-h)}" stroke="{P["shade"]}" '
+         f'stroke-width="{f1(2.6 * k)}" stroke-opacity="0.5"/>',
+         f'<path d="M{f1(x)} {f1(y)}l0 {f1(-h)}" stroke="{P["light"]}" stroke-width="{f1(1.5 * k)}"/>']
+    n = 4
+    for i in range(n):                                    # the graduations
+        y0 = y - h * (i + 0.5) / n
+        g.append(f'<path d="M{f1(x - 1.3 * k)} {f1(y0)}l{f1(2.6 * k)} 0" stroke="{P["red"]}" '
+                 f'stroke-width="{f1(h / n * 0.46)}"/>')
+    return ''.join(g)
+
 
 
 def post(x, y, k=1.0):
@@ -639,19 +704,30 @@ def motif(doc, kind, Lc, H, G, rng, P_):
     elif kind == 'mast':
         for (x, y) in _sites(Lc, H, G, rng, [LC.ROCK, LC.SCREE, LC.ALPINE, LC.DRYROCK, LC.SNOW], 1, smax=26):
             q = at(H, x, y)
-            inf.append(mast(q[0], q[1], 1.15 * ICON))
+            inf.append(mast(q[0], q[1], 0.46 * ICON))
     elif kind == 'hut':
         for (x, y) in _sites(Lc, H, G, rng, [LC.ROCK, LC.SCREE, LC.ALPINE, LC.DRYROCK], 1, smax=20):
             q = at(H, x, y)
-            sl_.append(F.box(q[0], q[1], 20 * ICON, 12 * ICON, 9 * ICON, 'flat', dict(P_, roofFlat=P_['metalRoof'])))
+            sl_.append(f'<ellipse cx="{f1(q[0])}" cy="{f1(q[1] + 1.2 * ICON)}" rx="{f1(7.5 * ICON)}" '
+                       f'ry="{f1(2.4 * ICON)}" fill="{P_["shade"]}" fill-opacity="0.42"/>')
+            sl_.append(F.box(q[0], q[1], 11 * ICON, 7 * ICON, 5 * ICON, 'gable',
+                             dict(P_, roof=P_['metalRoof'])))
     elif kind == 'pillar':
         j, i = np.unravel_index(H.argmax(), H.shape)
         q = at(H, i / (H.shape[0] - 1), j / (H.shape[0] - 1))
         sl_.append(pillar(q[0], q[1], 1.2 * ICON))
     elif kind == 'stakes':
-        for (x, y) in _sites(Lc, H, G, rng, [LC.SNOW, LC.GLACIER, LC.SCREE], 4, spacing=0.035, smax=26):
-            q = at(H, x, y)
-            inf.append(stake(q[0], q[1], 1.1 * ICON))
+        # A transect reads as a transect only if it runs across the picture.
+        # Stepping down the fall line projects almost vertically on an
+        # axonometric slope, which stacked the stakes into a totem; stepping
+        # in x alone is what spreads them.
+        for (x, y) in _sites(Lc, H, G, rng, [LC.SNOW, LC.GLACIER, LC.SCREE], 1, smax=40):
+            for i in range(5):
+                xx = float(np.clip(x + (i - 2) * 0.052, 0.04, 0.96))
+                yy = float(np.clip(y + (i - 2) * 0.010, 0.04, 0.96))
+                q = at(H, xx, yy)
+                if G.visible(xx, yy, float(V.sample(H, xx, yy)) + 2):
+                    inf.append(stake(q[0], q[1], 0.52 * ICON))
     elif kind == 'roped-party':
         for (x, y) in _sites(Lc, H, G, rng, [LC.GLACIER, LC.SNOW], 1, smax=24):
             pts = [at(H, np.clip(x + i * 0.01, 0.02, 0.98), np.clip(y + i * 0.008, 0.02, 0.98)) for i in range(3)]
