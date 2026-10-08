@@ -58,11 +58,16 @@ def base_block(name, rng, recover=None):
     # pixels. fit() sets ZK, and ZK sets how many metres a pixel is worth, so
     # the two are solved by fitting twice: a provisional floor, then the real
     # one once the scale is known.
+    # The floor hangs below the lowest point on the two cut edges the reader
+    # sees (south, y = 0, and west, x = 0), not below the lowest point in the
+    # window: a hollow in the middle or at the back is hidden by the faces, and
+    # measuring from it added its whole depth to every visible face.
     relief = float(H.max() - H.min())
-    V.ZBASE = float(H.min()) - 0.04 * relief
+    lo = float(min(H[0, :].min(), H[:, 0].min()))
+    V.ZBASE = lo - 0.04 * relief
     V.fit(H, margin=(90, 215, 90, 70))     # the title sits in the top margin
     skirt = cfg.get('skirt', SKIRT)
-    V.ZBASE = float(H.min()) - skirt / V.ZK
+    V.ZBASE = lo - skirt / V.ZK
     V.fit(H, margin=(90, 215, 90, 70))
     G = V.GBuffer(H, V.W, V.H_PX)
     doc = K.Doc(V.W, V.H_PX, P['sky1'])
@@ -494,20 +499,31 @@ MOTIFS = {                      # story number -> the things drawn on its clip
     25: ('boulders', 'mast'),               # Permafrost
 }
 BESPOKE = {10: 'agriculture', 16: 'urban'}      # the two clips drawn by hand
-CLIP_SIZE = {1: 0.06, 3: 0.06, 20: 0.042, 24: 0.040, 25: 0.06}   # closer still
+# How much of the world each window covers (default 0.065) — adjust framing here.
+# A wider window is used where the station sits on a valley wall: it takes in
+# the slope above as well as the drop below, so the ground can climb away.
+CLIP_SIZE = {20: 0.042, 24: 0.040, 25: 0.06,
+             1: 0.085, 2: 0.075, 4: 0.08, 8: 0.08, 9: 0.055, 15: 0.085, 18: 0.08}
 
 # Where the station sits inside its own window, as a fraction from the near
-# corner. The default centres it, which puts high ground at the front and
-# leaves the reader looking at a wall with a slab under it. Pushing a station
-# back makes the ground climb away from the viewer instead.
-ANCHOR = {20: 0.74}
+# corner — one value for both axes, or (x, y). The default centres it, which
+# puts high ground at the front and leaves the reader looking at a wall with a
+# slab under it. Pushing a station back makes the ground climb away from the
+# viewer instead. Values were chosen by measuring, for every framing, how much
+# of the picture is cut face rather than ground, then checked by eye.
+ANCHOR = {20: 0.74,
+          1: (0.45, 0.75), 2: (0.15, 0.30), 3: (0.70, 0.55), 4: (0.50, 0.90), 5: (0.25, 0.55),
+          7: (0.40, 0.85), 8: (0.85, 0.85), 9: (0.70, 0.85), 11: (0.85, 0.85), 12: (0.40, 0.85),
+          13: (0.60, 0.15), 14: (0.70, 0.40), 15: (0.90, 0.60), 17: (0.60, 0.30), 18: (0.40, 0.25),
+          19: (0.30, 0.30), 23: (0.85, 0.40)}
 # And a deeper or shallower cut face where one clip needs it.
 SKIRT_BY = {}
 # Vertical exaggeration, per clip. A station on a summit or a headwall drops
 # more than a kilometre inside its own window, and at the set's usual 0.75 the
 # block comes out as a tower whose sides are most of the picture. Flattening
-# the vertical is what trades cut face for ground.
-VE_BY = {20: 0.42, 24: 0.44}
+# the vertical is what trades cut face for ground — the last resort, after
+# reframing, because it also flattens the mountains.
+VE_BY = {20: 0.42, 24: 0.44, 4: 0.6, 13: 0.6, 15: 0.6, 17: 0.6, 19: 0.6}
 
 
 def story_cfg(num):
@@ -515,8 +531,9 @@ def story_cfg(num):
     st = [s for s in ST.STATIONS if s[0] == num][0]
     size = CLIP_SIZE.get(num, 0.065)  # a close window: the motifs carry the clip
     a = ANCHOR.get(num, 0.5)
-    x0 = float(np.clip(st[1] - a * size, 0.0, 1.0 - size))
-    y0 = float(np.clip(st[2] - a * size, 0.0, 1.0 - size))
+    ax, ay = a if isinstance(a, tuple) else (a, a)
+    x0 = float(np.clip(st[1] - ax * size, 0.0, 1.0 - size))
+    y0 = float(np.clip(st[2] - ay * size, 0.0, 1.0 - size))
     return dict(x0=x0, y0=y0, size=size, title=ST.TOPICS[num],
                 skirt=SKIRT_BY.get(num, SKIRT), ve=VE_BY.get(num, CLIP_VE))
 
