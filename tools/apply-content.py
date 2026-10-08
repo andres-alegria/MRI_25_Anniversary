@@ -394,20 +394,24 @@ REPLACEMENTS = [
     # (the hero is rebuilt whole and moved to the top: see HERO_SECTION)
 
     # --- the top bar -----------------------------------------------------
-    # The logo sits inside the bar instead of hanging below it, and the bar
-    # slims to fit. Adjust the logo size here (the phone size is in
-    # BRAND_STYLE); the sections' scroll-margin-top follows the bar height.
+    # The logo fills the bar from top to bottom, and its own blue (#0067b2,
+    # the logo's ground) runs on from its left side to the edge of the
+    # screen: the bar has no left or vertical padding, and the logo carries
+    # a blue left padding of its own. Adjust the logo size here (the phone
+    # size is in BRAND_STYLE); the sections' scroll-margin-top follows the
+    # bar height.
     (
         'style="height:130px;width:auto;display:block;margin:-12px 0 -48px;'
         'box-shadow:0 2px 10px rgba(43,39,33,.14)">',
-        'style="height:56px;width:auto;display:block">\n'
+        'style="height:76px;width:auto;display:block;box-sizing:content-box;'
+        'padding-left:clamp(20px,4vw,48px);background:#0067b2">\n'
         # past the introduction the bar carries the title (TOP_BAR); the
         # words are the hero's own, filled in by move_hero()
         '    <a href="#intro" data-mri-bar-title="">__BAR_TITLE__</a>',
     ),
     (
         'gap:16px;padding:12px clamp(20px,4vw,48px);border-bottom',
-        'gap:16px;padding:10px clamp(20px,4vw,48px);border-bottom',
+        'gap:16px;padding:0 clamp(20px,4vw,48px) 0 0;border-bottom',
     ),
     # The line under the theme chips that counted the stories and changed on
     # every pick is gone from view. It stays in the page for screen readers,
@@ -811,7 +815,7 @@ __THEMES__
     display: none; min-width: 0;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     font: 600 17px/1.2 Jost, 'Century Gothic', system-ui, sans-serif;
-    letter-spacing: -.01em; color: var(--mri-text);
+    letter-spacing: -.01em; color: var(--mri-text); margin-left: 6px;
     opacity: 0; visibility: hidden; transform: translateY(4px);
     transition: opacity .25s ease, transform .25s ease, visibility 0s linear .25s;
   }
@@ -853,7 +857,7 @@ __THEMES__
 
     /* a smaller mark on a phone, so the bar stays short; !important because
        the desktop size is inline on the element. Adjust it here. */
-    header img { height: 44px !important; }
+    header img { height: 60px !important; }
   }
 </style>"""
 
