@@ -7,12 +7,14 @@
 
 const GLOBE_CONTENT = {
   label: 'A slowly turning globe showing the world’s mountain areas',  // screen-reader description
-  // The key under the globe. Kept short: on the site the globe is a small
-  // figure beside the introduction. The mountains are the union of the GME's
-  // three definitions (K1, K2, K3; Sayre et al. 2018); coastlines are Natural
-  // Earth. Leave source empty to drop the second line.
-  legend: 'Mountains',
-  legendNote: 'USGS Global Mountain Explorer, slightly enlarged',   // enlarged by ~7 km so small ranges stay visible
+  // The key under the globe: one label beside the colour swatch. On the site
+  // the globe is a small figure beside the introduction. The mountains are the
+  // union of the USGS Global Mountain Explorer's three definitions (K1, K2, K3;
+  // Sayre et al. 2018), enlarged by ~7 km so small ranges stay visible;
+  // coastlines are Natural Earth. legendNote adds a dimmer part after a dot,
+  // source a second line; leave them empty to drop them.
+  legend: 'World mountain regions',
+  legendNote: '',
   source: '',
 
   // motion

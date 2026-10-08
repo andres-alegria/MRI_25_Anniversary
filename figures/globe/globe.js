@@ -79,7 +79,7 @@
     const kb = document.createElement('b');
     kb.textContent = C.legend;
     kt.appendChild(kb);
-    kt.appendChild(document.createTextNode(' · ' + C.legendNote));
+    if (C.legendNote) kt.appendChild(document.createTextNode(' · ' + C.legendNote));
     key.appendChild(sw);
     key.appendChild(kt);
     wrap.appendChild(key);
