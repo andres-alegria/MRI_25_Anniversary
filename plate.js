@@ -776,25 +776,49 @@
     }, true);
   }
 
-  /* the button that begins the journey lands the whole mountain in view,
-     its base on the base of the screen */
-  function showWholePlate() {
-    var h = document.querySelector('svg[data-mri-plate="done"]');
-    if (!h) return;
-    var r = h.getBoundingClientRect();
-    var y = Math.max(0, window.scrollY + r.bottom - window.innerHeight);
-    try { window.scrollTo({ top: y, behavior: 'smooth' }); } catch (e) { window.scrollTo(0, y); }
+  /* The button that begins the journey lands the reader on the journey's
+     own title, "The Mountain Journey", at the top of the screen. It used to
+     put the plate's base on the base of the screen, which on most screens
+     dropped the reader into the middle of the map. */
+  var ASCENT_GAP = 28;      /* px above the title once landed — adjust here */
+  function journeyTitle() {
+    var hs = document.querySelectorAll('h2');
+    for (var i = 0; i < hs.length; i++) {
+      if (hs[i].closest('x-dc')) continue;       /* the template's dead copy */
+      if (/^the mountain journey$/i.test((hs[i].textContent || '').trim())) return hs[i];
+    }
+    return null;
+  }
+  function landAt(y) {
+    var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    try { window.scrollTo({ top: y, behavior: still ? 'auto' : 'smooth' }); } catch (e) { window.scrollTo(0, y); }
     /* a background tab drops smooth scrolling, so make sure it lands */
     setTimeout(function () {
       if (Math.abs(window.scrollY - y) > 8) window.scrollTo(0, y);
     }, 700);
+  }
+  function showJourney() {
+    var t = journeyTitle();
+    if (t) {
+      /* the top bar slides away on the way down, except for a reader who
+         prefers reduced motion: their bar stays, so the title lands below it */
+      var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var bar = document.querySelector('header[data-screen-label="Top bar"]');
+      var off = ASCENT_GAP + (still && bar ? bar.offsetHeight : 0);
+      landAt(Math.max(0, window.scrollY + t.getBoundingClientRect().top - off));
+      return;
+    }
+    /* no title found: fall back to the whole plate, its base on the screen's */
+    var h = document.querySelector('svg[data-mri-plate="done"]');
+    if (!h) return;
+    landAt(Math.max(0, window.scrollY + h.getBoundingClientRect().bottom - window.innerHeight));
   }
   function catchAscent() {
     document.addEventListener('click', function (e) {
       var b = e.target && e.target.closest && e.target.closest('a, button');
       if (!b || !/begin the ascent/i.test((b.textContent || '').trim())) return;
       e.preventDefault();
-      showWholePlate();
+      showJourney();
     }, true);
   }
 
