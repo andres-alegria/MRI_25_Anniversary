@@ -43,6 +43,7 @@ js = '''/* ---------------------------------------------------------------------
   'use strict';
 
   var VIEWBOX = '0 0 %(W)d %(H)d';
+  var AW = %(W)d, AH = %(H)d;          /* the drawing's own size, in its units */
   var ART = { dark: 'art/range-dark.svg', light: 'art/range-light.svg' };
 
   /* station order on the climb, and where each one sits on the plate */
@@ -106,6 +107,7 @@ js = '''/* ---------------------------------------------------------------------
       }
       var drawn = h2.querySelector('#Stations');
       if (drawn) drawn.remove();
+      measure(h2);
       window.MRI_PLATE.theme = which;
       /* landmarks the opening animation draws: the skyline first, then the
          trail. Tagged here so motion.js need not know the layer names. */
@@ -118,6 +120,43 @@ js = '''/* ---------------------------------------------------------------------
       if (window.console) console.warn('[plate]', e.message);
     });
     return true;
+  }
+
+  /* --- keeping the mountain centred ----------------------------------------
+     The drawing leaves room on its right for the altitude ruler. When the
+     plate is too small for the ruler (plate-enhance.js hides the label layer)
+     that room stood empty and the block sat left of centre. So the viewBox is
+     slid sideways until whatever is showing is centred: the block alone, or
+     the block and its ruler. Measured once per drawing, while every layer is
+     still on. */
+  function bboxX(g) {
+    try { var b = g.getBBox(); return b.width ? [b.x, b.x + b.width] : null; } catch (e) { return null; }
+  }
+  function union(a, b) {
+    if (!a) return b;
+    if (!b) return a;
+    return [Math.min(a[0], b[0]), Math.max(a[1], b[1])];
+  }
+  function measure(h) {
+    var block = union(bboxX(h.querySelector('#Ground')), bboxX(h.querySelector('#Faces')));
+    var lab = h.querySelector('#Labels');
+    window.MRI_PLATE.extent = { block: block, labels: union(block, lab ? bboxX(lab) : null) };
+    /* the sky runs on past both edges, so a slide never uncovers a bare edge */
+    var sky = h.querySelector('#Sky rect');
+    if (sky) { sky.setAttribute('x', String(-AW)); sky.setAttribute('width', String(3 * AW)); }
+  }
+  function centre() {
+    var h = document.querySelector('svg[data-mri-plate="done"]');
+    var ext = window.MRI_PLATE.extent;
+    if (!h || !ext || !ext.block) return;
+    var lab = h.querySelector('#Labels');
+    /* the labels are grown to stay legible on a wide plate, so when they show
+       they are measured as they are now, not as drawn */
+    var showing = lab && lab.style.display !== 'none' ? (union(ext.block, bboxX(lab)) || ext.labels) : ext.block;
+    var x0 = Math.round(((showing[0] + showing[1]) / 2 - AW / 2) * 10) / 10;
+    var vb = x0 + ' 0 ' + AW + ' ' + AH;
+    window.MRI_PLATE.viewBox = vb;
+    if (h.getAttribute('viewBox') !== vb) h.setAttribute('viewBox', vb);
   }
 
   /* --- putting the numbers where the terrain is ----------------------------
@@ -133,9 +172,9 @@ js = '''/* ---------------------------------------------------------------------
     if (!plate || !h) return;
     var box = h.getBoundingClientRect();
     if (!box.width || !box.height) return;
-    var vb = plate.viewBox.split(' ').map(Number), VW = vb[2], VH = vb[3];
+    var vb = plate.viewBox.split(' ').map(Number), VX = vb[0], VY = vb[1], VW = vb[2], VH = vb[3];
     var scale = Math.max(box.width / VW, box.height / VH);
-    var ox = (box.width - VW * scale) / 2, oy = (box.height - VH * scale) / 2;
+    var ox = (box.width - VW * scale) / 2 - VX * scale, oy = (box.height - VH * scale) / 2 - VY * scale;
     var placed = [];
     document.querySelectorAll('button').forEach(function (btn) {
       if (!/border-radius:\\s*50%%/.test(btn.getAttribute('style') || '')) return;
@@ -202,6 +241,7 @@ js = '''/* ---------------------------------------------------------------------
     if (applying) return;
     applying = true;
     try { dressFrame(); } catch (e) { /* frame gone */ }
+    try { centre(); } catch (e) { /* drawing not measured yet */ }
     try { placeMarkers(); } catch (e) { /* markers not rendered yet */ }
     applying = false;
   }

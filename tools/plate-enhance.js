@@ -84,10 +84,16 @@
     '.mri-tile figcaption b { font: 600 12px/1 "IBM Plex Mono", monospace; opacity: .85; }',
     '.mri-tile:focus-visible { outline: 3px solid var(--mri-accent); outline-offset: 3px; }',
     '.mri-index [data-soon] img { filter: grayscale(.55); }',
-    '.mri-index [data-off] { opacity: .32; }',
+    /* a theme leaves out the stories it does not touch, rather than fading them */
+    '.mri-index li:has(> [data-off]), .mri-index [data-off] { display: none; }',
     '@media (max-width: 900px) {',
     '  [data-mri-marker] { display: none !important; }',
     '  .mri-index ol { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }',
+    '}',
+    /* on a phone the mountain is too small to read, so the stories go
+       straight to the gallery — adjust the width below which it is left out here */
+    '@media (max-width: 600px) {',
+    '  div:has(> svg[data-mri-plate]) { display: none !important; }',
     '}'
   ].join('\n');
   document.head.appendChild(css);
@@ -191,6 +197,8 @@
         t.style.fontSize = Math.max(parseFloat(base), want) + 'px';
       });
     });
+    /* the ruler came, went or grew: re-centre the mountain on what is showing */
+    if (window.MRI_PLATE && window.MRI_PLATE.relayout) window.MRI_PLATE.relayout();
   }
 
   function luminance(c) {
@@ -533,6 +541,12 @@
     document.addEventListener('click', function (e) {
       var c = e.target && e.target.closest && e.target.closest('button[data-dc-tpl]');
       if (!c || !/gap:\s*7px/.test(c.getAttribute('style') || '')) return;
+      /* going back to "All" only restyles the markers — nothing is added or
+         removed, so the observer never fires — and the gallery kept its
+         hidden stories. Tell it directly, once the page has re-rendered. */
+      [60, 260].forEach(function (d) {
+        setTimeout(function () { try { syncIndexToFilter(); } catch (e) {} }, d);
+      });
       setTimeout(function () {
         var said = null;
         var all = document.querySelectorAll('p, div, span');

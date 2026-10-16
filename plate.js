@@ -18,6 +18,7 @@
   'use strict';
 
   var VIEWBOX = '0 0 2400 1600';
+  var AW = 2400, AH = 1600;          /* the drawing's own size, in its units */
   var ART = { dark: 'art/range-dark.svg', light: 'art/range-light.svg' };
 
   /* station order on the climb, and where each one sits on the plate */
@@ -105,6 +106,7 @@
       }
       var drawn = h2.querySelector('#Stations');
       if (drawn) drawn.remove();
+      measure(h2);
       window.MRI_PLATE.theme = which;
       /* landmarks the opening animation draws: the skyline first, then the
          trail. Tagged here so motion.js need not know the layer names. */
@@ -117,6 +119,43 @@
       if (window.console) console.warn('[plate]', e.message);
     });
     return true;
+  }
+
+  /* --- keeping the mountain centred ----------------------------------------
+     The drawing leaves room on its right for the altitude ruler. When the
+     plate is too small for the ruler (plate-enhance.js hides the label layer)
+     that room stood empty and the block sat left of centre. So the viewBox is
+     slid sideways until whatever is showing is centred: the block alone, or
+     the block and its ruler. Measured once per drawing, while every layer is
+     still on. */
+  function bboxX(g) {
+    try { var b = g.getBBox(); return b.width ? [b.x, b.x + b.width] : null; } catch (e) { return null; }
+  }
+  function union(a, b) {
+    if (!a) return b;
+    if (!b) return a;
+    return [Math.min(a[0], b[0]), Math.max(a[1], b[1])];
+  }
+  function measure(h) {
+    var block = union(bboxX(h.querySelector('#Ground')), bboxX(h.querySelector('#Faces')));
+    var lab = h.querySelector('#Labels');
+    window.MRI_PLATE.extent = { block: block, labels: union(block, lab ? bboxX(lab) : null) };
+    /* the sky runs on past both edges, so a slide never uncovers a bare edge */
+    var sky = h.querySelector('#Sky rect');
+    if (sky) { sky.setAttribute('x', String(-AW)); sky.setAttribute('width', String(3 * AW)); }
+  }
+  function centre() {
+    var h = document.querySelector('svg[data-mri-plate="done"]');
+    var ext = window.MRI_PLATE.extent;
+    if (!h || !ext || !ext.block) return;
+    var lab = h.querySelector('#Labels');
+    /* the labels are grown to stay legible on a wide plate, so when they show
+       they are measured as they are now, not as drawn */
+    var showing = lab && lab.style.display !== 'none' ? (union(ext.block, bboxX(lab)) || ext.labels) : ext.block;
+    var x0 = Math.round(((showing[0] + showing[1]) / 2 - AW / 2) * 10) / 10;
+    var vb = x0 + ' 0 ' + AW + ' ' + AH;
+    window.MRI_PLATE.viewBox = vb;
+    if (h.getAttribute('viewBox') !== vb) h.setAttribute('viewBox', vb);
   }
 
   /* --- putting the numbers where the terrain is ----------------------------
@@ -132,9 +171,9 @@
     if (!plate || !h) return;
     var box = h.getBoundingClientRect();
     if (!box.width || !box.height) return;
-    var vb = plate.viewBox.split(' ').map(Number), VW = vb[2], VH = vb[3];
+    var vb = plate.viewBox.split(' ').map(Number), VX = vb[0], VY = vb[1], VW = vb[2], VH = vb[3];
     var scale = Math.max(box.width / VW, box.height / VH);
-    var ox = (box.width - VW * scale) / 2, oy = (box.height - VH * scale) / 2;
+    var ox = (box.width - VW * scale) / 2 - VX * scale, oy = (box.height - VH * scale) / 2 - VY * scale;
     var placed = [];
     document.querySelectorAll('button').forEach(function (btn) {
       if (!/border-radius:\s*50%/.test(btn.getAttribute('style') || '')) return;
@@ -201,6 +240,7 @@
     if (applying) return;
     applying = true;
     try { dressFrame(); } catch (e) { /* frame gone */ }
+    try { centre(); } catch (e) { /* drawing not measured yet */ }
     try { placeMarkers(); } catch (e) { /* markers not rendered yet */ }
     applying = false;
   }
@@ -313,10 +353,16 @@
     '.mri-tile figcaption b { font: 600 12px/1 "IBM Plex Mono", monospace; opacity: .85; }',
     '.mri-tile:focus-visible { outline: 3px solid var(--mri-accent); outline-offset: 3px; }',
     '.mri-index [data-soon] img { filter: grayscale(.55); }',
-    '.mri-index [data-off] { opacity: .32; }',
+    /* a theme leaves out the stories it does not touch, rather than fading them */
+    '.mri-index li:has(> [data-off]), .mri-index [data-off] { display: none; }',
     '@media (max-width: 900px) {',
     '  [data-mri-marker] { display: none !important; }',
     '  .mri-index ol { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }',
+    '}',
+    /* on a phone the mountain is too small to read, so the stories go
+       straight to the gallery — adjust the width below which it is left out here */
+    '@media (max-width: 600px) {',
+    '  div:has(> svg[data-mri-plate]) { display: none !important; }',
     '}'
   ].join('\n');
   document.head.appendChild(css);
@@ -420,6 +466,8 @@
         t.style.fontSize = Math.max(parseFloat(base), want) + 'px';
       });
     });
+    /* the ruler came, went or grew: re-centre the mountain on what is showing */
+    if (window.MRI_PLATE && window.MRI_PLATE.relayout) window.MRI_PLATE.relayout();
   }
 
   function luminance(c) {
@@ -762,6 +810,12 @@
     document.addEventListener('click', function (e) {
       var c = e.target && e.target.closest && e.target.closest('button[data-dc-tpl]');
       if (!c || !/gap:\s*7px/.test(c.getAttribute('style') || '')) return;
+      /* going back to "All" only restyles the markers — nothing is added or
+         removed, so the observer never fires — and the gallery kept its
+         hidden stories. Tell it directly, once the page has re-rendered. */
+      [60, 260].forEach(function (d) {
+        setTimeout(function () { try { syncIndexToFilter(); } catch (e) {} }, d);
+      });
       setTimeout(function () {
         var said = null;
         var all = document.querySelectorAll('p, div, span');
