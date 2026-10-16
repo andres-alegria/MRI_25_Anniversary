@@ -148,6 +148,12 @@ js = '''/* ---------------------------------------------------------------------
   function centre() {
     var h = document.querySelector('svg[data-mri-plate="done"]');
     var ext = window.MRI_PLATE.extent;
+    /* a page opened narrow has its mountain hidden, and a hidden drawing
+       measures as nothing: measure it the first time it shows */
+    if (h && (!ext || !ext.block) && h.getBoundingClientRect().width) {
+      measure(h);
+      ext = window.MRI_PLATE.extent;
+    }
     if (!h || !ext || !ext.block) return;
     var lab = h.querySelector('#Labels');
     /* the labels are grown to stay legible on a wide plate, so when they show

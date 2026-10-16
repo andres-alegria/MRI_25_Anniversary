@@ -147,6 +147,12 @@
   function centre() {
     var h = document.querySelector('svg[data-mri-plate="done"]');
     var ext = window.MRI_PLATE.extent;
+    /* a page opened narrow has its mountain hidden, and a hidden drawing
+       measures as nothing: measure it the first time it shows */
+    if (h && (!ext || !ext.block) && h.getBoundingClientRect().width) {
+      measure(h);
+      ext = window.MRI_PLATE.extent;
+    }
     if (!h || !ext || !ext.block) return;
     var lab = h.querySelector('#Labels');
     /* the labels are grown to stay legible on a wide plate, so when they show
@@ -319,6 +325,12 @@
     document.head.appendChild(m);
   });
 
+  /* Below this width the numbered stations are too close together to pick,
+     so they go, and the mountain goes with them: the stories are reached
+     through the gallery, and the instructions say so — adjust the width here */
+  var NARROW = 900;
+  var NARROW_MQ = '(max-width: ' + NARROW + 'px)';
+
   /* --- styles: focus clear of the sticky header, a dimmed state that keeps
          its contrast, the index, and touch-sized stations on a phone ------ */
   var css = document.createElement('style');
@@ -355,14 +367,10 @@
     '.mri-index [data-soon] img { filter: grayscale(.55); }',
     /* a theme leaves out the stories it does not touch, rather than fading them */
     '.mri-index li:has(> [data-off]), .mri-index [data-off] { display: none; }',
-    '@media (max-width: 900px) {',
+    '@media ' + NARROW_MQ + ' {',
     '  [data-mri-marker] { display: none !important; }',
-    '  .mri-index ol { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }',
-    '}',
-    /* on a phone the mountain is too small to read, so the stories go
-       straight to the gallery — adjust the width below which it is left out here */
-    '@media (max-width: 600px) {',
     '  div:has(> svg[data-mri-plate]) { display: none !important; }',
+    '  .mri-index ol { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }',
     '}'
   ].join('\n');
   document.head.appendChild(css);
@@ -905,7 +913,7 @@
      'All 25 stories are listed below. Choose a theme to narrow the list.']
   ];
   function copyForWidth() {
-    var narrow = window.innerWidth < 900;
+    var narrow = window.matchMedia ? window.matchMedia(NARROW_MQ).matches : window.innerWidth <= NARROW;
     var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
     var n;
     while ((n = walker.nextNode())) {
