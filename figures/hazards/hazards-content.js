@@ -83,8 +83,8 @@ const HAZARDS_CONTENT = {
 
   footer: {
     source: 'Data: IPCC AR6 (Adler et al. 2022), Gridded ' +
-            'Population of the World v4.11 (2018), USGS Global Mountain Explorer ' +
-            '(Kapos et al. 2000), Taylor et al. (2023) and Yao et al. (2022).'
+            'Population of the World v4.11 (2018), GMBA Mountain Inventory (2022), ' +
+            'Taylor et al. (2023) and Yao et al. (2022).'
   }
 };
 

@@ -59,9 +59,7 @@
       dir: 'figures/hazards/',
       css: ['hazards.css'],
       js: ['hazards-content.js', 'hazards-data.js', 'hazards-geo.js', 'hazards.js'],
-      draw: function (el) {
-        window.MRIHazards.mount(el, { texture: 'figures/hazards/hazards-map.png' + V });
-      }
+      draw: function (el) { window.MRIHazards.mount(el); }
     }
   ];
 
