@@ -19,7 +19,7 @@ const TIMELINE_CONTENT = {
     L1: 'Mountain-specific',
     L2: 'Potentially mountain-relevant',
     milestones: 'milestones: resolutions, decisions and assessments',
-    unit: 'Each block is one new multilateral environmental agreement, by the year it was concluded. Coloured blocks on top mark that year\'s other milestones.'
+    unit: 'Each block is one new multilateral environmental agreement or milestone, by the year it was concluded.'
   },
 
   keys: {                    // graphic_key -> legend text; unknown keys show as they are
