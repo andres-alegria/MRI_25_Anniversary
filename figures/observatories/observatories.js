@@ -1,7 +1,7 @@
 /* ---------------------------------------------------------------------------
    Mountain observatories figure
    Canvas dot map of the GEO Mountains In Situ Inventory v3.0 (157k records),
-   Equal Earth, pre-projected and quantized at build time (build_data.py).
+   Robinson, pre-projected and quantized at build time (build_data.py).
    Vanilla JS, no dependencies. Draws synchronously (no rAF loops).
 
    window.MRIObservatories.mount(el) -> renders the figure into el.
