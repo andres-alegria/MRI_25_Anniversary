@@ -6,6 +6,7 @@
      [data-mri-globe]          the turning mountain globe beside the introduction
      [data-mri-timeline]       the policy timeline among the summary figures
      [data-mri-observatories]  the monitoring-stations dot map, same place
+     [data-mri-hazards]        the populations & hazards risk map, same place
 
    Each figure is a self-contained folder in figures/ (code, styles, words,
    data), the same files as its working copy outside the repo. Nothing there
@@ -20,7 +21,7 @@
    removes the timeline's host and later draws a fresh one — so each figure
    is built once and moved into whichever host is on the page. Like
    motion.js, this file sits outside the bundle: delete it and the page
-   still works, without the two figures.
+   still works, without the live figures.
 --------------------------------------------------------------------------- */
 (function () {
   'use strict';
@@ -52,6 +53,15 @@
       css: ['observatories.css'],
       js: ['observatories-content.js', 'observatories-data.js', 'observatories.js'],
       draw: function (el) { window.MRIObservatories.mount(el); }
+    },
+    {
+      host: '[data-mri-hazards]',
+      dir: 'figures/hazards/',
+      css: ['hazards.css'],
+      js: ['hazards-content.js', 'hazards-data.js', 'hazards-geo.js', 'hazards.js'],
+      draw: function (el) {
+        window.MRIHazards.mount(el, { texture: 'figures/hazards/hazards-map.png' + V });
+      }
     }
   ];
 

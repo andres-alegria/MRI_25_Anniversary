@@ -884,6 +884,9 @@ __THEMES__
   /* the observatories dot map gets the same treatment as the timeline */
   [data-mri-observatories] .mob { --mob-font: Inter, system-ui, sans-serif; }
   [data-mri-observatories] .mob-chip { font-size: 12px; padding: 5px 11px; }
+  /* and so does the populations & hazards map */
+  [data-mri-hazards] .mhz { --mhz-font: Inter, system-ui, sans-serif; }
+  [data-mri-hazards] .mhz-chip { font-size: 12px; padding: 5px 11px; }
 
   /* the navigation is right-aligned, so it has to yield the corner */
   header nav { padding-right: 104px; }
@@ -1080,7 +1083,7 @@ def patch_template(doc: str) -> str:
            + asset('motion.js')
            # embeds.js loads the two live figures itself, after the page has
            # drawn; its tag also covers their folders (see asset())
-           + asset('embeds.js', also=('figures/globe', 'figures/timeline', 'figures/observatories'))
+           + asset('embeds.js', also=('figures/globe', 'figures/timeline', 'figures/observatories', 'figures/hazards'))
            + THEME_TOGGLE
            + TOP_BAR
            + doc[i:])

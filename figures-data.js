@@ -18,7 +18,7 @@
      alt       description for screen readers — say what the figure shows,
                not that it is a figure
      embed     instead of src/alt: the name of a live figure drawn by
-               embeds.js (only 'timeline' so far, from figures/timeline/)
+               embeds.js ('timeline', 'observatories', 'hazards')
      caption   sits under the figure; should tell a small story of its own
                rather than repeating the title. Leave empty for none.
 --------------------------------------------------------------------------- */
@@ -43,10 +43,13 @@ const FIGURES = [
   {
     id: 'populations',
     title: 'Populations & Hazards',
-    subtitle: 'Who lives in the world’s mountains, and what threatens them',
-    src: 'figures/populations-hazards.jpg',
-    alt: 'Placeholder image for the global populations and hazards figure.',
-    caption: 'Mountain populations set against the hazards they are exposed to, worldwide — and the water relationships that carry both risk and supply downstream.'
+    subtitle: 'Living with risk in the world’s mountains',
+    intro: 'In 2015, 1.28 billion people lived in mountain regions. As the climate warms, ' +
+           'the risks they face from hazards such as landslides, floods and changing water ' +
+           'resources rise with it — fastest across Asia, the Andes and the African ' +
+           'highlands, where mountain populations keep growing.',
+    embed: 'hazards',
+    caption: ''
   },
   {
     id: 'glaciers',
