@@ -1,17 +1,18 @@
 /* ---------------------------------------------------------------------------
-   MRI 25th Anniversary — the two live figures
+   MRI 25th Anniversary — the live figures
    ---------------------------------------------------------------------------
    Draws the interactive figures into the empty hosts the page renders:
 
-     [data-mri-globe]     the turning mountain globe beside the introduction
-     [data-mri-timeline]  the policy timeline among the summary figures
+     [data-mri-globe]          the turning mountain globe beside the introduction
+     [data-mri-timeline]       the policy timeline among the summary figures
+     [data-mri-observatories]  the monitoring-stations dot map, same place
 
    Each figure is a self-contained folder in figures/ (code, styles, words,
    data), the same files as its working copy outside the repo. Nothing there
    knows about this page; this file is the only link.
 
    The figures load after the page has drawn, so they never hold it up. The
-   page asks for this file as embeds.js?v=<hash of it and both folders>, and
+   page asks for this file as embeds.js?v=<hash of it and the folders>, and
    that tag is passed on to every file loaded here, so a change to any of
    them reaches readers rather than a stale cached copy.
 
@@ -44,6 +45,13 @@
       css: ['timeline.css'],
       js: ['timeline-content.js', 'timeline-data.js', 'timeline.js'],
       draw: function (el) { window.MRITimeline.mount(el); }
+    },
+    {
+      host: '[data-mri-observatories]',
+      dir: 'figures/observatories/',
+      css: ['observatories.css'],
+      js: ['observatories-content.js', 'observatories-data.js', 'observatories.js'],
+      draw: function (el) { window.MRIObservatories.mount(el); }
     }
   ];
 
@@ -79,6 +87,12 @@
   }
 
   function place() {
+    /* if a slot was reused for a different figure (its data attribute
+       changed under us), pull the old figure out before placing anything */
+    FIGURES.forEach(function (f) {
+      var h = f.el && f.el.parentNode;
+      if (h && h.matches && !h.matches(f.host)) h.removeChild(f.el);
+    });
     FIGURES.forEach(function (f) {
       var host = hostOf(f);
       if (!host) return;

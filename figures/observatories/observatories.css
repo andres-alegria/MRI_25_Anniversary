@@ -1,0 +1,189 @@
+/* ---------------------------------------------------------------------------
+   Mountain observatories figure - styles
+   Colours come from the anniversary site's tokens (--mri-*), so the figure
+   follows its light/dark theme. Fallbacks are the site's dark values.
+--------------------------------------------------------------------------- */
+
+.mob {
+  /* adjust theme colours here (one per observation theme; dark values) */
+  --mob-wx:   #E3C567;   /* weather & climate */
+  --mob-cryo: #8CCCE4;   /* snow, ice & permafrost (kept below white so dense clusters stay cyan) */
+  --mob-hyd:  var(--mri-accent, #4FA3D9);  /* rivers, lakes & soils */
+  --mob-eco:  #7FB06B;   /* ecosystems & biodiversity */
+  --mob-atm:  #B58CC8;   /* atmosphere & carbon */
+  --mob-obs:  #F4ECE2;   /* multi-domain observatories (drawn last, ringed) */
+  --mob-elevbar: #3E5F7E;  /* neutral elevation bars (all-records state); literal because the
+                              anniversary site's plate redefines --mri-marker-dim at runtime */
+  /* adjust basemap colours here (neutral greys so base layers read apart from data) */
+  --mob-land: #0E2F4A;                        /* land fill on the dark panel */
+  --mob-gmba-fill: rgba(147, 169, 188, 0.10); /* dissolved mountain-area fill (no outline) */
+  --mob-gmba-line: rgba(147, 169, 188, 0.30); /* only the layer-toggle swatch uses this */
+  --mob-sphere: #0A2238;                      /* globe interior (oceans) */
+
+  --mob-text:    var(--mri-text, #DCE8F1);
+  --mob-dim:     var(--mri-text-dim, #93A9BC);
+  --mob-line:    var(--mri-line, #12395C);
+  --mob-surface: var(--mri-panel, #0B2740);
+  /* adjust fonts here */
+  --mob-font: 'Jost', system-ui, sans-serif;
+  font-family: var(--mob-font);
+  color: var(--mob-text);
+  position: relative;
+}
+
+:root[data-theme="light"] .mob {              /* adjust light-theme colours here */
+  --mob-wx:   #c08f00;
+  --mob-cryo: #2E9FC4;
+  --mob-hyd:  var(--mri-accent, #0067b2);
+  --mob-eco:  #4e8a3d;
+  --mob-atm:  #8a5fa8;
+  --mob-obs:  #2b2721;
+  --mob-elevbar: #b3b3aa;
+  --mob-land: #efeee9;
+  --mob-gmba-fill: rgba(95, 95, 88, 0.08);
+  --mob-gmba-line: rgba(95, 95, 88, 0.25);
+  --mob-sphere: #f7f6f2;
+}
+
+/* ---- controls row ---- */
+.mob-controls {
+  display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center;
+  margin: 0 0 12px;                           /* adjust spacing under the controls */
+}
+.mob-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  font: 500 13px/1 var(--mob-font);           /* adjust chip font size here */
+  letter-spacing: 0.01em;
+  padding: 7px 12px; border-radius: 999px;
+  border: 1px solid var(--mob-line); background: transparent; color: var(--mob-dim);
+  cursor: pointer; transition: background .15s, color .15s, border-color .15s;
+}
+.mob-chip:hover { color: var(--mob-text); }
+.mob-chip[aria-pressed="true"] {              /* same treatment as the site's figure switcher */
+  background: var(--mob-text); color: var(--mob-surface); border-color: var(--mob-text); font-weight: 600;
+}
+.mob-chip:focus-visible { outline: 2px solid var(--mob-hyd); outline-offset: 2px; }
+.mob-chip .n { font-weight: 400; opacity: .75; font-variant-numeric: tabular-nums; }
+.mob-chipnote {                                 /* note under the chip legend */
+  font-size: 11.5px; color: var(--mob-dim);     /* adjust note size here */
+  margin: -4px 0 10px 2px;
+}
+.mob-chip[aria-pressed="true"] .n { opacity: .85; }
+.mob-swatch { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: 0 0 9px; }
+
+/* ---- map ---- */
+.mob-map { position: relative; }
+.mob-map canvas { display: block; width: 100%; border-radius: 6px; }
+.mob-map canvas.is-pannable { cursor: grab; }
+.mob-map canvas.is-panning  { cursor: grabbing; }
+
+.mob-zoom {                                   /* adjust zoom-button placement here */
+  position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 6px;
+}
+.mob-zoom button {
+  width: 28px; height: 28px; border-radius: 6px;
+  border: 1px solid var(--mob-line); background: var(--mob-surface); color: var(--mob-text);
+  font: 500 15px/1 var(--mob-font); cursor: pointer;
+}
+.mob-zoom button:hover { border-color: var(--mob-dim); }
+.mob-zoom button:focus-visible { outline: 2px solid var(--mob-hyd); outline-offset: 2px; }
+.mob-zoom .reset { font-size: 11px; display: none; }
+.mob-zoom.is-zoomed .reset { display: block; }
+
+.mob-note {                                   /* isolation / hint banner over the map */
+  position: absolute; left: 10px; top: 10px; max-width: 70%;
+  font-size: 12px; color: var(--mob-text);
+  background: var(--mob-surface); border: 1px solid var(--mob-line);
+  border-radius: 6px; padding: 6px 10px;
+}
+.mob-note[hidden] { display: none; }
+.mob-note button {
+  margin-left: 8px; border: none; background: none; color: var(--mob-dim);
+  font: inherit; cursor: pointer; text-decoration: underline; padding: 0;
+}
+
+/* ---- GMBA layer toggle (a layer control, deliberately unlike the filter chips) ---- */
+.mob-layer {
+  position: absolute; left: 10px; bottom: 10px;  /* adjust layer-toggle placement here */
+  display: inline-flex; align-items: center; gap: 7px;
+  font: 500 12px/1 var(--mob-font); padding: 6px 10px; border-radius: 999px;
+  border: 1px solid var(--mob-line); background: var(--mob-surface); color: var(--mob-text);
+  cursor: pointer;
+}
+.mob-layer .sw { width: 10px; height: 10px; border-radius: 2px; background: var(--mob-gmba-line); }
+.mob-layer[aria-pressed="false"] { color: var(--mob-dim); }
+.mob-layer[aria-pressed="false"] .sw { background: transparent; box-shadow: inset 0 0 0 1.5px var(--mob-line); }
+.mob-layer:focus-visible { outline: 2px solid var(--mob-hyd); outline-offset: 2px; }
+
+/* ---- tooltip ---- */
+.mob-tip {
+  position: absolute; z-index: 5; pointer-events: none;
+  max-width: 280px; padding: 10px 12px;
+  background: var(--mob-surface); color: var(--mob-text);
+  border: 1px solid var(--mob-line); border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .18);
+  font-size: 13px; line-height: 1.35;         /* adjust tooltip text size */
+}
+.mob-tip[hidden] { display: none; }
+.mob-tip .h { font-weight: 600; font-size: 13.5px; margin: 0 0 4px; font-variant-numeric: tabular-nums; }
+.mob-tip .row { display: flex; gap: 7px; align-items: baseline; margin: 3px 0; color: var(--mob-dim); }
+.mob-tip .row b { color: var(--mob-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.mob-tip .key { flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; align-self: center; }
+.mob-tip .more { color: var(--mob-dim); font-size: 12px; margin-top: 3px; }
+
+/* ---- collapsible panels ---- */
+.mob-panel { margin-top: 12px; font-size: 13px; border-top: 1px solid var(--mob-line); padding-top: 10px; }
+.mob-panel summary { cursor: pointer; color: var(--mob-text); font-weight: 500; }
+.mob-panel summary::marker { color: var(--mob-dim); }
+.mob-panel .hint { color: var(--mob-dim); font-size: 12px; margin: 8px 0 6px; }
+
+/* networks list */
+.mob-nets { margin: 6px 0 0; padding: 0; list-style: none; }
+.mob-nets li { margin: 0; }
+.mob-net {
+  display: grid; grid-template-columns: 11px minmax(120px, 220px) 1fr 64px;
+  gap: 8px; align-items: center; width: 100%;
+  padding: 3px 4px; border: none; background: none; color: var(--mob-dim);
+  font: 400 12.5px/1.4 var(--mob-font); text-align: left; cursor: pointer; border-radius: 4px;
+}
+.mob-net:hover { background: color-mix(in srgb, var(--mob-line) 35%, transparent); color: var(--mob-text); }
+.mob-net[aria-pressed="true"] { background: color-mix(in srgb, var(--mob-line) 60%, transparent); color: var(--mob-text); font-weight: 600; }
+.mob-net .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mob-net .bar { height: 7px; border-radius: 2px; min-width: 2px; }   /* adjust network bar height here */
+.mob-net .count { text-align: right; font-variant-numeric: tabular-nums; }
+.mob-more {
+  margin: 8px 0 0 4px; border: none; background: none; color: var(--mob-dim);
+  font: 500 12.5px var(--mob-font); cursor: pointer; text-decoration: underline; padding: 0;
+}
+
+/* elevation chart (rows are band-filter toggles) */
+.mob-elev svg { display: block; width: 100%; overflow: visible; margin-top: 8px; }
+.mob-elev g[data-band] { cursor: pointer; outline: none; }
+.mob-elev g[data-band] .hit { fill: transparent; }
+.mob-elev g[data-band]:hover text { fill: var(--mob-text); }
+.mob-elev g.dim { opacity: .35; }               /* adjust unselected-band dimming here */
+.mob-elev g.on .band-label { fill: var(--mob-text); font-weight: 600; }
+.mob-elev g[data-band]:focus-visible .hit { stroke: var(--mob-hyd); stroke-width: 1.5; }
+.mob-elev .unknown button {
+  border: none; background: none; padding: 0; color: inherit; font: inherit;
+  cursor: pointer; text-decoration: underline dotted;
+}
+.mob-elev .unknown button[aria-pressed="true"] { color: var(--mob-text); text-decoration-style: solid; font-weight: 600; }
+.mob-elev text { font-family: var(--mob-font); fill: var(--mob-dim); font-size: 11px; }  /* adjust axis label size */
+.mob-elev .band-label { font-variant-numeric: tabular-nums; }
+.mob-elev .total { fill: var(--mob-dim); font-variant-numeric: tabular-nums; }
+.mob-elev .unknown { color: var(--mob-dim); font-size: 12px; margin: 6px 0 0; }
+
+/* about panel */
+.mob-about p { line-height: 1.5; color: var(--mob-text); margin: 8px 0; font-size: 13.5px; }  /* full width; add a max-width here to narrow it */
+.mob-about .vars { color: var(--mob-dim); font-size: 12.5px; margin: 10px 0 0; }
+.mob-about .vars span { white-space: nowrap; }
+
+/* source line */
+.mob-source { margin: 12px 0 0; font-size: 11.5px; color: var(--mob-dim); line-height: 1.45; }
+
+@media (max-width: 560px) {
+  .mob-net { grid-template-columns: 11px minmax(100px, 1fr) 56px; }
+  .mob-net .bar { display: none; }            /* bars drop out on narrow screens */
+  .mob-note { max-width: 58%; }
+}

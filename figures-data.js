@@ -35,10 +35,10 @@ const FIGURES = [
   {
     id: 'observatories',
     title: 'Observatories & ECVs',
-    subtitle: 'Measuring the mountain cryosphere',
-    src: 'figures/observatories-ecvs.jpg',
-    alt: 'Placeholder image for the observatories and Essential Climate Variables figure.',
-    caption: 'The network of high-elevation observatories, and the Essential Climate Variables they record. Coverage thins with altitude — which is precisely where change is fastest.'
+    subtitle: 'Observing the world’s mountains',
+    intro: 'Each dot is a record of sustained monitoring in the world’s mountains — a weather station, stream gauge, glacier stake or vegetation plot in the GEO Mountains In Situ Inventory. A coordinated network of observatories allows us to monitor and compare global changes in mountains comparable from range to range.',
+    embed: 'observatories',
+    caption: ''
   },
   {
     id: 'populations',

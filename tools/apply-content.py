@@ -181,7 +181,8 @@ REPLACEMENTS = [
         "      authorLine: _authors,\n      quote: _quote,\n"
         "      hasQuote: !!_quote,\n      storyTopic: openStory ? (openStory.topic || '') : '',\n"
         "      figChips: _figChips,\n"
-        "      figImg: !_fcur ? null : _fcur.embed ? React.createElement('div', _fhost)\n"
+        "      figImg: !_fcur ? null : _fcur.embed\n"
+        "        ? React.createElement('div', Object.assign({ key: 'fig-' + _fcur.id }, _fhost))\n"
         "        : React.createElement('img', {\n"
         "        src: _fcur.src, alt: _fcur.alt,\n"
         "        style: { position: 'absolute', inset: 0, width: '100%', height: '100%',\n"
@@ -880,6 +881,9 @@ __THEMES__
   /* the timeline's own range switch sits under the figure chips, so it is a
      size smaller and reads as part of the figure. Adjust it here. */
   [data-mri-timeline] .mtl-chip { font-size: 12px; padding: 5px 11px; }
+  /* the observatories dot map gets the same treatment as the timeline */
+  [data-mri-observatories] .mob { --mob-font: Inter, system-ui, sans-serif; }
+  [data-mri-observatories] .mob-chip { font-size: 12px; padding: 5px 11px; }
 
   /* the navigation is right-aligned, so it has to yield the corner */
   header nav { padding-right: 104px; }
@@ -1076,7 +1080,7 @@ def patch_template(doc: str) -> str:
            + asset('motion.js')
            # embeds.js loads the two live figures itself, after the page has
            # drawn; its tag also covers their folders (see asset())
-           + asset('embeds.js', also=('figures/globe', 'figures/timeline'))
+           + asset('embeds.js', also=('figures/globe', 'figures/timeline', 'figures/observatories'))
            + THEME_TOGGLE
            + TOP_BAR
            + doc[i:])
