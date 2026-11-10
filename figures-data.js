@@ -26,7 +26,7 @@ const FIGURES = [
   {
     id: 'policy',
     title: 'Policy Process',
-    subtitle: 'Mountains in global policy processes through time',
+    subtitle: 'Mountains in global policy through time',
     embed: 'timeline',
     caption: ''
   },
