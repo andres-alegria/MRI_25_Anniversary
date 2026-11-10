@@ -143,6 +143,11 @@ FIGURES_SECTION = """
     <!-- The figure's title sits on top, plain, so the frame holds only the
          figure. Adjust its size here. -->
     <h3 style="margin:0 0 12px;font:600 19px/1.3 'Source Serif 4',Georgia,serif;color:#2b2721;text-wrap:balance">{{ figSubtitle }}</h3>
+    <!-- a short introduction under the title, when the figure has one
+         (figures-data.js `intro`). Adjust its size and measure here. -->
+    <sc-if value="{{ figHasIntro }}" hint-placeholder-val="{{ true }}">
+      <div style="margin:-4px 0 18px;max-width:68ch;font:400 15px/1.6 'Source Serif 4',Georgia,serif;color:#55503f;text-wrap:pretty">{{ figIntro }}</div>
+    </sc-if>
 
     <!-- Same hairline as an unselected chip, so the frame recedes and the
          figure carries itself. Images keep a 16:9 frame; a live figure sets
@@ -185,6 +190,8 @@ REPLACEMENTS = [
         "      figAspect: _fcur && _fcur.embed ? 'auto' : '16/9',\n"
         "      figPad: _fcur && _fcur.embed ? 'clamp(14px,2.4vw,26px)' : '0',\n"
         "      figSubtitle: _fcur ? _fcur.subtitle : '',\n"
+        "      figIntro: _fcur ? (_fcur.intro || '') : '',\n"
+        "      figHasIntro: !!(_fcur && _fcur.intro),\n"
         "      figCaption: _fcur ? _fcur.caption : '',\n"
         "      figHasCaption: !!(_fcur && _fcur.caption),\n"
         "      figEyebrow: _fg.FIGURES_EYEBROW || '',\n"

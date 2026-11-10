@@ -13,6 +13,7 @@
      id        short slug, used only as a key
      title     label on the switcher rail; keep it short, it has to fit
      subtitle  the figure's title, one line above it while it is showing
+     intro     optional: two or three sentences under the title presenting the figure
      src       path to the image, 16:9, relative to index.html
      alt       description for screen readers — say what the figure shows,
                not that it is a figure
@@ -27,6 +28,7 @@ const FIGURES = [
     id: 'policy',
     title: 'Policy Process',
     subtitle: 'Mountains in global policy through time',
+    intro: 'Since the Alpine Convention of 1991, mountains have found a growing place in global environmental policy: 24 agreements have been written specifically for them, 10 in the past 25 years alone. Hover over a year to see what was agreed, or open the panels below the chart for the mountain-specific agreements by family.',
     embed: 'timeline',
     caption: ''
   },
