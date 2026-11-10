@@ -93,9 +93,7 @@ const TIMELINE_CONTENT = {
   },
 
   tableSummary: 'All mountain-specific agreements',
-  source: 'Data: agreements and their mountain relevance from GEO Mountains (2026), based on the IEA Database ' +
-          '(iea.ulaval.ca; Mitchell et al. 2020) as of October 2024; agreements added to the database since, from its ' +
-          'June 2026 export, classified with the same rules. ' +
+  source: 'Data: Agreements from GEO Mountains (2026) and IEA Database (Mitchell et al. 2020). ' +
           'Milestones compiled from IPCC, UN General Assembly, UNFCCC, CBD, UN Statistics Division and WMO documents.'
 };
 
