@@ -47,8 +47,7 @@ const TIMELINE_CONTENT = {
     { label: 'Carpathian Convention and protocols', ids: ['4356', '4874', '4872', '4873', '5029', '8902', '8903'] },
     { label: 'Central Asia framework convention',   ids: ['4542'] },
     { label: 'East African Community protocol',     ids: ['4701'] },
-    { label: 'Prespa Park',                         ids: ['4972'] },
-    { label: 'Mount Nimba',                         ids: ['9697'] }
+    { label: 'Prespa Park',                         ids: ['4972'] }
   ],
 
   short: {
@@ -76,13 +75,10 @@ const TIMELINE_CONTENT = {
     '8903': 'Carpathian Convention: climate change amendment',
     '4542': 'Central Asia Framework Convention on Environmental Protection',
     '4701': 'EAC Protocol on Environment and Natural Resources',
-    '4972': 'Prespa Park Agreement',
-    '9697': 'Mount Nimba trinational conservation agreement'
+    '4972': 'Prespa Park Agreement'
   },
 
-  notes: {
-    '9697': 'Added to the IEA Database after the GEO Mountains list; mountain-specific by its title ("monts Nimba").'
-  },
+  notes: {},
 
   tooltip: {
     concluded: 'Concluded',
@@ -93,8 +89,9 @@ const TIMELINE_CONTENT = {
   },
 
   tableSummary: 'All mountain-specific agreements',
-  source: 'Data: IEA Database (iea.ulaval.ca; Mitchell et al. 2020), June 2026 export. ' +
-          'Mountain relevance after GEO Mountains (2026), re-applied to the current database. ' +
+  source: 'Data: agreements and their mountain relevance from GEO Mountains (2026), based on the IEA Database ' +
+          '(iea.ulaval.ca; Mitchell et al. 2020) as of October 2024; agreements concluded since then from its June 2026 ' +
+          'export, classified with the same rules. ' +
           'Milestones compiled from IPCC, UN General Assembly, UNFCCC, CBD, UN Statistics Division and WMO documents.'
 };
 
