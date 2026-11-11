@@ -14,6 +14,7 @@
      title     label on the switcher rail; keep it short, it has to fit
      subtitle  the figure's title, one line above it while it is showing
      intro     optional: two or three sentences under the title presenting the figure
+     introWidth optional: a wider or narrower measure for the intro (default '68ch')
      src       path to the image, 16:9, relative to index.html
      alt       description for screen readers — say what the figure shows,
                not that it is a figure
@@ -37,6 +38,7 @@ const FIGURES = [
     title: 'Observatories & ECVs',
     subtitle: 'Observing the world’s mountains',
     intro: 'Each dot is a record of sustained monitoring in the world’s mountains — a weather station, stream gauge, glacier stake or vegetation plot in the GEO Mountains In Situ Inventory. A coordinated network of observatories allows us to monitor and compare global changes in mountains comparable from range to range.',
+    introWidth: '86ch',                 // so the intro sets in three lines, like Figures 1 and 3
     embed: 'observatories',
     caption: ''
   },
