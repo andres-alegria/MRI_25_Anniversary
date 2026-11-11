@@ -66,8 +66,8 @@ const GLACIERS_CONTENT = {
     keyGt:   '{gt} Gt',
     keySub1: 'lost since 1976',
     gains:   ['Seven years of modest gains —', 'the last in 1992'],   // yearly view only
-    // annual view; {gt} computed
-    record:  '2023: {gt} Gt, the largest loss in the record'
+    // annual view
+    record:  '2023 was the largest loss in the record'
   },
 
   tooltip: {
@@ -143,8 +143,13 @@ const GLACIERS_CONTENT = {
   // given per year only, so none are shown for regional period totals; mean
   // thinning uses each year's glacier area, so it differs slightly from mass
   // change divided by the 2025 area.
-  source: 'Data: WGMS Annual Mass-Change Estimates (2026), Dussaillant et al. (2025) ' +
-          'and The WGMS Network (2026).'
+  //   The GlaMBIE Team (2025): Community estimate of global glacier mass changes
+  //     from 2000 to 2023. Nature 639: 382-388. doi:10.1038/s41586-024-08545-z -
+  //     the deck's "about 5% globally, up to 39% regionally" (ice lost since 2000,
+  //     against regional mass in 2000); its 2000-2023 rates agree with WGMS
+  //     (-273 +/- 16 vs -283 Gt/yr).
+  source: 'Data: WGMS Annual Mass-Change Estimates (2026), Dussaillant et al. (2025), ' +
+          'The WGMS Network (2026) and GlaMBIE (2025).'
 };
 
 window.MRI_GLACIERS_CONTENT = GLACIERS_CONTENT;

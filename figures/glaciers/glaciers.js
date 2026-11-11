@@ -610,15 +610,17 @@
           'text-anchor': 'end' }, s);
         lab.textContent = fill(C.annotations.record, { gt: fmt(record.gt, 0) });
       }
-      // the handful of gain years, hollow bars: noted under the early bars of the
-      // yearly view, its leader dropping from the last of them (1992)
+      // the handful of gain years, hollow bars: noted above the early bars of the
+      // yearly view, its leader dropping to the last of them (1992)
       if (!cum && !narrow) {
         const lastGain = G.filter(d => d.gt > 0).pop();
         const lx = x(lastGain.year);
-        const labY = plotBot - plotH * 0.3;                            // adjust position here
+        const labY = GEO.padT + 14;                                    // in the room above the plot (adjust here)
         C.annotations.gains.forEach((line, k) =>
           svg('text', { class: 'ann', x: lx + 8, y: labY + k * 15, 'text-anchor': 'end' }, s).textContent = line);
-        svg('line', { class: 'ann-leader', x1: lx, x2: lx, y1: y(0) + 6, y2: labY - 12 }, s);
+        // leader from under the note down to just above 1992's whisker
+        svg('line', { class: 'ann-leader', x1: lx, x2: lx, y1: labY + 15 + 6,
+          y2: y(lastGain.gt + lastGain.sigma) - 3 }, s);
       }
 
       // year axis

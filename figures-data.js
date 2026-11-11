@@ -57,7 +57,8 @@ const FIGURES = [
     subtitle: 'Our cryosphere in decline',
     intro: 'Within the last 50 years alone, the world’s glaciers lost more than 9 583 ' +
            'gigatonnes (Gt) of ice — equivalent to 26 mm of global sea-level rise. ' +
-           'Most of that loss came after 2000.',
+           'Most of that loss came after 2000. Since then, glaciers have lost about 5% of ' +
+           'their ice worldwide, and up to 39% in some regions.',
     embed: 'glaciers',
     caption: ''
   }
