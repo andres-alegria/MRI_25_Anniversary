@@ -144,10 +144,11 @@ FIGURES_SECTION = """
          figure. Adjust its size here. -->
     <h3 style="margin:0 0 12px;font:600 19px/1.3 'Source Serif 4',Georgia,serif;color:#2b2721;text-wrap:balance">{{ figSubtitle }}</h3>
     <!-- a short introduction under the title, when the figure has one
-         (figures-data.js `intro`). Adjust its size here; the measure is 68ch
-         unless the figure sets `introWidth`. -->
+         (figures-data.js `intro`). Every intro gets the same measure (86ch) and
+         the same height (min-height: three lines, 4.8em at line-height 1.6), so
+         switching figures does not move the frame below. Adjust both here. -->
     <sc-if value="{{ figHasIntro }}" hint-placeholder-val="{{ true }}">
-      <div style="margin:-4px 0 18px;max-width:{{ figIntroWidth }};font:400 15px/1.6 'Source Serif 4',Georgia,serif;color:#55503f;text-wrap:pretty">{{ figIntro }}</div>
+      <div style="margin:-4px 0 18px;max-width:{{ figIntroWidth }};min-height:4.8em;font:400 15px/1.6 'Source Serif 4',Georgia,serif;color:#55503f;text-wrap:pretty">{{ figIntro }}</div>
     </sc-if>
 
     <!-- Same hairline as an unselected chip, so the frame recedes and the
@@ -193,7 +194,7 @@ REPLACEMENTS = [
         "      figPad: _fcur && _fcur.embed ? 'clamp(14px,2.4vw,26px)' : '0',\n"
         "      figSubtitle: _fcur ? _fcur.subtitle : '',\n"
         "      figIntro: _fcur ? (_fcur.intro || '') : '',\n"
-        "      figIntroWidth: (_fcur && _fcur.introWidth) || '68ch',\n"
+        "      figIntroWidth: (_fcur && _fcur.introWidth) || '86ch',\n"
         "      figHasIntro: !!(_fcur && _fcur.intro),\n"
         "      figCaption: _fcur ? _fcur.caption : '',\n"
         "      figHasCaption: !!(_fcur && _fcur.caption),\n"
