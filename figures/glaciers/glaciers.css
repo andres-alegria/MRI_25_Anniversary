@@ -1,0 +1,152 @@
+/* ---------------------------------------------------------------------------
+   Glacier mass change - styles
+   Colours come from the anniversary site's tokens (--mri-*), so the chart
+   follows its light/dark theme. Fallbacks are the site's dark values.
+--------------------------------------------------------------------------- */
+
+.mgl {
+  /* adjust chart colours here */
+  --mgl-ice:   var(--mri-accent, #4FA3D9);   /* the ice: year columns, sparklines */
+  --mgl-text:  var(--mri-text, #DCE8F1);
+  --mgl-dim:   var(--mri-text-dim, #93A9BC);
+  --mgl-line:  var(--mri-line, #12395C);     /* gridlines, axis, chip borders */
+  --mgl-surface: var(--mri-panel, #0B2740);  /* hollow gain blocks */
+  /* adjust fonts here */
+  --mgl-font: 'Jost', system-ui, sans-serif;
+  font-family: var(--mgl-font);
+  color: var(--mgl-text);
+  position: relative;
+}
+
+/* ---- head: controls + legend + unit, the scale figure to their right ---- */
+.mgl-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto 1fr;          /* the last row takes up the figure's extra height */
+  grid-template-areas: "ctl scale" "leg scale" "unit scale" ". scale";
+  column-gap: 22px;                                 /* adjust space beside the scale figure here */
+  margin: 0 0 6px;
+}
+.mgl-head > .mgl-scale    { grid-area: scale; margin-bottom: -52px; }   /* its foot tucks into the empty room above the plot,
+                                                                         so the chart starts under the text; keep below GEO.padT + GEO.gainsRoom */
+.mgl-head > .mgl-controls { grid-area: ctl; }
+.mgl-head > .mgl-legend   { grid-area: leg; }
+.mgl-head > .mgl-unit     { grid-area: unit; }
+.mgl.is-narrow .mgl-head {                          /* phones: controls and legend first, the cube right of the unit line */
+  grid-template-areas: "ctl ctl" "leg leg" "unit scale" ". scale";
+  column-gap: 12px;
+}
+.mgl.is-narrow .mgl-head > .mgl-scale { margin-bottom: 0; }   /* phones: no room above the plot to tuck into */
+.mgl-scale canvas { display: block; }
+
+/* ---- controls row ---- */
+.mgl-controls {
+  display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center;
+  margin: 0 0 14px;                                 /* adjust spacing under the controls */
+}
+.mgl-group { display: flex; flex-wrap: wrap; gap: 6px; }
+.mgl-chip {
+  font: 500 13px/1 var(--mgl-font);                 /* adjust chip font size here */
+  letter-spacing: 0.01em;
+  padding: 7px 12px; border-radius: 999px;
+  border: 1px solid var(--mgl-line); background: transparent; color: var(--mgl-dim);
+  cursor: pointer; transition: background .15s, color .15s, border-color .15s;
+}
+.mgl-chip:hover { color: var(--mgl-text); }
+.mgl-chip[aria-pressed="true"] {                    /* same treatment as the site's figure switcher */
+  background: var(--mgl-text); color: var(--mgl-surface); border-color: var(--mgl-text); font-weight: 600;
+}
+.mgl-chip:focus-visible { outline: 2px solid var(--mgl-ice); outline-offset: 2px; }
+
+/* ---- legend ---- */
+.mgl-legend {
+  display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center;
+  font-size: 13px; color: var(--mgl-dim); margin: 0 0 6px;   /* adjust legend size here */
+}
+.mgl-key { display: inline-flex; align-items: center; gap: 7px; }
+.mgl-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.mgl-swatch.loss { background: var(--mgl-ice); }
+.mgl-swatch.gain { box-sizing: border-box; border: 1.5px solid var(--mgl-ice); }
+.mgl-swatch.band { background: var(--mgl-ice); opacity: .22; }
+.mgl-swatch.whisk { height: 1.5px; width: 12px; border-radius: 0; background: var(--mgl-dim); }
+.mgl-unit { font-size: 12px; color: var(--mgl-dim); margin: 0 0 4px; max-width: 86ch; }
+
+/* ---- chart ---- */
+.mgl-chart { position: relative; }
+.mgl svg { display: block; width: 100%; overflow: visible; }
+.mgl text { font-family: var(--mgl-font); fill: var(--mgl-dim); }
+.mgl .tick text  { font-size: 11px; font-variant-numeric: tabular-nums; }  /* adjust axis label size */
+.mgl .grid line  { stroke: var(--mgl-line); stroke-width: 1; }
+.mgl .baseline   { stroke: var(--mgl-dim); stroke-width: 1; opacity: .6; }
+.mgl .era        { fill: var(--mgl-dim); fill-opacity: .07; }   /* adjust era band tint here */
+.mgl .era-edge   { stroke: var(--mgl-dim); stroke-width: 1; stroke-dasharray: 3 3; opacity: .5; }
+.mgl .era-label  { font-size: 12px; fill: var(--mgl-text); font-weight: 500; }   /* adjust band label here */
+.mgl .band       { fill: var(--mgl-ice); fill-opacity: .14; }   /* adjust uncertainty tint here */
+.mgl .edge       { stroke: var(--mgl-ice); stroke-width: 1.25; fill: none; opacity: .9; }
+.mgl .brick      { transition: opacity .15s; }
+.mgl .brick.loss { fill: var(--mgl-ice); }
+.mgl .brick.gain { fill: var(--mgl-surface); stroke: var(--mgl-ice); stroke-width: 1.25; }
+.mgl .whisk      { stroke: var(--mgl-dim); stroke-width: 1; opacity: .55; transition: opacity .15s; }
+.mgl .col-hit    { fill: transparent; cursor: default; }
+.mgl.is-hover-year .brick { opacity: .45; }
+.mgl.is-hover-year .brick.on { opacity: 1; }
+.mgl.is-hover-year .whisk { opacity: .2; }
+.mgl.is-hover-year .whisk.on { opacity: .8; }
+.mgl .key-gt  { font-weight: 600; fill: var(--mgl-text); letter-spacing: .01em;
+                font-variant-numeric: tabular-nums; }            /* size set in glaciers.js (GEO.keySize) */
+.mgl .key-sub { font-size: 13px; fill: var(--mgl-dim); }
+.mgl .ann        { font-size: 12px; fill: var(--mgl-text); opacity: .8; }   /* adjust annotation size here */
+.mgl .ann-leader { stroke: var(--mgl-dim); stroke-width: 1; opacity: .6; }
+
+/* ---- region lanes (collapsed by default) ---- */
+.mgl-lanes { margin-top: 10px; font-size: 13px; }
+.mgl-lanes summary { cursor: pointer; color: var(--mgl-text); }
+.mgl-lanes .mgl-unit { margin-top: 6px; }
+.mgl-lanes svg { margin-top: 6px; }
+.mgl .lane { transition: opacity .15s; }
+.mgl.is-hover-lane .lane { opacity: .35; }
+.mgl.is-hover-lane .lane.on { opacity: 1; }
+.mgl .lane-label { font-size: 12px; fill: var(--mgl-text); }     /* adjust lane label size */
+.mgl .lane-value { font-size: 12px; fill: var(--mgl-dim); font-variant-numeric: tabular-nums; }
+.mgl .lane-base  { stroke: var(--mgl-line); stroke-width: 1; }
+.mgl .spark-line { stroke: var(--mgl-ice); stroke-width: 1.5; fill: none;
+                   stroke-linejoin: round; stroke-linecap: round; }
+.mgl .spark-area { fill: var(--mgl-ice); fill-opacity: .22; }    /* adjust spark fill tint here */
+.mgl .lane-hit   { fill: transparent; cursor: default; outline: none; }
+.mgl .lane-hit:focus-visible { outline: 2px solid var(--mgl-ice); outline-offset: -2px; }
+
+/* ---- tooltip ---- */
+.mgl-tip {
+  position: absolute; z-index: 5; pointer-events: none;
+  max-width: 300px; padding: 10px 12px;
+  background: var(--mgl-surface); color: var(--mgl-text);
+  border: 1px solid var(--mgl-line); border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.18);
+  font-size: 13px; line-height: 1.35;                 /* adjust tooltip text size */
+}
+.mgl-tip[hidden] { display: none; }
+.mgl-tip .h   { font-weight: 600; font-size: 14px; margin: 0 0 2px; }
+.mgl-tip .sub { color: var(--mgl-dim); font-size: 12px; margin: 0 0 6px; }
+.mgl-tip .row { display: flex; gap: 8px; align-items: baseline; margin: 3px 0; }
+.mgl-tip .key {                            /* square keys, like the chart's blocks */
+  flex: 0 0 8px; width: 8px; height: 8px;   /* adjust key size here */
+  border-radius: 1.5px; box-sizing: border-box;
+}
+.mgl-tip .key.loss { background: var(--mgl-ice); }
+.mgl-tip .key.gain { border: 1.5px solid var(--mgl-ice); }
+.mgl-tip .key.band { background: var(--mgl-ice); opacity: .35; }
+.mgl-tip .key.plain { background: transparent; }
+.mgl-tip b   { font-weight: 600; font-variant-numeric: tabular-nums; }
+.mgl-tip .note { color: var(--mgl-dim); font-size: 12px; font-style: italic; margin-top: 6px; max-width: 34ch; }
+
+/* ---- table view + source ---- */
+.mgl-table { margin-top: 14px; font-size: 13px; color: var(--mgl-dim); }
+.mgl-table summary { cursor: pointer; color: var(--mgl-text); }
+.mgl-table table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+.mgl-table th, .mgl-table td { text-align: left; padding: 5px 8px 5px 0; border-bottom: 1px solid var(--mgl-line); vertical-align: top; }
+.mgl-table th { font-weight: 600; color: var(--mgl-text); }
+.mgl-table th.num, .mgl-table td.num { text-align: right; }   /* numerals compare by length */
+.mgl-table td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mgl-table tr.world td { color: var(--mgl-text); font-weight: 600; }
+.mgl-table-note { margin-top: 6px; font-size: 12px; color: var(--mgl-dim); }
+.mgl-source { margin-top: 10px; font-size: 12px; color: var(--mgl-dim); max-width: 100ch; }

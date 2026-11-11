@@ -18,7 +18,7 @@
      alt       description for screen readers — say what the figure shows,
                not that it is a figure
      embed     instead of src/alt: the name of a live figure drawn by
-               embeds.js ('timeline', 'observatories', 'hazards')
+               embeds.js ('timeline', 'observatories', 'hazards', 'glaciers')
      caption   sits under the figure; should tell a small story of its own
                rather than repeating the title. Leave empty for none.
 --------------------------------------------------------------------------- */
@@ -54,10 +54,12 @@ const FIGURES = [
   {
     id: 'glaciers',
     title: 'Glaciers',
-    subtitle: 'A quarter-century of retreat',
-    src: 'figures/glaciers.jpg',
-    alt: 'Placeholder image for the glaciers figure.',
-    caption: 'What 25 years of observation has shown about the world’s mountain glaciers, and what their loss commits us to.'
+    subtitle: 'Our cryosphere in decline',
+    intro: 'Within the last 50 years alone, the world’s glaciers lost more than 9 583 ' +
+           'gigatonnes (Gt) of ice — equivalent to 26 mm of global sea-level rise. ' +
+           'Most of that loss came after 2000.',
+    embed: 'glaciers',
+    caption: ''
   }
 ];
 

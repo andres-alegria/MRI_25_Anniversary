@@ -7,6 +7,7 @@
      [data-mri-timeline]       the policy timeline among the summary figures
      [data-mri-observatories]  the monitoring-stations dot map, same place
      [data-mri-hazards]        the populations & hazards risk map, same place
+     [data-mri-glaciers]       the glacier mass-change chart, same place
 
    Each figure is a self-contained folder in figures/ (code, styles, words,
    data), the same files as its working copy outside the repo. Nothing there
@@ -60,6 +61,13 @@
       css: ['hazards.css'],
       js: ['hazards-content.js', 'hazards-data.js', 'hazards-geo.js', 'hazards.js'],
       draw: function (el) { window.MRIHazards.mount(el); }
+    },
+    {
+      host: '[data-mri-glaciers]',
+      dir: 'figures/glaciers/',
+      css: ['glaciers.css'],
+      js: ['glaciers-content.js', 'glaciers-data.js', 'glaciers.js'],
+      draw: function (el) { window.MRIGlaciers.mount(el); }
     }
   ];
 
