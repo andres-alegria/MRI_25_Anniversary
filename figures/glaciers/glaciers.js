@@ -548,7 +548,8 @@
         G.forEach(d => {
           const x0 = x(d.year) - cw / 2, x1 = x(d.year) + cw / 2;
           up += `L${x0},${y(d.cum + d.cumSigma)} L${x1},${y(d.cum + d.cumSigma)} `;
-          down = `L${x0},${y(d.cum - d.cumSigma)} L${x1},${y(d.cum - d.cumSigma)} ` + down;
+          // the lower edge is walked back right to left, so each year's corners go right then left
+          down = `L${x1},${y(d.cum - d.cumSigma)} L${x0},${y(d.cum - d.cumSigma)} ` + down;
         });
         svg('path', { class: 'band', d: ('M' + up.slice(1) + down + 'Z').replace(/L([^ ]+) Z$/, 'L$1Z') }, s);
       }
