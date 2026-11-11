@@ -56,6 +56,15 @@ ROLES = {
     'llama':   (('llama',), 1.00, 'animal'),
     'yak':     (('yak/1', 'yak/2'), 0.90, 'yak'),
     'falcon':  (tuple('falcon/%d' % i for i in range(1, 10)), 1.0, 'ink'),
+    # figure 6, Kilimanjaro (kili.py): Amboseli's wildlife from the same izwarm
+    # Mammal Glyph set, one wading bird, kareemov's acacias, a pump and a hut
+    'zebra':   (('zebra',), 0.86, 'animal'),
+    'wildebeest': (('wildebeest',), 0.86, 'animal'),
+    'hippo':   (('hippo',), 0.62, 'animal'),
+    'egret':   (('egret',), 0.70, 'light'),
+    'acacia':  (('acacia/1', 'acacia/2'), 2.6, 'treeBody'),
+    'pump':    (('pump',), 0.95, 'ink'),
+    'hut':     (('hut',), 1.15, 'wallLit'),
 }
 # How much larger than true scale the library marks are drawn. At true scale a
 # person on a clip is 38 px of an 1800 px drawing, which the page shows at a
@@ -93,13 +102,36 @@ def _geometry(slot):
     return _geo[slot]
 
 
+_solid = {}
+
+
+def _silhouette(slot):
+    """The icon reduced to its outline: every subpath that lies inside another
+    one (the ear, the fold of a leg, an eye — the holes that carry the
+    drawing's detail) is dropped, leaving a plain silhouette that reads at a
+    small size."""
+    if slot in _solid:
+        return _solid[slot]
+    ent = N.manifest().get(slot)
+    _, inner = N.normalise((N.CACHE / 'svg' / ('%s.svg' % ent['id'])).read_text())
+    subs = [(d, pts) for path in re.findall(r'<path[^>]*\sd="([^"]+)"', inner)
+            for d, pts in KIT._walk(path) if len(pts) > 2]
+    boxes = [(min(p[0] for p in pts), min(p[1] for p in pts), max(p[0] for p in pts), max(p[1] for p in pts))
+             for _, pts in subs]
+    def inside(a, b):
+        return a != b and a[0] >= b[0] and a[1] >= b[1] and a[2] <= b[2] and a[3] <= b[3]
+    keep = [d for (d, _), bx in zip(subs, boxes) if not any(inside(bx, o) for o in boxes)]
+    _solid[slot] = '<path d="%s"/>' % ' '.join(keep)
+    return _solid[slot]
+
+
 def available(role):
     return ENABLED and any(_geometry(s) for s in ROLES[role][0])
 
 
 def mark(role, x, y, P, person_h, flip=False, pick=None, anchor='bottom', shadow=True,
          scale=1.0, colour=None, opacity=1.0, width=None, halo=True, height=None,
-         halo_colour=None, halo_opacity=None, face=None, exag=None):
+         halo_colour=None, halo_opacity=None, face=None, exag=None, solid=False):
     """The silhouette for `role` standing on (x, y), or None to fall back.
 
     person_h is the height of a standing person at this spot, in px; the role's
@@ -120,6 +152,8 @@ def mark(role, x, y, P, person_h, flip=False, pick=None, anchor='bottom', shadow
         return None
     i = (int(abs(x) / 7) if pick is None else pick) % len(ok)
     inner, (x0, y0, x1, y1) = _geometry(ok[i])
+    if solid:                                  # outline only, inner detail dropped
+        inner = _silhouette(ok[i])
     if face is not None:
         flip = (face < 0) != (ok[i] in FACES_LEFT)
     ex = EXAG if exag is None else exag

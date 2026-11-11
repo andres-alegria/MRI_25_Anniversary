@@ -6,6 +6,24 @@
   "license": "creative-commons-attribution",
   "note": "what it is used for"
  },
+ "acacia/1": {
+  "attribution": "Acacia Tree by k a r e e m o v from Noun Project",
+  "creator": "k a r e e m o v",
+  "id": "4376765",
+  "license": "creative-commons-attribution",
+  "note": "figure 6 (story 23): savanna acacias",
+  "permalink": "/icon/acacia-tree-4376765/",
+  "term": "Acacia Tree"
+ },
+ "acacia/2": {
+  "attribution": "Acacia Tree by k a r e e m o v from Noun Project",
+  "creator": "k a r e e m o v",
+  "id": "4376762",
+  "license": "creative-commons-attribution",
+  "note": "figure 6 (story 23): savanna acacias",
+  "permalink": "/icon/acacia-tree-4376762/",
+  "term": "Acacia Tree"
+ },
  "buffalo": {
   "attribution": "buffalo by Izwar Muis from Noun Project",
   "creator": "Izwar Muis",
@@ -32,6 +50,15 @@
   "note": "clips: story 23, herders' cattle below Kilimanjaro",
   "permalink": "/icon/bull-8416673/",
   "term": "bull"
+ },
+ "egret": {
+  "attribution": "Stork by yogi rista from Noun Project",
+  "creator": "yogi rista",
+  "id": "8265113",
+  "license": "creative-commons-attribution",
+  "note": "figure 6 (story 23): wading birds in the swamp",
+  "permalink": "/icon/stork-8265113/",
+  "term": "Stork"
  },
  "elephant": {
   "attribution": "Elephant by Izwar Muis from Noun Project",
@@ -132,6 +159,24 @@
   "permalink": "/icon/gaur-8416666/",
   "term": "gaur"
  },
+ "hippo": {
+  "attribution": "hippo by Izwar Muis from Noun Project",
+  "creator": "Izwar Muis",
+  "id": "8421734",
+  "license": "creative-commons-attribution",
+  "note": "figure 6 (story 23): hippos in the swamp",
+  "permalink": "/icon/hippo-8421734/",
+  "term": "hippo"
+ },
+ "hut": {
+  "attribution": "safari house by Amethyst Studio from Noun Project",
+  "creator": "Amethyst Studio",
+  "id": "5369039",
+  "license": "creative-commons-attribution",
+  "note": "figure 6 (story 23): herders' boma",
+  "permalink": "/icon/safari-house-5369039/",
+  "term": "safari house"
+ },
  "llama": {
   "attribution": "Llama by Izwar Muis from Noun Project",
   "creator": "Izwar Muis",
@@ -158,6 +203,15 @@
   "note": "clips: farmers planting, terraces and paddies",
   "permalink": "/icon/planting-plant-859751/",
   "term": "Planting Plant"
+ },
+ "pump": {
+  "attribution": "hand pump by Brickclay from Noun Project",
+  "creator": "Brickclay",
+  "id": "4496953",
+  "license": "creative-commons-attribution",
+  "note": "figure 6 (story 23): borehole pump on the lower slopes",
+  "permalink": "/icon/hand-pump-4496953/",
+  "term": "hand pump"
  },
  "trekker/1": {
   "attribution": "tourist by Gan Khoon Lay from Noun Project",
@@ -213,6 +267,15 @@
   "permalink": "/icon/walking-1926283/",
   "term": "Walking"
  },
+ "wildebeest": {
+  "attribution": "Wildebeest by Izwar Muis from Noun Project",
+  "creator": "Izwar Muis",
+  "id": "8421733",
+  "license": "creative-commons-attribution",
+  "note": "figure 6 (story 23): Amboseli wildlife",
+  "permalink": "/icon/wildebeest-8421733/",
+  "term": "Wildebeest"
+ },
  "yak/1": {
   "attribution": "Yak by Amethyst Studio from Noun Project",
   "creator": "Amethyst Studio",
@@ -230,5 +293,14 @@
   "note": "plate: the yak herd and the corral's stock",
   "permalink": "/icon/yak-4132677/",
   "term": "Yak"
+ },
+ "zebra": {
+  "attribution": "Zebra by Izwar Muis from Noun Project",
+  "creator": "Izwar Muis",
+  "id": "8421736",
+  "license": "creative-commons-attribution",
+  "note": "figure 6 (story 23): Amboseli wildlife",
+  "permalink": "/icon/zebra-8421736/",
+  "term": "Zebra"
  }
 }
