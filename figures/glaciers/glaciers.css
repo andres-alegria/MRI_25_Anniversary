@@ -14,7 +14,6 @@
   /* Map tab: basemap as in Figure 3, thickness classes thin -> thick (adjust here) */
   --mgl-map-sphere: #0A2238;  --mgl-map-land: #0E2F4A;
   --mgl-th0: #2f6a96;  --mgl-th1: #4f93c8;  --mgl-th2: #8ec3ea;  --mgl-th3: #e2f2fd;
-  --mgl-survey: #f0b46a;                   /* GlaThiDa survey sites */
   /* adjust fonts here */
   --mgl-font: 'Jost', system-ui, sans-serif;
   font-family: var(--mgl-font);
@@ -25,7 +24,6 @@
 :root[data-theme="light"] .mgl {
   --mgl-map-sphere: #f7f6f2;  --mgl-map-land: #efeee9;
   --mgl-th0: #8fbfe3;  --mgl-th1: #4a8cc6;  --mgl-th2: #1b5f9e;  --mgl-th3: #0a2f5c;
-  --mgl-survey: #b05837;
 }
 
 /* ---- head: controls + legend + unit, the scale figure to their right ---- */
@@ -170,8 +168,20 @@
 .mgl .cell.th2, .mgl-swatch.th2, .mgl-tip .key.th2 { fill: var(--mgl-th2); background: var(--mgl-th2); }
 .mgl .cell.th3, .mgl-swatch.th3, .mgl-tip .key.th3 { fill: var(--mgl-th3); background: var(--mgl-th3); }
 .mgl .cell.on    { stroke: var(--mgl-text); stroke-width: 1.5; }
-.mgl .map-surveys circle { fill: var(--mgl-survey); pointer-events: none; }
 .mgl-swatch.dot    { border-radius: 50%; }
-.mgl-swatch.survey { width: 6px; height: 6px; border-radius: 50%; background: var(--mgl-survey); }
 .mgl-key-title     { color: var(--mgl-text); }
-.mgl-legend .mgl-layer { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 5px 10px; }
+.mgl-legend .mgl-modes .mgl-chip { font-size: 12px; padding: 5px 10px; }   /* adjust mode-switch size here */
+.mgl svg.is-pannable { cursor: grab; }
+.mgl svg.is-panning  { cursor: grabbing; }
+.mgl-zoom {                                        /* zoom buttons, as in Figure 2 (adjust placement here) */
+  position: absolute; right: 8px; display: flex; flex-direction: column; gap: 6px; z-index: 2;
+}
+.mgl-zoom button {
+  width: 28px; height: 28px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--mgl-line); background: var(--mgl-surface); color: var(--mgl-text);
+  font: 500 15px/1 var(--mgl-font);
+}
+.mgl-zoom button:hover { border-color: var(--mgl-dim); }
+.mgl-zoom button:focus-visible { outline: 2px solid var(--mgl-ice); outline-offset: 2px; }
+.mgl-zoom .reset { font-size: 12px; display: none; }
+.mgl-zoom.is-zoomed .reset { display: block; }

@@ -39,7 +39,8 @@
     // the Map tab (adjust dot sizes here, px on screen)
     mapRMax: 9, mapRMaxNarrow: 6,       // the cell with the most glacier area
     mapRMin: 1.1,                        // the smallest cells
-    surveyR: 1.3,                        // a GlaThiDa survey site
+    surveyR: 2.6,                        // a measured site (GlaThiDa)
+    mapZoomMax: 12, mapZoomStep: 1.8,    // zoom limits
     // the scale figure (1 km cube + Eiffel Tower), top right (adjust size here)
     scaleW: 190, scaleH: 178,            // canvas, px
     scaleWNarrow: 128, scaleHNarrow: 128,
@@ -383,7 +384,7 @@
     const firstGain = G.find(d => d.gt > 0);
 
     const M = window.MRI_GLACIERS_MAP;      // the Map tab's data (build_map.py); optional
-    const state = { view: C.defaultView, surveys: false };
+    const state = { view: C.defaultView, thick: 'model', z: 1, tx: 0, ty: 0 };   // map: thickness source + zoom
 
     // ---- skeleton -----------------------------------------------------------
     root.innerHTML = '';
@@ -463,6 +464,11 @@
       row(tip, 'plain', fmt(c[3], c[3] < 10 ? 1 : 0) + ' km²', ' ' + C.map.tipArea);
       row(tip, 'th' + thClass(c[4]), fmt(c[4], 0) + ' m', ' ' + C.map.tipThick);
     }
+    function siteTip(c) {
+      tip.innerHTML = '';
+      node('div', 'h', fill(c[2] === 1 ? C.map.tipSite1 : C.map.tipSites, { n: fmt(c[2], 0) }), tip);
+      row(tip, 'th' + thClass(c[3]), fmt(c[3], 0) + ' m', ' ' + C.map.tipMeasured);
+    }
     const thClass = t => C.map.classes.findIndex(k => t < k.below) === -1
       ? C.map.classes.length - 1 : C.map.classes.findIndex(k => t < k.below);
     function hide() {
@@ -487,32 +493,83 @@
     document.addEventListener('pointerdown', e => { if (!chart.contains(e.target)) hide(); });
 
     // ---- the Map tab: where the glaciers are, and how thick ----------------
-    // Figure 3's Robinson basemap; one dot per cell of glaciers, its area as
-    // the dot's area, its mean thickness as one of a few colour classes.
+    // Figure 3's Robinson basemap. Modelled: one dot per cell of glaciers, its
+    // area as the dot's area, its mean thickness as a colour class. Measured:
+    // one dot per GlaThiDa site. Zoom and pan as in Figure 2: buttons,
+    // double-click (shift: out), drag when zoomed; dots keep their size.
+    let zoomBox = null;
     function drawMap(W, narrow) {
       const F = M.frame, k = W / F.w;
-      const pad = (narrow ? GEO.padT : GEO.padT + GEO.gainsRoom) / k;   // same room above as the charts
+      const pad = GEO.padT / k;                     // no cube above the map, so only the usual room
       s.innerHTML = '';
       s.setAttribute('viewBox', `0 ${-pad} ${F.w} ${F.h + pad}`);
       s.setAttribute('height', Math.round((F.h + pad) * k));
       s.setAttribute('aria-label', fill(C.map.aria, { n: fmt(M.totals.glaciers, 0) }));
       const toPath = r => { let d = 'M' + r[0] + ',' + r[1]; for (let i = 2; i < r.length; i += 2) d += 'L' + r[i] + ',' + r[i + 1]; return d + 'Z'; };
-      svg('path', { class: 'map-sphere', d: toPath(M.sphere[0]) }, s);
-      svg('path', { class: 'map-land', d: M.land.map(toPath).join('') }, s);
-      const maxA = M.cells[0][3];
-      const rMax = (narrow ? GEO.mapRMaxNarrow : GEO.mapRMax) / k, rMin = GEO.mapRMin / k;
-      const g = svg('g', { class: 'map-cells' }, s);
-      M.cells.forEach(c => {                        // biggest first, so small cells stay on top
-        const dot = svg('circle', { class: 'cell th' + thClass(c[4]), cx: c[0], cy: c[1],
-          r: rMin + (rMax - rMin) * Math.sqrt(c[3] / maxA) }, g);
-        dot.addEventListener('pointerenter', evt => { cellTip(c); dot.classList.add('on'); place(...local(evt)); });
-        dot.addEventListener('pointermove', evt => place(...local(evt)));
+      const clip = svg('clipPath', { id: 'mgl-map-clip' }, svg('defs', {}, s));
+      svg('rect', { x: 0, y: 0, width: F.w, height: F.h }, clip);
+      const view = svg('g', { class: 'map-view' }, svg('g', { 'clip-path': 'url(#mgl-map-clip)' }, s));
+      svg('path', { class: 'map-sphere', d: toPath(M.sphere[0]) }, view);
+      svg('path', { class: 'map-land', d: M.land.map(toPath).join('') }, view);
+
+      const dots = [];                              // [circle, base radius in frame units]
+      const g = svg('g', { class: 'map-cells' }, view);
+      const add = (cx, cy, r, cls, tipFn) => {
+        const dot = svg('circle', { class: 'cell ' + cls, cx, cy, r }, g);
+        dot.addEventListener('pointerenter', evt => { if (pan) return; tipFn(); dot.classList.add('on'); place(...local(evt)); });
+        dot.addEventListener('pointermove', evt => { if (!pan) place(...local(evt)); });
         dot.addEventListener('pointerleave', () => { dot.classList.remove('on'); hide(); });
-      });
-      if (state.surveys) {
-        const gs = svg('g', { class: 'map-surveys' }, s);
-        M.surveys.forEach(p => svg('circle', { cx: p[0], cy: p[1], r: GEO.surveyR / k }, gs));
+        dots.push([dot, r]);
+      };
+      if (state.thick === 'model') {
+        const maxA = M.cells[0][3];
+        const rMax = (narrow ? GEO.mapRMaxNarrow : GEO.mapRMax) / k, rMin = GEO.mapRMin / k;
+        M.cells.forEach(c =>                        // biggest first, so small cells stay on top
+          add(c[0], c[1], rMin + (rMax - rMin) * Math.sqrt(c[3] / maxA), 'th' + thClass(c[4]), () => cellTip(c)));
+      } else {
+        M.surveys.forEach(c => add(c[0], c[1], GEO.surveyR / k, 'th' + thClass(c[3]), () => siteTip(c)));
       }
+
+      // zoom: view = translate(tx, ty) scale(z), in frame units
+      const apply = () => {
+        state.z = Math.max(1, Math.min(GEO.mapZoomMax, state.z));
+        state.tx = Math.min(0, Math.max(F.w * (1 - state.z), state.tx));
+        state.ty = Math.min(0, Math.max(F.h * (1 - state.z), state.ty));
+        if (state.z === 1) state.tx = state.ty = 0;
+        view.setAttribute('transform', `translate(${state.tx},${state.ty}) scale(${state.z})`);
+        dots.forEach(([d, r]) => d.setAttribute('r', r / Math.sqrt(state.z)));   // dots grow a little, not with the map
+        s.classList.toggle('is-pannable', state.z > 1);
+        if (zoomBox) zoomBox.classList.toggle('is-zoomed', state.z > 1);
+      };
+      const zoomAt = (f, fx, fy) => {               // keep the frame point (fx, fy) still
+        const wx = (fx - state.tx) / state.z, wy = (fy - state.ty) / state.z;
+        state.z = Math.max(1, Math.min(GEO.mapZoomMax, state.z * f));
+        state.tx = fx - wx * state.z; state.ty = fy - wy * state.z;
+        apply();
+      };
+      const frameXY = evt => { const r = s.getBoundingClientRect(); return [(evt.clientX - r.left) / k, (evt.clientY - r.top) / k - pad]; };
+      zoomBox = node('div', 'mgl-zoom', null, chart);
+      zoomBox.style.top = (GEO.padT + 8) + 'px';    // adjust zoom-button placement here
+      [['+', C.map.zoomIn, GEO.mapZoomStep], ['−', C.map.zoomOut, 1 / GEO.mapZoomStep], ['↺', C.map.zoomReset, 0]]
+        .forEach(([t, title, f]) => {
+          const b = node('button', f ? null : 'reset', t, zoomBox);
+          b.type = 'button'; b.title = title; b.setAttribute('aria-label', title);
+          b.addEventListener('click', () => (f ? zoomAt(f, F.w / 2, F.h / 2) : (state.z = 1, apply())));
+        });
+      s.ondblclick = evt => { evt.preventDefault(); zoomAt(evt.shiftKey ? 1 / GEO.mapZoomStep : GEO.mapZoomStep, ...frameXY(evt)); };
+      let pan = null;
+      s.onpointerdown = evt => {
+        if (state.z <= 1) return;
+        pan = { x: evt.clientX, y: evt.clientY, tx: state.tx, ty: state.ty };
+        s.setPointerCapture(evt.pointerId); s.classList.add('is-panning'); hide();
+      };
+      s.onpointermove = evt => {
+        if (!pan) return;
+        state.tx = pan.tx + (evt.clientX - pan.x) / k; state.ty = pan.ty + (evt.clientY - pan.y) / k;
+        apply();
+      };
+      s.onpointerup = s.onpointercancel = () => { pan = null; s.classList.remove('is-panning'); };
+      apply();
     }
 
     // ---- draw ---------------------------------------------------------------
@@ -527,22 +584,26 @@
 
       // legend and unit line, per view
       const isMap = state.view === 'map' && M;
+      scaleBox.style.display = isMap ? 'none' : '';               // the 1 Gt cube belongs to the charts
+      if (zoomBox) { zoomBox.remove(); zoomBox = null; }
+      s.ondblclick = s.onpointerdown = s.onpointermove = s.onpointerup = s.onpointercancel = null;   // map-only gestures
+      s.classList.remove('is-pannable', 'is-panning');
       legend.innerHTML = '';
       if (isMap) {
         node('span', 'mgl-key-title', C.map.legendTitle, legend);
+        const sw = node('span', 'mgl-group mgl-modes', null, legend);     // modelled / measured
+        C.map.modes.forEach(m => {
+          const b = node('button', 'mgl-chip', m.label, sw);
+          b.type = 'button';
+          b.setAttribute('aria-pressed', String(state.thick === m.id));
+          b.addEventListener('click', () => { state.thick = m.id; render(); });
+        });
         C.map.classes.forEach((k, i) => {
           const el = node('span', 'mgl-key', null, legend);
           node('span', 'mgl-swatch dot th' + i, null, el);
           el.appendChild(document.createTextNode(k.label));
         });
-        const t = node('button', 'mgl-chip mgl-layer', null, legend);     // GlaThiDa on/off
-        t.type = 'button';
-        t.setAttribute('aria-pressed', String(state.surveys));
-        node('span', 'mgl-swatch survey', null, t);
-        t.appendChild(document.createTextNode(C.map.surveys));
-        t.addEventListener('click', () => { state.surveys = !state.surveys; render(); });
-        unitEl.textContent = fill(C.map.unit, { deg: M.cellDeg, n: fmt(M.totals.glaciers, 0),
-          area: fmt(M.totals.areaKm2, 0) });
+        unitEl.textContent = fill(state.thick === 'model' ? C.map.unit : C.map.unitMeasured, { deg: M.cellDeg });
       } else {
         [['loss', C.legend.loss], ['gain', C.legend.gain], [cum ? 'band' : 'whisk', C.legend.band]]
           .forEach(([c, label]) => {

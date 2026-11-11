@@ -44,13 +44,24 @@ const GLACIERS_CONTENT = {
       { below: 200,      label: '100–200 m' },
       { below: Infinity, label: '200 m or more' }
     ],
-    surveys: 'Where thickness has been measured',
+    // Modelled: IceBoost cells. Measured: GlaThiDa sites - each survey's published
+    // glacier mean, else the mean of its points thicker than 0 m (an average along
+    // the survey tracks); flagged surveys and sites outside glacier cells left out.
+    modes: [
+      { id: 'model',    label: 'Modelled' },
+      { id: 'measured', label: 'Measured' }
+    ],
     unit: 'Each dot gathers the glaciers in one {deg}° cell of latitude and longitude: its size ' +
-          'shows their total area, its colour the average thickness of their ice (modelled, ' +
-          'from thickness measurements). {n} glaciers, {area} km² of ice in all.',
+          'shows their total area, its colour the average thickness of their ice.',
+    unitMeasured: 'Each dot is a place where glacier thickness has been measured, mostly by radar: ' +
+                  'its colour shows the average thickness found there.',
     tipHead: '{n} glaciers',
     tipArea: 'glacier area',
     tipThick: 'average ice thickness',
+    tipSites: '{n} surveys',
+    tipSite1: '1 survey',
+    tipMeasured: 'average measured thickness',
+    zoomIn: 'Zoom in', zoomOut: 'Zoom out', zoomReset: 'Reset view',
     aria: 'World map of the {n} glaciers outside the two ice sheets, grouped into cells, ' +
           'coloured by average ice thickness.'
   },
