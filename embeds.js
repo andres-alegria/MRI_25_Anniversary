@@ -73,14 +73,23 @@
 
   function load(f) {
     if (f.loading) return f.loading;
-    f.css.forEach(function (name) {
-      var l = document.createElement('link');
-      l.rel = 'stylesheet';
-      l.href = f.dir + name + V;
-      document.head.appendChild(l);
+    /* The figures read their colours from CSS tokens when they mount, so a
+       figure must not mount before its stylesheet has applied: on a first,
+       uncached visit the scripts could land first, every token read empty,
+       and the globe and the 1 Gt cube painted black until a reload. A
+       stylesheet that fails still lets the figure draw. */
+    var sheets = f.css.map(function (name) {
+      return new Promise(function (ok) {
+        var l = document.createElement('link');
+        l.rel = 'stylesheet';
+        l.href = f.dir + name + V;
+        l.onload = ok;
+        l.onerror = ok;
+        document.head.appendChild(l);
+      });
     });
     /* fetched side by side, run in the order listed: words and data first */
-    f.loading = Promise.all(f.js.map(function (name) {
+    f.loading = Promise.all(sheets.concat(f.js.map(function (name) {
       return new Promise(function (ok, fail) {
         var s = document.createElement('script');
         s.src = f.dir + name + V;
@@ -89,7 +98,7 @@
         s.onerror = fail;
         document.head.appendChild(s);
       });
-    }));
+    })));
     return f.loading;
   }
 
