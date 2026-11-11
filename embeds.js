@@ -66,7 +66,7 @@
       host: '[data-mri-glaciers]',
       dir: 'figures/glaciers/',
       css: ['glaciers.css'],
-      js: ['glaciers-content.js', 'glaciers-data.js', 'glaciers.js'],
+      js: ['glaciers-content.js', 'glaciers-data.js', 'glaciers-map.js', 'glaciers.js'],
       draw: function (el) { window.MRIGlaciers.mount(el); }
     }
   ];

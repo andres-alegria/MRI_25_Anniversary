@@ -16,7 +16,8 @@
 const GLACIERS_CONTENT = {
   views: [
     { id: 'annual', label: 'Year by year' },
-    { id: 'cum',    label: 'Cumulative loss' }
+    { id: 'cum',    label: 'Cumulative loss' },
+    { id: 'map',    label: 'Map' }
   ],
   defaultView: 'annual',
 
@@ -28,6 +29,30 @@ const GLACIERS_CONTENT = {
     unit:  'Each block is one year’s change in the mass of all the world’s glaciers, ' +
            'in gigatonnes (1 Gt is one billion tonnes — a cube of water 1 km on each side). ' +
            'Shaded bands and whiskers show the likely range: about a two-in-three chance that the true value lies within.'
+  },
+
+  // The Map tab: where the world's glaciers are and how thick their ice is.
+  // Glaciers from RGI 6.0, thickness = IceBoost v2 volume / RGI area (a model
+  // trained on GlaThiDa measurements), grouped into cells by build_map.py.
+  // Thickness classes are cell averages; the breaks split the ~2,000 cells
+  // roughly 33 / 27 / 25 / 15 %.
+  map: {
+    legendTitle: 'Average ice thickness:',
+    classes: [
+      { below: 50,       label: 'under 50 m' },
+      { below: 100,      label: '50–100 m' },
+      { below: 200,      label: '100–200 m' },
+      { below: Infinity, label: '200 m or more' }
+    ],
+    surveys: 'Where thickness has been measured',
+    unit: 'Each dot gathers the glaciers in one {deg}° cell of latitude and longitude: its size ' +
+          'shows their total area, its colour the average thickness of their ice (modelled, ' +
+          'from thickness measurements). {n} glaciers, {area} km² of ice in all.',
+    tipHead: '{n} glaciers',
+    tipArea: 'glacier area',
+    tipThick: 'average ice thickness',
+    aria: 'World map of the {n} glaciers outside the two ice sheets, grouped into cells, ' +
+          'coloured by average ice thickness.'
   },
 
   // The scale figure at the top right: a cube of water 1 km on each side (1 km³
@@ -148,8 +173,13 @@ const GLACIERS_CONTENT = {
   //     the deck's "about 5% globally, up to 39% regionally" (ice lost since 2000,
   //     against regional mass in 2000); its 2000-2023 rates agree with WGMS
   //     (-273 +/- 16 vs -283 Gt/yr).
+  //   Map: RGI Consortium (2017), Randolph Glacier Inventory 6.0, doi:10.7265/4m1f-gd79;
+  //     Maffezzoli et al. (2025), IceBoost, Geosci. Model Dev. 18: 2545-2568,
+  //     doi:10.5194/gmd-18-2545-2025 (v2 volumes); GlaThiDa Consortium (2020),
+  //     Glacier Thickness Database 3.1.0, doi:10.5904/wgms-glathida-2020-10.
   source: 'Data: WGMS Annual Mass-Change Estimates (2026), Dussaillant et al. (2025), ' +
-          'The WGMS Network (2026) and GlaMBIE (2025).'
+          'The WGMS Network (2026) and GlaMBIE (2025); map: RGI 6.0 (2017), ' +
+          'Maffezzoli et al. (2025) and GlaThiDa (2020).'
 };
 
 window.MRI_GLACIERS_CONTENT = GLACIERS_CONTENT;

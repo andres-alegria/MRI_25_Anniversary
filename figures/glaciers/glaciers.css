@@ -11,11 +11,21 @@
   --mgl-dim:   var(--mri-text-dim, #93A9BC);
   --mgl-line:  var(--mri-line, #12395C);     /* gridlines, axis, chip borders */
   --mgl-surface: var(--mri-panel, #0B2740);  /* hollow gain blocks */
+  /* Map tab: basemap as in Figure 3, thickness classes thin -> thick (adjust here) */
+  --mgl-map-sphere: #0A2238;  --mgl-map-land: #0E2F4A;
+  --mgl-th0: #2f6a96;  --mgl-th1: #4f93c8;  --mgl-th2: #8ec3ea;  --mgl-th3: #e2f2fd;
+  --mgl-survey: #f0b46a;                   /* GlaThiDa survey sites */
   /* adjust fonts here */
   --mgl-font: 'Jost', system-ui, sans-serif;
   font-family: var(--mgl-font);
   color: var(--mgl-text);
   position: relative;
+}
+
+:root[data-theme="light"] .mgl {
+  --mgl-map-sphere: #f7f6f2;  --mgl-map-land: #efeee9;
+  --mgl-th0: #8fbfe3;  --mgl-th1: #4a8cc6;  --mgl-th2: #1b5f9e;  --mgl-th3: #0a2f5c;
+  --mgl-survey: #b05837;
 }
 
 /* ---- head: controls + legend + unit, the scale figure to their right ---- */
@@ -150,3 +160,18 @@
 .mgl-table tr.world td { color: var(--mgl-text); font-weight: 600; }
 .mgl-table-note { margin-top: 6px; font-size: 12px; color: var(--mgl-dim); }
 .mgl-source { margin-top: 10px; font-size: 12px; color: var(--mgl-dim); max-width: 100ch; }
+
+/* ---- Map tab ---- */
+.mgl .map-sphere { fill: var(--mgl-map-sphere); }
+.mgl .map-land   { fill: var(--mgl-map-land); }
+.mgl .cell       { stroke: var(--mgl-surface); stroke-width: 0.6; vector-effect: non-scaling-stroke; }
+.mgl .cell.th0, .mgl-swatch.th0, .mgl-tip .key.th0 { fill: var(--mgl-th0); background: var(--mgl-th0); }
+.mgl .cell.th1, .mgl-swatch.th1, .mgl-tip .key.th1 { fill: var(--mgl-th1); background: var(--mgl-th1); }
+.mgl .cell.th2, .mgl-swatch.th2, .mgl-tip .key.th2 { fill: var(--mgl-th2); background: var(--mgl-th2); }
+.mgl .cell.th3, .mgl-swatch.th3, .mgl-tip .key.th3 { fill: var(--mgl-th3); background: var(--mgl-th3); }
+.mgl .cell.on    { stroke: var(--mgl-text); stroke-width: 1.5; }
+.mgl .map-surveys circle { fill: var(--mgl-survey); pointer-events: none; }
+.mgl-swatch.dot    { border-radius: 50%; }
+.mgl-swatch.survey { width: 6px; height: 6px; border-radius: 50%; background: var(--mgl-survey); }
+.mgl-key-title     { color: var(--mgl-text); }
+.mgl-legend .mgl-layer { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 5px 10px; }

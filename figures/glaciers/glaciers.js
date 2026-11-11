@@ -36,6 +36,10 @@
     laneGap: 13,         // space between lanes
     keySize: 44,         // the big number, cumulative view (adjust size here)
     keySizeNarrow: 26,
+    // the Map tab (adjust dot sizes here, px on screen)
+    mapRMax: 9, mapRMaxNarrow: 6,       // the cell with the most glacier area
+    mapRMin: 1.1,                        // the smallest cells
+    surveyR: 1.3,                        // a GlaThiDa survey site
     // the scale figure (1 km cube + Eiffel Tower), top right (adjust size here)
     scaleW: 190, scaleH: 178,            // canvas, px
     scaleWNarrow: 128, scaleHNarrow: 128,
@@ -378,7 +382,8 @@
     const record = G.reduce((a, d) => (d.gt < a.gt ? d : a), G[0]);
     const firstGain = G.find(d => d.gt > 0);
 
-    const state = { view: C.defaultView };
+    const M = window.MRI_GLACIERS_MAP;      // the Map tab's data (build_map.py); optional
+    const state = { view: C.defaultView, surveys: false };
 
     // ---- skeleton -----------------------------------------------------------
     root.innerHTML = '';
@@ -390,7 +395,7 @@
     const gView = node('div', 'mgl-group', null, controls);
     gView.setAttribute('aria-label', 'Chart view');
     const legend = node('div', 'mgl-legend', null, head);
-    node('div', 'mgl-unit', C.legend.unit, head);
+    const unitEl = node('div', 'mgl-unit', C.legend.unit, head);
     const scaleBox = node('div', 'mgl-scale', null, head);
     const scale = C.scale ? scaleFigure(scaleBox, C.scale, wrap) : null;
     if (!scale) scaleBox.remove();
@@ -452,6 +457,14 @@
       row(tip, 'plain', fmt(r.area, 0) + ' km²', ' ' + C.tooltip.area);
       if (C.notes && C.notes[r.code]) node('div', 'note', C.notes[r.code], tip);
     }
+    function cellTip(c) {
+      tip.innerHTML = '';
+      node('div', 'h', fill(C.map.tipHead, { n: fmt(c[2], 0) }), tip);
+      row(tip, 'plain', fmt(c[3], c[3] < 10 ? 1 : 0) + ' km²', ' ' + C.map.tipArea);
+      row(tip, 'th' + thClass(c[4]), fmt(c[4], 0) + ' m', ' ' + C.map.tipThick);
+    }
+    const thClass = t => C.map.classes.findIndex(k => t < k.below) === -1
+      ? C.map.classes.length - 1 : C.map.classes.findIndex(k => t < k.below);
     function hide() {
       tip.hidden = true;
       wrap.classList.remove('is-hover-year', 'is-hover-lane');
@@ -473,6 +486,35 @@
     }
     document.addEventListener('pointerdown', e => { if (!chart.contains(e.target)) hide(); });
 
+    // ---- the Map tab: where the glaciers are, and how thick ----------------
+    // Figure 3's Robinson basemap; one dot per cell of glaciers, its area as
+    // the dot's area, its mean thickness as one of a few colour classes.
+    function drawMap(W, narrow) {
+      const F = M.frame, k = W / F.w;
+      const pad = (narrow ? GEO.padT : GEO.padT + GEO.gainsRoom) / k;   // same room above as the charts
+      s.innerHTML = '';
+      s.setAttribute('viewBox', `0 ${-pad} ${F.w} ${F.h + pad}`);
+      s.setAttribute('height', Math.round((F.h + pad) * k));
+      s.setAttribute('aria-label', fill(C.map.aria, { n: fmt(M.totals.glaciers, 0) }));
+      const toPath = r => { let d = 'M' + r[0] + ',' + r[1]; for (let i = 2; i < r.length; i += 2) d += 'L' + r[i] + ',' + r[i + 1]; return d + 'Z'; };
+      svg('path', { class: 'map-sphere', d: toPath(M.sphere[0]) }, s);
+      svg('path', { class: 'map-land', d: M.land.map(toPath).join('') }, s);
+      const maxA = M.cells[0][3];
+      const rMax = (narrow ? GEO.mapRMaxNarrow : GEO.mapRMax) / k, rMin = GEO.mapRMin / k;
+      const g = svg('g', { class: 'map-cells' }, s);
+      M.cells.forEach(c => {                        // biggest first, so small cells stay on top
+        const dot = svg('circle', { class: 'cell th' + thClass(c[4]), cx: c[0], cy: c[1],
+          r: rMin + (rMax - rMin) * Math.sqrt(c[3] / maxA) }, g);
+        dot.addEventListener('pointerenter', evt => { cellTip(c); dot.classList.add('on'); place(...local(evt)); });
+        dot.addEventListener('pointermove', evt => place(...local(evt)));
+        dot.addEventListener('pointerleave', () => { dot.classList.remove('on'); hide(); });
+      });
+      if (state.surveys) {
+        const gs = svg('g', { class: 'map-surveys' }, s);
+        M.surveys.forEach(p => svg('circle', { cx: p[0], cy: p[1], r: GEO.surveyR / k }, gs));
+      }
+    }
+
     // ---- draw ---------------------------------------------------------------
     function render() {
       const W = chart.clientWidth;
@@ -483,14 +525,33 @@
       if (scale) scale.resize(narrow);
       chips();
 
-      // legend
+      // legend and unit line, per view
+      const isMap = state.view === 'map' && M;
       legend.innerHTML = '';
-      [['loss', C.legend.loss], ['gain', C.legend.gain], [cum ? 'band' : 'whisk', C.legend.band]]
-        .forEach(([c, label]) => {
-          const k = node('span', 'mgl-key', null, legend);
-          node('span', 'mgl-swatch ' + c, null, k);
-          k.appendChild(document.createTextNode(label));
+      if (isMap) {
+        node('span', 'mgl-key-title', C.map.legendTitle, legend);
+        C.map.classes.forEach((k, i) => {
+          const el = node('span', 'mgl-key', null, legend);
+          node('span', 'mgl-swatch dot th' + i, null, el);
+          el.appendChild(document.createTextNode(k.label));
         });
+        const t = node('button', 'mgl-chip mgl-layer', null, legend);     // GlaThiDa on/off
+        t.type = 'button';
+        t.setAttribute('aria-pressed', String(state.surveys));
+        node('span', 'mgl-swatch survey', null, t);
+        t.appendChild(document.createTextNode(C.map.surveys));
+        t.addEventListener('click', () => { state.surveys = !state.surveys; render(); });
+        unitEl.textContent = fill(C.map.unit, { deg: M.cellDeg, n: fmt(M.totals.glaciers, 0),
+          area: fmt(M.totals.areaKm2, 0) });
+      } else {
+        [['loss', C.legend.loss], ['gain', C.legend.gain], [cum ? 'band' : 'whisk', C.legend.band]]
+          .forEach(([c, label]) => {
+            const k = node('span', 'mgl-key', null, legend);
+            node('span', 'mgl-swatch ' + c, null, k);
+            k.appendChild(document.createTextNode(label));
+          });
+        unitEl.textContent = C.legend.unit;
+      }
 
       // scales: years as columns, one shared x for the chart and the lanes
       const plotH = narrow ? GEO.plotHNarrow : GEO.plotH;
@@ -500,6 +561,8 @@
       const bw = cw >= 4 ? Math.min(cw - GEO.gap, GEO.brickMaxW) : Math.max(cw - 0.6, 1);
       const rx = Math.min(1.5, bw / 3);
 
+      if (isMap) drawMap(W, narrow);
+      else {
       // y domain per view, padded to round values
       let top, bot, step;
       if (cum) {
@@ -632,6 +695,8 @@
         const t = svg('text', { x: x(yr), y: plotBot + 17, 'text-anchor': 'middle' }, ax);
         t.textContent = yr;
       }
+
+      }   // end of the chart views
 
       // ---- region lanes: cumulative thinning, one shared m w.e. scale -------
       ls.innerHTML = '';
