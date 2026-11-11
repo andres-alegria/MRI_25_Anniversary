@@ -170,6 +170,7 @@
 .mgl .cell.on    { stroke: var(--mgl-text); stroke-width: 1.5; }
 .mgl-swatch.dot    { border-radius: 50%; }
 .mgl-key-title     { color: var(--mgl-text); }
+.mgl.is-map .mgl-head .mgl-unit { max-width: none; }   /* no cube beside it on the map: the line can run the full width */
 .mgl-legend .mgl-modes .mgl-chip { font-size: 12px; padding: 5px 10px; }   /* adjust mode-switch size here */
 .mgl svg.is-pannable { cursor: grab; }
 .mgl svg.is-panning  { cursor: grabbing; }

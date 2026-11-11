@@ -585,6 +585,7 @@
       // legend and unit line, per view
       const isMap = state.view === 'map' && M;
       scaleBox.style.display = isMap ? 'none' : '';               // the 1 Gt cube belongs to the charts
+      wrap.classList.toggle('is-map', !!isMap);
       if (zoomBox) { zoomBox.remove(); zoomBox = null; }
       s.ondblclick = s.onpointerdown = s.onpointermove = s.onpointerup = s.onpointercancel = null;   // map-only gestures
       s.classList.remove('is-pannable', 'is-panning');
