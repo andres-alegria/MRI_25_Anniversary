@@ -753,6 +753,12 @@ BRAND_RESTYLE = [
 
 BRAND_STYLE = """<style id="mri-brand">
 __THEMES__
+  /* The page arrives as an unrendered <x-dc> template, raw {{ }} placeholders
+     and all, and the component swaps it for the live page in #dc-root a
+     moment later. Until then the template must not show: on a fresh visit it
+     flashed the story drawer full of {{ open.title }}. Its own <style>s still
+     apply while hidden, and the template is removed once the page renders. */
+  x-dc { display: none !important; }
   /* Grain and contour overlay the finished page rather than sitting behind it.
      Behind would mean giving every top-level child a stacking context, and the
      bundle positions those itself — safer to lay the texture on top at a low
